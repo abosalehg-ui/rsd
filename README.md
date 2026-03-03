@@ -29,6 +29,20 @@
 
 ---
 
+---
+
+## 📸 لقطات الشاشة | Screenshots
+
+<div align="center">
+
+| الواجهة الرئيسية | الخريطة والأحداث |
+|:---:|:---:|
+| ![الواجهة الرئيسية](assets/screenshots/rsd1.png) | ![الخريطة والأحداث](assets/screenshots/rsd2.png) |
+
+</div>
+
+---
+
 ## ✨ الميزات | Features
 
 | الميزة | الوصف |
