@@ -1,0 +1,122 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== رصد - الأنماط الأساسية ===== */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #1e293b #0a0e17;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #0a0e17; }
+::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #334155; }
+
+body {
+  background: #0a0e17;
+  overflow: hidden;
+}
+
+/* خريطة مظلمة */
+.leaflet-container {
+  background: #0a0e17 !important;
+  font-family: 'Tajawal', sans-serif;
+}
+
+.leaflet-tile-pane {
+  opacity: 1;
+}
+
+.leaflet-control-zoom a {
+  background: #111827 !important;
+  color: #22d3ee !important;
+  border-color: #1e293b !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background: #111827 !important;
+  color: white !important;
+  border: 1px solid #1e293b;
+  border-radius: 8px !important;
+  direction: rtl;
+}
+
+.leaflet-popup-tip {
+  background: #111827 !important;
+}
+
+/* علامات الخريطة */
+.event-marker {
+  border-radius: 50%;
+  border: 2px solid;
+  animation: marker-pulse 2s ease-in-out infinite;
+}
+
+.event-marker.critical {
+  animation: marker-critical 1s ease-in-out infinite;
+}
+
+@keyframes marker-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.2); opacity: 0.6; }
+}
+
+@keyframes marker-critical {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  50% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+}
+
+/* شريط الأخبار */
+.news-ticker {
+  animation: ticker-scroll 30s linear infinite;
+}
+
+@keyframes ticker-scroll {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
+/* علامة الطائرة */
+.flight-icon {
+  transition: transform 0.5s ease;
+}
+
+/* تأثيرات التحميل */
+.shimmer {
+  background: linear-gradient(90deg, #111827 25%, #1e293b 50%, #111827 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* شبكة لوحة التحكم */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  grid-template-rows: auto 1fr auto;
+  height: 100vh;
+  gap: 1px;
+  background: #1e293b;
+}
+
+.panel {
+  background: #111827;
+  border: 1px solid #1e293b;
+}
+
+/* مؤشر التصعيد */
+.escalation-gauge {
+  background: conic-gradient(
+    from 180deg,
+    #10b981 0deg,
+    #f59e0b 120deg,
+    #ef4444 240deg,
+    #ef4444 360deg
+  );
+}
