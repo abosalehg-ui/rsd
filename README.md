@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🛰️ رصد (Rasad) v1.0
+# 🛰️ رصد (Rsd) v1.0
 
 ### منصة استخبارات المصادر المفتوحة للشرق الأوسط
 **Open Source Intelligence (OSINT) Dashboard for the Middle East**
@@ -329,7 +329,7 @@ BACKEND_PORT=8000
 
 **رصد** 🛰️ - صُنع بـ ❤️ للمعرفة والتوثيق
 
-**Rasad** - Made with ❤️ for Knowledge and Documentation
+**Rsd** - Made with ❤️ for Knowledge and Documentation
 
 ---
 
