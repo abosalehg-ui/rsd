@@ -31,7 +31,7 @@ const CHANNELS = [
     id: 'bbc_arabic',
     name: 'BBC عربي',
     icon: '\u{1F534}',
-    embedUrl: 'https://www.youtube.com/embed/rJdP5Bo4kZs',
+    embedUrl: 'https://www.youtube.com/embed/O1pGmVtj2Y8',
   },
 ];
 
