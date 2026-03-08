@@ -1,19 +1,10 @@
 /**
- * رصد - درج البث المباشر للقنوات الإخبارية
- * تلفاز صغير ينزلق من يمين الشاشة
+ * رصد - نافذة البث المباشر العائمة
+ * قابلة للسحب بالماوس من الشريط العلوي
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Tv, X } from 'lucide-react';
 
-// ===== قائمة القنوات =====
-// مهم: استخدم صيغة embed فقط وليس watch
-// الصيغة الصحيحة: https://www.youtube.com/embed/VIDEO_ID
-// الصيغة الخاطئة: https://www.youtube.com/watch?v=VIDEO_ID
-//
-// لتحديث رابط قناة:
-// 1. افتح يوتيوب وابحث عن البث المباشر للقناة
-// 2. انسخ الـ VIDEO_ID من الرابط (الجزء بعد watch?v=)
-// 3. ضعه هنا بصيغة: https://www.youtube.com/embed/VIDEO_ID
 const CHANNELS = [
   {
     id: 'aljazeera',
@@ -38,10 +29,41 @@ const CHANNELS = [
 export default function LiveTVDrawer() {
   const [isOpen, setIsOpen] = useState(false);
   const [activeChannel, setActiveChannel] = useState(CHANNELS[0]);
+  const [position, setPosition] = useState({ x: window.innerWidth - 380, y: window.innerHeight - 380 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+  const handleMouseDown = useCallback((e) => {
+    if (e.target.closest('.drag-handle')) {
+      setIsDragging(true);
+      setDragOffset({
+        x: e.clientX - position.x,
+        y: e.clientY - position.y,
+      });
+      e.preventDefault();
+    }
+  }, [position]);
+
+  useEffect(() => {
+    if (!isDragging) return;
+    const handleMove = (e) => {
+      setPosition({
+        x: Math.max(0, Math.min(window.innerWidth - 370, e.clientX - dragOffset.x)),
+        y: Math.max(0, Math.min(window.innerHeight - 280, e.clientY - dragOffset.y)),
+      });
+    };
+    const handleUp = () => setIsDragging(false);
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+  }, [isDragging, dragOffset]);
 
   return (
     <>
-      {/* ===== زر فتح الدرج ===== */}
+      {/* ===== زر فتح النافذة ===== */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
@@ -53,18 +75,22 @@ export default function LiveTVDrawer() {
         </button>
       )}
 
-      {/* ===== نافذة التلفاز الصغيرة ===== */}
+      {/* ===== النافذة العائمة ===== */}
       <div
-        className={`fixed bottom-40 right-4 z-[9999] transition-all duration-300 ease-in-out ${
-          isOpen
-            ? 'opacity-100 scale-100 translate-x-0'
-            : 'opacity-0 scale-90 translate-x-8 pointer-events-none'
+        className={`fixed z-[9999] transition-opacity duration-300 ${
+          isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
-        style={{ width: '360px' }}
+        style={{
+          width: '360px',
+          left: `${position.x}px`,
+          top: `${position.y}px`,
+          cursor: isDragging ? 'grabbing' : 'default',
+        }}
+        onMouseDown={handleMouseDown}
       >
         <div className="bg-[#0d1117] border border-[#1e293b] rounded-xl shadow-2xl overflow-hidden">
-          {/* ===== الشريط العلوي ===== */}
-          <div className="flex items-center justify-between px-3 py-1.5 bg-[#111827] border-b border-[#1e293b]">
+          {/* ===== الشريط العلوي — منطقة السحب ===== */}
+          <div className="drag-handle flex items-center justify-between px-3 py-1.5 bg-[#111827] border-b border-[#1e293b] cursor-grab active:cursor-grabbing select-none">
             <div className="flex items-center gap-2">
               <Tv className="w-3.5 h-3.5 text-red-400" />
               <span className="text-xs font-bold text-white">{activeChannel.icon} {activeChannel.name}</span>
