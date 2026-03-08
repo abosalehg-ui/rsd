@@ -9,7 +9,7 @@ import NewsFeed from './components/NewsFeed/NewsFeed';
 import Timeline from './components/Timeline/Timeline';
 import StatsPanel from './components/Stats/StatsPanel';
 import { usePolling, useFilters } from './hooks/usePolling';
-import { MapPin, Newspaper, Clock, BarChart3 } from 'lucide-react';
+import { MapPin, Newspaper, Clock, BarChart3, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { getEvents, getMapEvents, getStats, getLiveFlights, refreshSources } from './utils/api';
 
 const TABS = [
@@ -21,6 +21,7 @@ const TABS = [
 export default function App() {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [activeTab, setActiveTab] = useState('news');
+  const [panelOpen, setPanelOpen] = useState(true);
   const { filters, updateFilter, resetFilters } = useFilters();
 
   // جلب البيانات مع تحديث تلقائي
@@ -87,7 +88,7 @@ export default function App() {
 
       {/* المحتوى الرئيسي */}
       <div className="flex-1 flex overflow-hidden">
-        {/* الخريطة - الجانب الأيسر */}
+        {/* الخريطة */}
         <div className="flex-1 relative">
           <RasadMap
             events={mapEvts}
@@ -95,49 +96,60 @@ export default function App() {
             selectedEvent={selectedEvent}
             onSelectEvent={setSelectedEvent}
           />
+
+          {/* زر طي/فتح اللوحة — داخل الخريطة على حافتها */}
+          <button
+            onClick={() => setPanelOpen(!panelOpen)}
+            className="absolute top-1/2 left-0 z-[1000] -translate-y-1/2 w-6 h-16 bg-[#111827] border border-[#1e293b] border-l-0 rounded-r-lg flex items-center justify-center text-cyan-400 hover:bg-[#1e293b]"
+            title={panelOpen ? 'طي اللوحة' : 'فتح اللوحة'}
+          >
+            {panelOpen ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+          </button>
         </div>
 
-        {/* اللوحة الجانبية - اليمين */}
-        <div className="w-[500px] flex flex-col border-r border-[#1e293b] bg-[#111827]">
-          {/* تبويبات */}
-          <div className="flex border-b border-[#1e293b]">
-            {TABS.map(tab => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm transition-colors ${
-                    activeTab === tab.id
-                      ? 'text-cyan-400 border-b-2 border-cyan-400 bg-cyan-400/5'
-                      : 'text-slate-500 hover:text-slate-300'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
+        {/* اللوحة الجانبية — تظهر/تختفي بالكامل */}
+        {panelOpen && (
+          <div className="w-[500px] flex flex-col border-r border-[#1e293b] bg-[#111827]">
+            {/* تبويبات */}
+            <div className="flex border-b border-[#1e293b]">
+              {TABS.map(tab => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm transition-colors ${
+                      activeTab === tab.id
+                        ? 'text-cyan-400 border-b-2 border-cyan-400 bg-cyan-400/5'
+                        : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
 
-          {/* محتوى التبويب */}
-          <div className="flex-1 overflow-hidden">
-            {activeTab === 'news' && (
-              <NewsFeed
-                events={events}
-                onSelectEvent={setSelectedEvent}
-                filters={filters}
-                onFilterChange={updateFilter}
-              />
-            )}
-            {activeTab === 'timeline' && (
-              <Timeline events={events} onSelectEvent={setSelectedEvent} />
-            )}
-            {activeTab === 'stats' && (
-              <StatsPanel stats={stats} />
-            )}
+            {/* محتوى التبويب */}
+            <div className="flex-1 overflow-hidden">
+              {activeTab === 'news' && (
+                <NewsFeed
+                  events={events}
+                  onSelectEvent={setSelectedEvent}
+                  filters={filters}
+                  onFilterChange={updateFilter}
+                />
+              )}
+              {activeTab === 'timeline' && (
+                <Timeline events={events} onSelectEvent={setSelectedEvent} />
+              )}
+              {activeTab === 'stats' && (
+                <StatsPanel stats={stats} />
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <LiveTVDrawer />
