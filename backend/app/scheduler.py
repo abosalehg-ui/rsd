@@ -9,6 +9,7 @@ from .collectors import (
     collect_rss_feeds,
     collect_ucdp_events,
     collect_flights,
+    collect_iran_osint,
 )
 
 logger = logging.getLogger("rasad.scheduler")
@@ -72,6 +73,17 @@ def start_scheduler():
         id="adsb_collector",
         name="متتبع الطيران",
               max_instances=1,
+        next_run_time=datetime.now(),
+    )
+
+    # Iran OSINT - كل 30 دقيقة (مثل iranstrikemap)
+    scheduler.add_job(
+        collect_iran_osint,
+        "interval",
+        seconds=1800,
+        id="iran_osint_collector",
+        name="جامع إيران OSINT",
+        max_instances=1,
         next_run_time=datetime.now(),
     )
 

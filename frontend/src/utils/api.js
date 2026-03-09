@@ -40,3 +40,8 @@ export const getMilitaryStats = (hours = 24) => fetchAPI('/flights/military/stat
 export const getHealth = () => fetchAPI('/health');
 export const getSources = () => fetchAPI('/sources');
 export const refreshSources = () => postAPI('/refresh');
+
+// Iran OSINT
+export const getIranStrikes = (params = {}) => fetchAPI('/iran/strikes', params);
+export const getIranLeaders = (hours = 72) => fetchAPI('/iran/leaders', { hours });
+export const getIranStats = (hours = 72) => fetchAPI('/iran/stats', { hours });

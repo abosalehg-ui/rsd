@@ -4,7 +4,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { CATEGORIES, SEVERITIES, timeAgo, COUNTRIES } from '../../utils/constants';
+import { CATEGORIES, SEVERITIES, timeAgo, COUNTRIES, CONFIDENCE, IRAN_EVENT_TYPES } from '../../utils/constants';
 import { Layers, ZoomIn, ZoomOut, Crosshair } from 'lucide-react';
 
 const ME_CENTER = [29.0, 42.0];
@@ -29,15 +29,17 @@ function clusterEvents(events, zoom) {
   }));
 }
 
-export default function RasadMap({ events = [], flights = null, selectedEvent, onSelectEvent }) {
+export default function RasadMap({ events = [], flights = null, iranStrikes = [], selectedEvent, onSelectEvent }) {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const markersRef = useRef(null);
   const flightsRef = useRef(null);
+  const iranRef = useRef(null);
   const [showFlights, setShowFlights] = useState(true);
   const [showEvents, setShowEvents] = useState(true);
+  const [showIran, setShowIran] = useState(true);
   const [ready, setReady] = useState(false);
-const [zoomLevel, setZoomLevel] = useState(ME_ZOOM);
+  const [zoomLevel, setZoomLevel] = useState(ME_ZOOM);
 
   useEffect(() => {
     if (mapInstance.current || !mapRef.current) return;
@@ -50,6 +52,7 @@ const [zoomLevel, setZoomLevel] = useState(ME_ZOOM);
     }).addTo(map);
     markersRef.current = L.layerGroup().addTo(map);
     flightsRef.current = L.layerGroup().addTo(map);
+    iranRef.current = L.layerGroup().addTo(map);
     mapInstance.current = map;
     setReady(true);
     map.on('zoomend', () => setZoomLevel(map.getZoom()));
@@ -176,6 +179,68 @@ const [zoomLevel, setZoomLevel] = useState(ME_ZOOM);
     });
   }, [flights, showFlights, ready]);
 
+  // طبقة أحداث إيران OSINT
+  useEffect(() => {
+    if (!ready || !iranRef.current) return;
+    iranRef.current.clearLayers();
+    if (!showIran) return;
+
+    iranStrikes.forEach(strike => {
+      if (!strike.latitude || !strike.longitude) return;
+      const conf = CONFIDENCE[strike.confidence] || CONFIDENCE.LOW;
+      const evType = IRAN_EVENT_TYPES[strike.event_type] || IRAN_EVENT_TYPES.strike;
+      const sz = strike.confidence === 'HIGH' ? 18 : strike.confidence === 'MEDIUM' ? 14 : 10;
+
+      const icon = L.divIcon({
+        className: '',
+        iconSize: [sz + 8, sz + 8],
+        iconAnchor: [(sz + 8) / 2, (sz + 8) / 2],
+        html: `<div style="
+          width:${sz}px;height:${sz}px;
+          background:${evType.color}30;
+          border:2px solid ${evType.color};
+          border-radius:50%;
+          display:flex;align-items:center;justify-content:center;
+          font-size:${sz - 4}px;
+          box-shadow:0 0 ${sz}px ${conf.color}80;
+          position:relative;
+        ">
+          ${evType.icon}
+          <div style="
+            position:absolute;bottom:-4px;right:-4px;
+            width:8px;height:8px;
+            border-radius:50%;
+            background:${conf.color};
+            border:1px solid #000;
+          "></div>
+        </div>`,
+      });
+
+      const m = L.marker([strike.latitude, strike.longitude], { icon }).bindPopup(`
+        <div style="min-width:240px;font-family:Tajawal,sans-serif;direction:rtl">
+          <div style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap">
+            <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${conf.color}20;color:${conf.color};border:1px solid ${conf.color}40">
+              ${conf.icon} ${conf.label}
+            </span>
+            <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${evType.color}20;color:${evType.color}">
+              ${evType.icon} ${evType.label}
+            </span>
+            ${strike.video_url ? `<a href="${strike.video_url}" target="_blank" style="font-size:10px;padding:2px 6px;border-radius:4px;background:#7c3aed20;color:#a78bfa">🎥 فيديو OSINT</a>` : ''}
+          </div>
+          <h3 style="font-size:12px;font-weight:700;margin-bottom:4px;line-height:1.5">${strike.title}</h3>
+          <p style="font-size:10px;color:#94a3b8;margin-bottom:6px">${(strike.description || '').substring(0, 120)}</p>
+          <div style="font-size:9px;color:#64748b;display:flex;justify-content:space-between">
+            <span>📍 ${strike.location_name || strike.country}</span>
+            <span>${strike.feed_name || ''}</span>
+          </div>
+          ${strike.url ? `<a href="${strike.url}" target="_blank" style="display:block;margin-top:6px;font-size:10px;color:#22d3ee">المصدر ←</a>` : ''}
+        </div>`, { maxWidth: 300 });
+
+      m.on('click', () => onSelectEvent?.(strike));
+      iranRef.current.addLayer(m);
+    });
+  }, [iranStrikes, showIran, ready]);
+
   useEffect(() => {
     if (selectedEvent?.latitude && mapInstance.current) {
       mapInstance.current.flyTo([selectedEvent.latitude, selectedEvent.longitude], 8, { duration: 1 });
@@ -196,7 +261,7 @@ const [zoomLevel, setZoomLevel] = useState(ME_ZOOM);
       </div>
       <div className="absolute bottom-3 left-3 z-[1000] bg-[#111827]/95 border border-[#1e293b] rounded-lg p-3 text-sm">
         <div className="flex items-center gap-2 mb-2"><Layers className="w-4 h-4 text-slate-400" /><span className="text-slate-400 font-medium">طبقات</span></div>
-        {[['الأحداث', showEvents, setShowEvents, 'cyan'], ['الطيران', showFlights, setShowFlights, 'purple']].map(([l, v, fn, c]) => (
+        {[['الأحداث', showEvents, setShowEvents, 'cyan'], ['الطيران', showFlights, setShowFlights, 'purple'], ['🇮🇷 إيران OSINT', showIran, setShowIran, 'red']].map(([l, v, fn, c]) => (
           <label key={l} className="flex items-center gap-2 cursor-pointer mb-1">
             <input type="checkbox" checked={v} onChange={e => fn(e.target.checked)} className={`w-4 h-4 accent-${c}-400`} />
             <span className="text-slate-300">{l}</span>

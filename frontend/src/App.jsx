@@ -8,14 +8,16 @@ import RasadMap from './components/Map/RasadMap';
 import NewsFeed from './components/NewsFeed/NewsFeed';
 import Timeline from './components/Timeline/Timeline';
 import StatsPanel from './components/Stats/StatsPanel';
+import IranPanel from './components/Iran/IranPanel';
 import { usePolling, useFilters } from './hooks/usePolling';
-import { MapPin, Newspaper, Clock, BarChart3, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
-import { getEvents, getMapEvents, getStats, getLiveFlights, refreshSources } from './utils/api';
+import { MapPin, Newspaper, Clock, BarChart3, PanelLeftClose, PanelLeftOpen, Crosshair } from 'lucide-react';
+import { getEvents, getMapEvents, getStats, getLiveFlights, refreshSources, getIranStrikes } from './utils/api';
 
 const TABS = [
   { id: 'news', label: 'الأحداث', icon: Newspaper },
   { id: 'timeline', label: 'الخط الزمني', icon: Clock },
   { id: 'stats', label: 'إحصائيات', icon: BarChart3 },
+  { id: 'iran', label: '🇮🇷 إيران', icon: Crosshair },
 ];
 
 export default function App() {
@@ -40,12 +42,18 @@ export default function App() {
     60000
   );
 
-  const { data: flights } = usePolling(
+const { data: flights } = usePolling(
     useCallback(() => getLiveFlights(), []),
     30000
   );
 
+  const { data: iranData } = usePolling(
+    useCallback(() => getIranStrikes({ hours: 72, limit: 100 }), []),
+    1800000  // كل 30 دقيقة مثل iranstrikemap
+  );
+
   const events = useMemo(() => eventsData?.events || [], [eventsData]);
+  const iranStrikes = useMemo(() => iranData?.strikes || [], [iranData]);
   const mapEvts = useMemo(() => mapEvents || [], [mapEvents]);
 
   const [refreshing, setRefreshing] = useState(false);
@@ -93,6 +101,7 @@ export default function App() {
           <RasadMap
             events={mapEvts}
             flights={flights}
+            iranStrikes={iranStrikes}
             selectedEvent={selectedEvent}
             onSelectEvent={setSelectedEvent}
           />
@@ -146,6 +155,9 @@ export default function App() {
               )}
               {activeTab === 'stats' && (
                 <StatsPanel stats={stats} />
+              )}
+              {activeTab === 'iran' && (
+                <IranPanel onSelectStrike={setSelectedEvent} />
               )}
             </div>
           </div>

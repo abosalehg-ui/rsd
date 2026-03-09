@@ -17,12 +17,14 @@ from .config import get_settings
 from .models.database import init_db
 from .api.events import router as events_router
 from .api.flights import router as flights_router
+from .api.iran import router as iran_router
 from .scheduler import start_scheduler, stop_scheduler
 from .collectors import (
     collect_gdelt_events,
     collect_news,
     collect_rss_feeds,
     collect_ucdp_events,
+    collect_iran_osint,
 )
 
 # إعداد السجل
@@ -52,9 +54,10 @@ async def lifespan(app: FastAPI):
             collect_news(),
             collect_rss_feeds(),
             collect_ucdp_events(),
+            collect_iran_osint(),
             return_exceptions=True,
         )
-        for i, name in enumerate(["GDELT", "NewsAPI", "RSS", "UCDP"]):
+        for i, name in enumerate(["GDELT", "NewsAPI", "RSS", "UCDP", "Iran OSINT"]):
             if isinstance(results[i], Exception):
                 logger.warning(f"⚠️ {name}: {results[i]}")
             else:
@@ -93,6 +96,7 @@ app.add_middleware(
 # تسجيل نقاط API
 app.include_router(events_router)
 app.include_router(flights_router)
+app.include_router(iran_router)
 
 
 @app.get("/api/health")
@@ -116,10 +120,11 @@ async def manual_refresh():
         collect_news(),
         collect_rss_feeds(),
         collect_ucdp_events(),
+        collect_iran_osint(),
         return_exceptions=True,
     )
     
-    sources = ["gdelt", "newsapi", "rss", "ucdp"]
+    sources = ["gdelt", "newsapi", "rss", "ucdp", "iran_osint"]
     summary = {}
     total = 0
     

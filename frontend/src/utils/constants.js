@@ -50,3 +50,19 @@ export function formatNumber(num) {
   if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
   return num?.toString() || '0';
 }
+
+// Iran OSINT - تصنيف الثقة
+export const CONFIDENCE = {
+  HIGH:   { label: 'موثوق',    color: '#22c55e', icon: '🟢', bg: 'bg-green-500/20',  text: 'text-green-400' },
+  MEDIUM: { label: 'متوسط',   color: '#eab308', icon: '🟡', bg: 'bg-yellow-500/20', text: 'text-yellow-400' },
+  LOW:    { label: 'غير مؤكد', color: '#3b82f6', icon: '🔵', bg: 'bg-blue-500/20',   text: 'text-blue-400' },
+};
+
+// أنواع أحداث إيران
+export const IRAN_EVENT_TYPES = {
+  strike:     { label: 'ضربة',         icon: '💥', color: '#ef4444' },
+  launch:     { label: 'إطلاق صاروخ', icon: '🚀', color: '#f97316' },
+  movement:   { label: 'تحرك عسكري',  icon: '🪖', color: '#8b5cf6' },
+  nuclear:    { label: 'نووي',         icon: '☢️', color: '#eab308' },
+  diplomatic: { label: 'دبلوماسي',    icon: '🤝', color: '#3b82f6' },
+};

@@ -40,6 +40,10 @@ class Event(Base):
     # بيانات إضافية (JSON string)
     extra_data = Column(Text)
 
+    # Iran OSINT additions
+    confidence = Column(String(10), default="LOW")   # HIGH, MEDIUM, LOW
+    video_url = Column(Text)                          # رابط فيديو OSINT
+
     __table_args__ = (
         Index("idx_events_date", "event_date"),
         Index("idx_events_category", "category"),
@@ -78,6 +82,23 @@ class FlightTrack(Base):
         Index("idx_flight_time", "tracked_at"),
     )
 
+
+class IranianLeaderNews(Base):
+    """أخبار القادة الإيرانيين"""
+    __tablename__ = "iranian_leader_news"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    leader_id = Column(Integer, nullable=False)
+    leader_name = Column(String(100))
+    title = Column(Text)
+    url = Column(Text)
+    news_date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    collected_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        Index("idx_leader_news_id", "leader_id"),
+        Index("idx_leader_news_date", "news_date"),
+    )
 
 # إعداد محرك قاعدة البيانات
 _engine = None
