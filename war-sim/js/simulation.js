@@ -53,15 +53,25 @@ function updatePlayBtn(isPlaying) {
   const sc = scenarios[selectedScenario] || { color: '#F59E0B' };
   if (isPlaying) {
     btn.innerHTML = '⏸ إيقاف المحاكاة';
+    btn.classList.add('playing');
     btn.style.background = sc.color;
-    btn.style.color = 'var(--deep)';
+    btn.style.color = '#020408';
     btn.style.borderColor = sc.color;
   } else {
     btn.innerHTML = '▶ تشغيل المحاكاة';
-    btn.style.background = 'transparent';
+    btn.classList.remove('playing');
+    btn.style.background = 'rgba(' + hexToRgb(sc.color) + ', 0.1)';
     btn.style.color = sc.color;
     btn.style.borderColor = sc.color;
   }
+}
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return r+','+g+','+b;
+}
 }
 
 function selectScenario(i) {
