@@ -142,7 +142,18 @@ body::before{
   font-family:'Noto Kufi Arabic',sans-serif;transition:all .2s;
 }
 .btn:active{transform:scale(.96)}
-.btn-play{border:2px solid;background:transparent}
+.btn-play{
+  border:2px solid #f59e0b;
+  background:rgba(245,158,11,.1);
+  color:#f59e0b;
+  font-size:14px;
+  letter-spacing:1px;
+}
+.btn-play.playing{
+  background:#f59e0b;
+  color:#020408;
+  border-color:#f59e0b;
+}
 .btn-reset{background:var(--surface);border:2px solid var(--bdr2);color:var(--t2)}
 .btn-reset:active{background:var(--card)}
 
