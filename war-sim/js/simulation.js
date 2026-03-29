@@ -67,11 +67,14 @@ function updatePlayBtn(isPlaying) {
 }
 
 function hexToRgb(hex) {
-  const r = parseInt(hex.slice(1,3),16);
-  const g = parseInt(hex.slice(3,5),16);
-  const b = parseInt(hex.slice(5,7),16);
-  return r+','+g+','+b;
-}
+  try {
+    if (!hex || typeof hex !== 'string' || !hex.startsWith('#')) return '245,158,11';
+    const r = parseInt(hex.slice(1,3),16);
+    const g = parseInt(hex.slice(3,5),16);
+    const b = parseInt(hex.slice(5,7),16);
+    if (isNaN(r) || isNaN(g) || isNaN(b)) return '245,158,11';
+    return r+','+g+','+b;
+  } catch { return '245,158,11'; }
 }
 
 function selectScenario(i) {
@@ -89,26 +92,28 @@ function selectScenario(i) {
 }
 
 function togglePlay() {
-  if (playing) {
-    playing = false;
-    clearInterval(playInt);
-    updatePlayBtn(false);
-  } else {
-    playing = true;
-    updatePlayBtn(true);
-    playInt = setInterval(() => {
-      simDay++;
-      if (simDay > 200) {
-        simDay = 200;
-        playing = false;
-        clearInterval(playInt);
-        updatePlayBtn(false);
-      }
-      const slider = document.getElementById('simSlider');
-      if (slider) slider.value = simDay;
-      updateSimProjections();
-    }, 150);
-  }
+  try {
+    if (playing) {
+      playing = false;
+      clearInterval(playInt);
+      updatePlayBtn(false);
+    } else {
+      playing = true;
+      updatePlayBtn(true);
+      playInt = setInterval(() => {
+        simDay++;
+        if (simDay > 200) {
+          simDay = 200;
+          playing = false;
+          clearInterval(playInt);
+          updatePlayBtn(false);
+        }
+        const slider = document.getElementById('simSlider');
+        if (slider) slider.value = simDay;
+        updateSimProjections();
+      }, 150);
+    }
+  } catch(e) { console.error('togglePlay error:', e); }
 }
 
 function resetSim() {
