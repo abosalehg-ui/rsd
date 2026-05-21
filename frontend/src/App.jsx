@@ -2,6 +2,7 @@
  * رصد (Rasad) v1.0 - التطبيق الرئيسي
  */
 import LiveTVDrawer from './components/Layout/LiveTVDrawer';
+import AlertSettings from './components/Layout/AlertSettings';
 import React, { useState, useCallback, useMemo } from 'react';
 import Header from './components/Layout/Header';
 import RasadMap from './components/Map/RasadMap';
@@ -10,8 +11,9 @@ import Timeline from './components/Timeline/Timeline';
 import StatsPanel from './components/Stats/StatsPanel';
 import IranPanel from './components/Iran/IranPanel';
 import { usePolling, useFilters } from './hooks/usePolling';
+import { useAudioAlert } from './hooks/useAudioAlert';
 import { MapPin, Newspaper, Clock, BarChart3, PanelLeftClose, PanelLeftOpen, Crosshair } from 'lucide-react';
-import { getEvents, getMapEvents, getStats, getLiveFlights, refreshSources, getIranStrikes } from './utils/api';
+import { getEvents, getMapEvents, getStats, getLiveFlights, refreshSources, getIranStrikes, getNuclearFacilities } from './utils/api';
 
 const TABS = [
   { id: 'news', label: 'الأحداث', icon: Newspaper },
@@ -52,9 +54,29 @@ const { data: flights } = usePolling(
     1800000  // كل 30 دقيقة مثل iranstrikemap
   );
 
+  // المنشآت النووية ☢️ — بيانات ثابتة، تكفي مرة واحدة كل ساعة
+  const { data: nuclearData } = usePolling(
+    useCallback(() => getNuclearFacilities(), []),
+    3600000
+  );
+
   const events = useMemo(() => eventsData?.events || [], [eventsData]);
   const iranStrikes = useMemo(() => iranData?.strikes || [], [iranData]);
   const mapEvts = useMemo(() => mapEvents || [], [mapEvents]);
+  const nuclearFacilities = useMemo(() => nuclearData?.facilities || [], [nuclearData]);
+
+  // 🔔 محرّك التنبيهات الصوتية — يراقب الأحداث الجديدة
+  const {
+    prefs: alertPrefs,
+    setPrefs: setAlertPrefs,
+    lastAlertEvent,
+    recentAlerts,
+    clearRecent,
+    testSound,
+    requestDesktopPermission,
+  } = useAudioAlert(events);
+
+  const [alertsOpen, setAlertsOpen] = useState(false);
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -74,7 +96,16 @@ const { data: flights } = usePolling(
   return (
     <div className="h-screen w-screen flex flex-col bg-[#0a0e17] text-white font-arabic overflow-hidden">
       {/* الشريط العلوي */}
-      <Header stats={stats} isConnected={true} onRefresh={handleRefresh} refreshing={refreshing} />
+      <Header
+        stats={stats}
+        isConnected={true}
+        onRefresh={handleRefresh}
+        refreshing={refreshing}
+        alertsEnabled={alertPrefs.enabled}
+        lastAlertEvent={lastAlertEvent}
+        recentAlertCount={recentAlerts.length}
+        onOpenAlerts={() => setAlertsOpen(true)}
+      />
 
       {/* شريط الأخبار العاجلة */}
       {events.length > 0 && (
@@ -102,6 +133,7 @@ const { data: flights } = usePolling(
             events={mapEvts}
             flights={flights}
             iranStrikes={iranStrikes}
+            nuclearFacilities={nuclearFacilities}
             selectedEvent={selectedEvent}
             onSelectEvent={setSelectedEvent}
           />
@@ -165,6 +197,18 @@ const { data: flights } = usePolling(
       </div>
 
       <LiveTVDrawer />
+
+      <AlertSettings
+        isOpen={alertsOpen}
+        onClose={() => setAlertsOpen(false)}
+        prefs={alertPrefs}
+        setPrefs={setAlertPrefs}
+        recentAlerts={recentAlerts}
+        clearRecent={clearRecent}
+        testSound={testSound}
+        requestDesktopPermission={requestDesktopPermission}
+        onSelectAlert={setSelectedEvent}
+      />
     </div>
   );
 }
