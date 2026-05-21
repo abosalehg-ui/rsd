@@ -55,3 +55,10 @@ export const getIranStats = (hours = 72) => fetchAPI('/iran/stats', { hours });
 // Nuclear facilities ☢️
 export const getNuclearFacilities = (params = {}) => fetchAPI('/nuclear/facilities', params);
 export const getNuclearStats = () => fetchAPI('/nuclear/stats');
+
+// Country Intelligence Index 📊 (v1.3)
+export const getCountryIndex = (params = {}) => fetchAPI('/events/country-index', params);
+
+// Infrastructure (military bases + pipelines) 🗺️ (v1.3)
+export const getMilitaryBases = (params = {}) => fetchAPI('/infrastructure/bases', params);
+export const getPipelines = (params = {}) => fetchAPI('/infrastructure/pipelines', params);

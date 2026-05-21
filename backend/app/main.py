@@ -19,6 +19,7 @@ from .api.events import router as events_router
 from .api.flights import router as flights_router
 from .api.iran import router as iran_router
 from .api.nuclear import router as nuclear_router
+from .api.infrastructure import router as infrastructure_router
 from .scheduler import start_scheduler, stop_scheduler
 from .collectors import (
     collect_gdelt_events,
@@ -99,6 +100,7 @@ app.include_router(events_router)
 app.include_router(flights_router)
 app.include_router(iran_router)
 app.include_router(nuclear_router)
+app.include_router(infrastructure_router)
 
 
 @app.get("/api/health")

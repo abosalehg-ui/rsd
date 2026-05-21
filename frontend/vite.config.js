@@ -20,5 +20,15 @@ export default defineConfig({
   build: {
     sourcemap: false,
     chunkSizeWarningLimit: 1500,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          three: ['three', 'globe.gl'],
+          leaflet: ['leaflet', 'react-leaflet'],
+          recharts: ['recharts'],
+          i18n: ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
+        },
+      },
+    },
   },
 })

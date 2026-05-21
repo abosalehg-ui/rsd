@@ -1,0 +1,30 @@
+{
+  "_meta": {
+    "description": "Curated list of major military bases in/around the Middle East",
+    "sources": ["Public OSINT", "Wikipedia", "news media"],
+    "license": "Factual data — not copyrightable",
+    "last_updated": "2026-05",
+    "disclaimer": "Approximate coordinates from public sources — not for operational use"
+  },
+  "bases": [
+    {"id": "us-al-udeid", "name_ar": "قاعدة العديد الجوية", "name_en": "Al Udeid Air Base", "country": "Qatar", "country_code": "QA", "operator": "US/UK", "type": "air", "latitude": 25.117, "longitude": 51.315, "notes": "أكبر قاعدة جوية أمريكية في الشرق الأوسط — مقر CENTCOM المتقدم"},
+    {"id": "us-al-dhafra", "name_ar": "قاعدة الظفرة الجوية", "name_en": "Al Dhafra Air Base", "country": "United Arab Emirates", "country_code": "AE", "operator": "US/UAE", "type": "air", "latitude": 24.248, "longitude": 54.547, "notes": "F-35, F-22 — وحدة استطلاع استراتيجي"},
+    {"id": "us-bahrain-naval", "name_ar": "قاعدة الدعم البحري - البحرين", "name_en": "Naval Support Activity Bahrain", "country": "Bahrain", "country_code": "BH", "operator": "US", "type": "naval", "latitude": 26.211, "longitude": 50.609, "notes": "مقر الأسطول الخامس الأمريكي"},
+    {"id": "us-camp-arifjan", "name_ar": "معسكر عريفجان", "name_en": "Camp Arifjan", "country": "Kuwait", "country_code": "KW", "operator": "US", "type": "ground", "latitude": 28.851, "longitude": 48.155, "notes": "قاعدة لوجستية رئيسية"},
+    {"id": "us-prince-sultan", "name_ar": "قاعدة الأمير سلطان الجوية", "name_en": "Prince Sultan Air Base", "country": "Saudi Arabia", "country_code": "SA", "operator": "US/Saudi", "type": "air", "latitude": 24.062, "longitude": 47.581, "notes": "وحدة إف-22 وباتريوت — أُعيد التوسع 2019"},
+    {"id": "us-al-asad", "name_ar": "قاعدة عين الأسد الجوية", "name_en": "Al Asad Airbase", "country": "Iraq", "country_code": "IQ", "operator": "US/Iraq", "type": "air", "latitude": 33.785, "longitude": 42.441, "notes": "تعرضت لهجمات صاروخية إيرانية 2020"},
+    {"id": "us-erbil", "name_ar": "قاعدة أربيل الجوية", "name_en": "Erbil Air Base", "country": "Iraq", "country_code": "IQ", "operator": "US/Coalition", "type": "air", "latitude": 36.237, "longitude": 43.963, "notes": "في إقليم كردستان العراق"},
+    {"id": "us-incirlik", "name_ar": "قاعدة إنجرليك الجوية", "name_en": "Incirlik Air Base", "country": "Turkey", "country_code": "TR", "operator": "US/Turkey/NATO", "type": "air", "latitude": 37.002, "longitude": 35.426, "notes": "تستضيف أسلحة نووية أمريكية تكتيكية (B61)"},
+    {"id": "uk-akrotiri", "name_ar": "قاعدة أكروتيري الجوية", "name_en": "RAF Akrotiri", "country": "Cyprus", "country_code": "CY", "operator": "UK", "type": "air", "latitude": 34.591, "longitude": 32.988, "notes": "قاعدة بريطانية سيادية — تستخدم لعمليات شرق أوسطية"},
+    {"id": "il-hatzerim", "name_ar": "قاعدة حتسريم الجوية", "name_en": "Hatzerim Airbase", "country": "Israel", "country_code": "IL", "operator": "IAF", "type": "air", "latitude": 31.231, "longitude": 34.663, "notes": "F-15I, F-35 + أكاديمية الطيران"},
+    {"id": "il-nevatim", "name_ar": "قاعدة نباطيم الجوية", "name_en": "Nevatim Airbase", "country": "Israel", "country_code": "IL", "operator": "IAF", "type": "air", "latitude": 31.207, "longitude": 35.011, "notes": "قاعدة F-35I الرئيسية — استُهدفت إيرانياً 2024"},
+    {"id": "il-tel-nof", "name_ar": "قاعدة تل نوف الجوية", "name_en": "Tel Nof Airbase", "country": "Israel", "country_code": "IL", "operator": "IAF", "type": "air", "latitude": 31.838, "longitude": 34.821},
+    {"id": "il-palmachim", "name_ar": "قاعدة بالماخيم", "name_en": "Palmachim Airbase", "country": "Israel", "country_code": "IL", "operator": "IAF", "type": "air", "latitude": 31.898, "longitude": 34.69, "notes": "إطلاق صواريخ + UAV + تجارب فضائية"},
+    {"id": "ru-khmeimim", "name_ar": "قاعدة حميميم الجوية", "name_en": "Khmeimim Air Base", "country": "Syria", "country_code": "SY", "operator": "Russia", "type": "air", "latitude": 35.401, "longitude": 35.948, "notes": "أكبر قاعدة روسية في سوريا"},
+    {"id": "ru-tartus", "name_ar": "ميناء طرطوس البحري", "name_en": "Tartus Naval Base", "country": "Syria", "country_code": "SY", "operator": "Russia", "type": "naval", "latitude": 34.895, "longitude": 35.872, "notes": "منشأة الدعم البحري الروسية الوحيدة في المتوسط"},
+    {"id": "ir-hamedan", "name_ar": "قاعدة همدان الجوية التكتيكية", "name_en": "Hamedan TAB (Nojeh / Shahrokhi)", "country": "Iran", "country_code": "IR", "operator": "IRIAF", "type": "air", "latitude": 35.213, "longitude": 48.654, "notes": "F-14 Tomcat — استضافت قاذفات روسية 2016"},
+    {"id": "ir-bandar-abbas", "name_ar": "قاعدة بندر عباس البحرية", "name_en": "Bandar Abbas Naval Base", "country": "Iran", "country_code": "IR", "operator": "IRGCN/IRIN", "type": "naval", "latitude": 27.218, "longitude": 56.378, "notes": "تحرس مضيق هرمز"},
+    {"id": "tr-konya", "name_ar": "قاعدة قونية الجوية", "name_en": "Konya Air Base", "country": "Turkey", "country_code": "TR", "operator": "Turkey/NATO", "type": "air", "latitude": 37.979, "longitude": 32.562, "notes": "محطة AWACS — تحالف ناتو"},
+    {"id": "fr-djibouti", "name_ar": "قاعدة فرنسية - جيبوتي", "name_en": "FFDj — French Forces in Djibouti", "country": "Djibouti", "country_code": "DJ", "operator": "France", "type": "joint", "latitude": 11.547, "longitude": 43.157, "notes": "أكبر وجود عسكري فرنسي خارج فرنسا"}
+  ]
+}
