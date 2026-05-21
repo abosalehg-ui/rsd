@@ -2,10 +2,13 @@
  * رصد - لوحة الإحصائيات
  */
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { CATEGORIES, COUNTRIES, formatNumber } from '../../utils/constants';
 import { BarChart3, TrendingUp, Globe, AlertTriangle } from 'lucide-react';
+import CountryIndex from './CountryIndex';
 
-export default function StatsPanel({ stats }) {
+export default function StatsPanel({ stats, countryIndex }) {
+  const { t } = useTranslation();
   if (!stats) return <div className="shimmer h-full" />;
 
   const escalation = stats.escalation_index || 0;
@@ -39,11 +42,14 @@ export default function StatsPanel({ stats }) {
         </div>
       </div>
 
+      {/* مؤشر استخبارات الدول (v1.3) */}
+      <CountryIndex data={countryIndex} />
+
       {/* التوزيع حسب التصنيف */}
       <div className="bg-[#0d1117] rounded-lg border border-[#1e293b] p-3">
         <div className="flex items-center gap-2 mb-2">
           <BarChart3 className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="text-xs font-bold text-slate-300">حسب التصنيف</span>
+          <span className="text-xs font-bold text-slate-300">{t('stats.byCategory')}</span>
         </div>
         <div className="space-y-1.5">
           {Object.entries(CATEGORIES).map(([key, cat]) => {
@@ -67,7 +73,7 @@ export default function StatsPanel({ stats }) {
       <div className="bg-[#0d1117] rounded-lg border border-[#1e293b] p-3">
         <div className="flex items-center gap-2 mb-2">
           <Globe className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="text-xs font-bold text-slate-300">حسب الدولة</span>
+          <span className="text-xs font-bold text-slate-300">{t('stats.byCountry')}</span>
         </div>
         <div className="space-y-1">
           {(stats.countries || []).slice(0, 8).map(c => {
@@ -91,7 +97,7 @@ export default function StatsPanel({ stats }) {
       <div className="bg-[#0d1117] rounded-lg border border-[#1e293b] p-3">
         <div className="flex items-center gap-2 mb-2">
           <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="text-xs font-bold text-slate-300">المصادر</span>
+          <span className="text-xs font-bold text-slate-300">{t('stats.bySource')}</span>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {Object.entries(stats.sources || {}).map(([src, count]) => (
