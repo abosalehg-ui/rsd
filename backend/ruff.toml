@@ -1,0 +1,17 @@
+# Ruff config for رصد backend
+line-length = 120
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "W", "I"]
+ignore = [
+  "E501",  # طول السطر مغطّى أعلاه
+  "E402",  # imports بعد كود (نحتاجها في conftest لـ env vars)
+]
+
+[lint.per-file-ignores]
+"app/models/__init__.py" = ["F401"]
+"app/collectors/__init__.py" = ["F401"]
+"app/api/__init__.py" = ["F401"]
+"app/api/flights.py" = ["E712"]  # is_military == True مطلوب لـ SQLAlchemy expression
+"tests/*" = ["F401", "E712"]

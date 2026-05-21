@@ -2,11 +2,13 @@
 يجمع الأحداث من مشروع GDELT كل 15 دقيقة
 GDELT يراقب الأخبار العالمية ويحولها لأحداث مصنفة جغرافياً
 """
-import httpx
 import json
 import logging
 from datetime import datetime, timezone
-from typing import List, Dict, Optional
+from typing import Optional
+
+import httpx
+
 from ..models.database import Event, get_session_factory
 
 logger = logging.getLogger("rasad.gdelt")

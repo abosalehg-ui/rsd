@@ -45,3 +45,18 @@ Thumbs.db
 build/
 dist/
 *.tgz
+
+# ===== Test / Coverage (v1.4) =====
+coverage/
+htmlcov/
+.coverage
+.coverage.*
+frontend/coverage/
+
+# ===== PWA / Service Worker generated =====
+frontend/dev-dist/
+
+# ===== Tauri (v1.4) =====
+frontend/src-tauri/target/
+frontend/src-tauri/Cargo.lock
+frontend/src-tauri/gen/
