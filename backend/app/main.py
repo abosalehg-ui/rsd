@@ -5,29 +5,29 @@
 ║              الشرق الأوسط - لوحة تحكم شخصية                ║
 ╚══════════════════════════════════════════════════════════════╝
 """
-import logging
 import asyncio
+import logging
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from pathlib import Path
 
-from .config import get_settings
-from .models.database import init_db
 from .api.events import router as events_router
 from .api.flights import router as flights_router
+from .api.infrastructure import router as infrastructure_router
 from .api.iran import router as iran_router
 from .api.nuclear import router as nuclear_router
-from .api.infrastructure import router as infrastructure_router
-from .scheduler import start_scheduler, stop_scheduler
 from .collectors import (
     collect_gdelt_events,
+    collect_iran_osint,
     collect_news,
     collect_rss_feeds,
     collect_ucdp_events,
-    collect_iran_osint,
 )
+from .config import get_settings
+from .middleware.cache import ETagCacheMiddleware
+from .models.database import init_db
+from .scheduler import start_scheduler, stop_scheduler
 
 # إعداد السجل
 logging.basicConfig(
@@ -93,7 +93,11 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["ETag", "Cache-Control"],
 )
+
+# ETag + Cache-Control (v1.4) — يُسجَّل بعد CORS ليكون أعمق في السلسلة
+app.add_middleware(ETagCacheMiddleware)
 
 # تسجيل نقاط API
 app.include_router(events_router)
@@ -118,7 +122,7 @@ async def manual_refresh():
     """تحديث يدوي - جلب أخبار جديدة من جميع المصادر"""
     import time
     start = time.time()
-    
+
     results = await asyncio.gather(
         collect_gdelt_events(),
         collect_news(),
@@ -127,21 +131,21 @@ async def manual_refresh():
         collect_iran_osint(),
         return_exceptions=True,
     )
-    
+
     sources = ["gdelt", "newsapi", "rss", "ucdp", "iran_osint"]
     summary = {}
     total = 0
-    
+
     for i, name in enumerate(sources):
         if isinstance(results[i], Exception):
             summary[name] = {"status": "error", "message": str(results[i])}
         else:
             summary[name] = {"status": "ok", "new_events": results[i]}
             total += results[i]
-    
+
     elapsed = round(time.time() - start, 1)
     logger.info(f"🔄 تحديث يدوي: {total} خبر جديد في {elapsed} ثانية")
-    
+
     return {
         "status": "ok",
         "total_new": total,
@@ -152,20 +156,22 @@ async def manual_refresh():
 @app.get("/api/collectors/status")
 async def get_collectors_status():
     """حالة جامعي البيانات"""
-    from .models.database import Event, get_session_factory
-    from sqlalchemy import select, func
     from datetime import datetime, timedelta, timezone
-    
+
+    from sqlalchemy import func, select
+
+    from .models.database import Event, get_session_factory
+
     session_factory = get_session_factory()
     async with session_factory() as session:
         sources = ["gdelt", "newsapi", "rss", "ucdp"]
         status = {}
-        
+
         for src in sources:
             # آخر خبر من هذا المصدر
             query = select(func.max(Event.collected_at)).where(Event.source == src)
             last_collect = (await session.execute(query)).scalar()
-            
+
             # عدد الأخبار في آخر ساعة
             hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
             count_query = select(func.count(Event.id)).where(
@@ -173,13 +179,13 @@ async def get_collectors_status():
                 Event.collected_at >= hour_ago
             )
             recent_count = (await session.execute(count_query)).scalar()
-            
+
             status[src] = {
                 "last_collect": last_collect.isoformat() if last_collect else None,
                 "recent_count": recent_count,
                 "healthy": recent_count > 0
             }
-        
+
         return status
 
 @app.get("/api/sources")

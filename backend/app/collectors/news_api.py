@@ -2,13 +2,14 @@
 يجمع الأخبار من مصادر عالمية عبر NewsAPI
 """
 import hashlib
-import httpx
 import json
 import logging
 from datetime import datetime, timezone
-from typing import List
-from ..models.database import Event, get_session_factory
+
+import httpx
+
 from ..config import get_settings
+from ..models.database import Event, get_session_factory
 
 logger = logging.getLogger("rasad.newsapi")
 
