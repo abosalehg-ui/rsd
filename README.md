@@ -1,11 +1,11 @@
 <div align="center">
 
-# 🛰️ رصد (Rsd) v1.2
+# 🛰️ رصد (Rsd) v1.3
 
 ### منصة استخبارات المصادر المفتوحة للشرق الأوسط
 **Open Source Intelligence (OSINT) Dashboard for the Middle East**
 
-![Version](https://img.shields.io/badge/version-1.2.0-blue)
+![Version](https://img.shields.io/badge/version-1.3.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Docker%20%7C%20Pages-lightgrey)
 ![Python](https://img.shields.io/badge/Python-3.10+-yellow)
@@ -20,6 +20,8 @@
 <img src="https://img.shields.io/badge/🇮🇷_IRAN-متابعة_إيران_OSINT-darkred?style=for-the-badge" alt="Iran OSINT"/>
 <img src="https://img.shields.io/badge/☢️_NUCLEAR-منشآت_نووية-yellow?style=for-the-badge" alt="Nuclear"/>
 <img src="https://img.shields.io/badge/🔔_ALERTS-تنبيهات_صوتية-purple?style=for-the-badge" alt="Alerts"/>
+<img src="https://img.shields.io/badge/🌍_3D_GLOBE-كرة_أرضية-blue?style=for-the-badge" alt="3D Globe"/>
+<img src="https://img.shields.io/badge/🌐_i18n-عربي_/_English-green?style=for-the-badge" alt="i18n"/>
 
 </div>
 
@@ -99,6 +101,11 @@ npm run dev
 | ☢️ **منشآت نووية** *(جديد v1.2)* | علامات للمفاعلات ومراكز التخصيب والأبحاث في المنطقة + Popup بالتفاصيل والسعة |
 | 🔔 **تنبيهات صوتية** *(جديد v1.2)* | صوت إنذار في المتصفح عند ورود خبر هام، مع عتبة خطورة وتصنيفات قابلة للتخصيص |
 | 🚀 **نشر تلقائي** *(جديد v1.2)* | GitHub Actions workflow ينشر الواجهة إلى GitHub Pages عند كل push |
+| 🌍 **كرة أرضية 3D** *(جديد v1.3)* | عرض بديل ثلاثي الأبعاد بـ globe.gl + Three.js مع arcs للضربات |
+| 📊 **مؤشر استخبارات الدول** *(جديد v1.3)* | تقييم 0-100 لكل دولة بناءً على عدد ونوع الأحداث |
+| ⚔️ **قواعد عسكرية** *(جديد v1.3)* | طبقة لـ 19 قاعدة رئيسية (US, Russia, IRGC, IAF, NATO) |
+| 🛢️ **خطوط أنابيب** *(جديد v1.3)* | 10 خطوط نفط وغاز رئيسية (BTC, Arab Gas, TANAP, Dolphin) |
+| 🌐 **ثنائي اللغة** *(جديد v1.3)* | دعم عربي/إنجليزي كامل مع زر تبديل في الشريط العلوي |
 
 ---
 
@@ -329,12 +336,15 @@ rasad/
 │   │   │   ├── adsb.py             # ADS-B تتبع الطيران
 │   │   │   └── iran_osint.py       # 🆕 Iran OSINT مصادر متخصصة
 │   │   ├── 📂 api/
-│   │   │   ├── events.py           # API الأحداث
+│   │   │   ├── events.py           # API الأحداث (+ /country-index v1.3)
 │   │   │   ├── flights.py          # API الطيران
 │   │   │   ├── iran.py             # API إيران OSINT
-│   │   │   └── nuclear.py          # ☢️ API المنشآت النووية (v1.2)
+│   │   │   ├── nuclear.py          # ☢️ API المنشآت النووية (v1.2)
+│   │   │   └── infrastructure.py   # ⚔️ 🛢️ API القواعد + الأنابيب (v1.3)
 │   │   ├── 📂 data/
-│   │   │   └── nuclear_facilities.json  # ☢️ بيانات المفاعلات (v1.2)
+│   │   │   ├── nuclear_facilities.json  # ☢️ بيانات المفاعلات (v1.2)
+│   │   │   ├── military_bases.json      # ⚔️ بيانات القواعد (v1.3)
+│   │   │   └── pipelines.json           # 🛢️ بيانات الأنابيب (v1.3)
 │   │   └── 📂 models/
 │   │       └── database.py         # SQLite + SQLAlchemy
 │   └── 📄 requirements.txt
@@ -348,7 +358,10 @@ rasad/
 │   │   │   │   ├── LiveTVDrawer.jsx # البث المباشر
 │   │   │   │   └── AlertSettings.jsx # 🔔 إعدادات التنبيهات (v1.2)
 │   │   │   ├── 📂 Map/
-│   │   │   │   └── RasadMap.jsx    # خريطة Leaflet (+ إيران + ☢️ نووية)
+│   │   │   │   ├── RasadMap.jsx    # خريطة Leaflet 2D (6 طبقات)
+│   │   │   │   └── RasadGlobe.jsx  # 🌍 كرة 3D بـ globe.gl (v1.3، lazy)
+│   │   │   └── 📂 Stats/
+│   │   │       └── CountryIndex.jsx # 📊 مؤشر استخبارات الدول (v1.3)
 │   │   │   ├── 📂 NewsFeed/
 │   │   │   │   └── NewsFeed.jsx    # قائمة الأخبار
 │   │   │   ├── 📂 Timeline/
@@ -360,8 +373,13 @@ rasad/
 │   │   ├── 📂 hooks/
 │   │   │   ├── usePolling.js       # خطاف التحديث التلقائي
 │   │   │   └── useAudioAlert.js    # 🔔 خطاف التنبيهات الصوتية (v1.2)
+│   │   ├── 📂 i18n/                # 🌐 الترجمة (v1.3)
+│   │   │   ├── index.js            # إعداد i18next + كشف اللغة
+│   │   │   └── locales/
+│   │   │       ├── ar.json         # ترجمة عربية
+│   │   │       └── en.json         # ترجمة إنجليزية
 │   │   └── 📂 utils/
-│   │       ├── api.js              # دوال API (+ Iran + Nuclear endpoints)
+│   │       ├── api.js              # دوال API (+ Iran + Nuclear + Infrastructure + CountryIndex)
 │   │       └── constants.js        # ثوابت (+ CONFIDENCE, IRAN_EVENT_TYPES)
 │   ├── 📄 vite.config.js           # إعدادات Vite (base path للنشر)
 │   └── 📄 package.json
@@ -413,6 +431,19 @@ rasad/
 | `GET /api/nuclear/facilities` | قائمة المنشآت مع فلاتر (country, facility_type, status) |
 | `GET /api/nuclear/facilities/{id}` | تفاصيل منشأة محددة |
 | `GET /api/nuclear/stats` | إحصائيات إجمالية حسب الدولة والنوع والحالة |
+
+### البنية التحتية ⚔️ + 🛢️ *(جديد v1.3)* | Infrastructure
+
+| المسار | الوصف |
+|--------|-------|
+| `GET /api/infrastructure/bases` | قواعد عسكرية (filters: country, operator, base_type) |
+| `GET /api/infrastructure/pipelines` | خطوط أنابيب نفط/غاز (filters: pipeline_type, status) |
+
+### مؤشر استخبارات الدول 📊 *(جديد v1.3)* | Country Index
+
+| المسار | الوصف |
+|--------|-------|
+| `GET /api/events/country-index?hours=72&top=20` | ترتيب الدول حسب درجة 0-100 محسوبة من خطورة وثقة الأحداث |
 
 ### النظام | System
 
@@ -469,7 +500,9 @@ BACKEND_PORT=8000
 | React 18 | واجهة المستخدم |
 | Vite | أداة البناء |
 | Tailwind CSS | التنسيق |
-| Leaflet | الخريطة التفاعلية (4 طبقات: أحداث + طيران + إيران + ☢️ نووي) |
+| Leaflet | الخريطة 2D (6 طبقات: أحداث + طيران + إيران + ☢️ نووي + ⚔️ قواعد + 🛢️ أنابيب) |
+| globe.gl + Three.js | الكرة الأرضية 3D (lazy-loaded) |
+| react-i18next | الترجمة عربي/إنجليزي مع RTL |
 | Recharts | الرسوم البيانية |
 | Lucide React | الأيقونات |
 | Web Audio API | توليد صوت إنذار التنبيهات (بدون ملفات خارجية) |
@@ -544,13 +577,13 @@ git push origin feat/my-feature
 - [x] 🚀 GitHub Actions workflow للنشر
 - [x] 🔧 دعم `VITE_API_BASE` لباك خارجي
 
-### 🔄 v1.3 — ترقية الخريطة والتصوّر
-- [ ] 🌍 وضع كرة أرضية ثلاثية الأبعاد (globe.gl)
-- [ ] 🗺️ طبقات بيانات إضافية (قواعد عسكرية، خطوط أنابيب)
-- [ ] 🌐 i18n كامل (عربي/إنجليزي)
-- [ ] 📊 Country Intelligence Index — مؤشر تقييم لكل دولة
+### ✅ v1.3 — ترقية الخريطة والتصوّر
+- [x] 🌍 وضع كرة أرضية ثلاثية الأبعاد (globe.gl + Three.js، lazy-loaded)
+- [x] 🗺️ طبقات بيانات إضافية (19 قاعدة عسكرية + 10 خطوط أنابيب)
+- [x] 🌐 i18n كامل (عربي/إنجليزي مع تبديل RTL/LTR)
+- [x] 📊 Country Intelligence Index — مؤشر تقييم 0-100 لكل دولة
 
-### 🔄 v1.4 — البنية التحتية والجودة
+### 🔄 v1.4 — البنية التحتية والجودة (القادم)
 - [ ] 🧪 اختبارات pytest + vitest
 - [ ] 🔄 CI workflow للـ lint والاختبارات
 - [ ] 💾 طبقة caching (ETags + Service Worker)

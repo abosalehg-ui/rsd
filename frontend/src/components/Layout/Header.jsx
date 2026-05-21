@@ -2,9 +2,13 @@
  * رصد - الشريط العلوي مع أخبار عاجلة
  */
 import React, { useState, useEffect, useRef } from 'react';
-import { Satellite, Radio, Wifi, WifiOff, RefreshCw, Bell, BellOff } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Satellite, Radio, Wifi, WifiOff, RefreshCw, Bell, BellOff, Globe2, Map as MapIcon, Box } from 'lucide-react';
 
-export default function Header({ stats, isConnected, onRefresh, refreshing, alertsEnabled = true, lastAlertEvent = null, recentAlertCount = 0, onOpenAlerts }) {
+export default function Header({ stats, isConnected, onRefresh, refreshing, alertsEnabled = true, lastAlertEvent = null, recentAlertCount = 0, onOpenAlerts, viewMode = '2d', onToggleView }) {
+  const { t, i18n } = useTranslation();
+  const isAr = i18n.language === 'ar';
+  const localeCode = isAr ? 'ar-SA' : 'en-US';
   const [currentTime, setCurrentTime] = useState(new Date());
   const [lastFetch, setLastFetch] = useState(new Date());
   const [bellShake, setBellShake] = useState(false);
@@ -32,15 +36,17 @@ export default function Header({ stats, isConnected, onRefresh, refreshing, aler
     }
   }, [stats]);
 
-  const timeStr = currentTime.toLocaleTimeString('ar-SA', {
+  const timeStr = currentTime.toLocaleTimeString(localeCode, {
     hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
   });
-  const dateStr = currentTime.toLocaleDateString('ar-SA', {
+  const dateStr = currentTime.toLocaleDateString(localeCode, {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
-  const lastFetchStr = lastFetch.toLocaleTimeString('ar-SA', {
+  const lastFetchStr = lastFetch.toLocaleTimeString(localeCode, {
     hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
   });
+
+  const toggleLang = () => i18n.changeLanguage(isAr ? 'en' : 'ar');
 
   return (
     <header className="bg-[#0d1117] border-b border-[#1e293b] px-4 py-2">
@@ -53,9 +59,9 @@ export default function Header({ stats, isConnected, onRefresh, refreshing, aler
           </div>
           <div>
             <h1 className="text-2xl font-bold text-cyan-400 tracking-wide font-arabic">
-              رصد <span className="text-sm text-slate-500 font-mono">RSD</span>
+              {t('app.name')} <span className="text-sm text-slate-500 font-mono">RSD</span>
             </h1>
-            <p className="text-[10px] text-slate-500 -mt-0.5">OSINT • الشرق الأوسط</p>
+            <p className="text-[10px] text-slate-500 -mt-0.5">{t('app.tagline')}</p>
           </div>
         </div>
 
@@ -65,7 +71,7 @@ export default function Header({ stats, isConnected, onRefresh, refreshing, aler
           {stats && (
             <div className="flex items-center gap-4 text-xs">
               <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-[#111827] border border-[#1e293b]">
-                <span className="text-slate-400">الأحداث:</span>
+                <span className="text-slate-400">{t('app.events')}</span>
                 <span className="text-white font-bold font-mono">{stats.total || 0}</span>
               </div>
               <div className={`flex items-center gap-2 px-3 py-1.5 rounded border ${
@@ -76,7 +82,7 @@ export default function Header({ stats, isConnected, onRefresh, refreshing, aler
                   : 'bg-green-500/10 border-green-500/30 text-green-400'
               }`}>
                 <Radio className="w-3 h-3 animate-pulse" />
-                <span>تصعيد:</span>
+                <span>{t('app.escalation')}</span>
                 <span className="font-bold font-mono">{stats.escalation_index || 0}%</span>
               </div>
             </div>
@@ -87,9 +93,31 @@ export default function Header({ stats, isConnected, onRefresh, refreshing, aler
         <div className="flex items-center gap-4">
           {/* مؤشر آخر فحص */}
           <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#111827] border border-[#1e293b]">
-            <span className="text-[10px] text-slate-500">آخر فحص:</span>
+            <span className="text-[10px] text-slate-500">{t('app.lastCheck')}</span>
             <span className="text-[10px] text-cyan-400 font-mono">{lastFetchStr}</span>
           </div>
+
+          {/* زر تبديل الخريطة 2D/3D */}
+          {onToggleView && (
+            <button
+              onClick={onToggleView}
+              className="flex items-center gap-1 px-2 py-1 rounded bg-[#111827] border border-[#1e293b] hover:border-cyan-500 text-cyan-400 transition-colors"
+              title={viewMode === '3d' ? t('map.view2d') : t('map.view3d')}
+            >
+              {viewMode === '3d' ? <MapIcon className="w-3.5 h-3.5" /> : <Box className="w-3.5 h-3.5" />}
+              <span className="text-[10px] font-medium">{viewMode === '3d' ? t('map.view2d') : t('map.view3d')}</span>
+            </button>
+          )}
+
+          {/* زر تبديل اللغة */}
+          <button
+            onClick={toggleLang}
+            className="flex items-center gap-1 px-2 py-1 rounded bg-[#111827] border border-[#1e293b] hover:border-cyan-500 text-cyan-400 transition-colors"
+            title={t('lang.switch')}
+          >
+            <Globe2 className="w-3.5 h-3.5" />
+            <span className="text-[10px] font-medium font-mono">{isAr ? 'EN' : 'ع'}</span>
+          </button>
 
           <button
             onClick={onRefresh}
@@ -97,7 +125,7 @@ export default function Header({ stats, isConnected, onRefresh, refreshing, aler
             className={`p-1.5 rounded hover:bg-[#1e293b] transition-colors ${
               refreshing ? 'text-cyan-400 animate-spin' : 'text-slate-400 hover:text-cyan-400'
             }`}
-            title={refreshing ? 'جاري التحديث...' : 'تحديث من المصادر'}
+            title={refreshing ? t('app.refreshing') : t('app.refresh')}
           >
             <RefreshCw className="w-4 h-4" />
           </button>
@@ -108,7 +136,7 @@ export default function Header({ stats, isConnected, onRefresh, refreshing, aler
             className={`relative p-1.5 rounded hover:bg-[#1e293b] transition-colors ${
               alertsEnabled ? 'text-cyan-400' : 'text-slate-500'
             }`}
-            title="إعدادات التنبيهات الصوتية"
+            title={t('alerts.settings')}
           >
             {alertsEnabled
               ? <Bell className={`w-4 h-4 ${bellShake ? 'bell-alert' : ''}`} />
@@ -122,10 +150,10 @@ export default function Header({ stats, isConnected, onRefresh, refreshing, aler
 
           <div className={`flex items-center gap-1.5 text-xs ${isConnected ? 'text-green-400' : 'text-red-400'}`}>
             {isConnected ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
-            <span>{isConnected ? 'متصل' : 'غير متصل'}</span>
+            <span>{isConnected ? t('app.connected') : t('app.disconnected')}</span>
           </div>
 
-          <div className="text-left">
+          <div className={isAr ? 'text-left' : 'text-right'}>
             <div className="text-sm font-mono text-cyan-400 font-bold">{timeStr}</div>
             <div className="text-[10px] text-slate-500">{dateStr}</div>
           </div>

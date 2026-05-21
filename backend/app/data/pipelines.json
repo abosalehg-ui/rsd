@@ -1,0 +1,191 @@
+{
+  "_meta": {
+    "description": "Major oil and gas pipelines in/around the Middle East — simplified polylines",
+    "sources": ["Public records", "EIA", "Wikipedia"],
+    "license": "Factual data — not copyrightable",
+    "last_updated": "2026-05",
+    "note": "Path coordinates are simplified waypoints, not exact engineering routes"
+  },
+  "pipelines": [
+    {
+      "id": "btc",
+      "name_ar": "خط أنابيب باكو-تبليسي-جيهان",
+      "name_en": "Baku-Tbilisi-Ceyhan (BTC) Oil Pipeline",
+      "type": "oil",
+      "status": "operational",
+      "capacity_mbpd": 1.2,
+      "length_km": 1768,
+      "operator": "BP-led consortium",
+      "coordinates": [
+        [40.397, 49.882],
+        [41.085, 47.451],
+        [41.715, 44.827],
+        [40.491, 43.583],
+        [38.961, 41.276],
+        [37.582, 38.789],
+        [36.998, 36.166],
+        [36.871, 35.834]
+      ]
+    },
+    {
+      "id": "kirkuk-ceyhan",
+      "name_ar": "خط أنابيب كركوك-جيهان",
+      "name_en": "Kirkuk-Ceyhan Oil Pipeline",
+      "type": "oil",
+      "status": "operational",
+      "capacity_mbpd": 1.6,
+      "length_km": 970,
+      "operator": "BOTAŞ / SOMO",
+      "coordinates": [
+        [35.467, 44.392],
+        [36.876, 42.987],
+        [37.156, 41.214],
+        [37.405, 38.829],
+        [37.214, 37.001],
+        [36.998, 35.834]
+      ]
+    },
+    {
+      "id": "arab-gas",
+      "name_ar": "خط الغاز العربي",
+      "name_en": "Arab Gas Pipeline (AGP)",
+      "type": "gas",
+      "status": "operational",
+      "capacity_bcm": 10.3,
+      "length_km": 1200,
+      "operator": "Arab Gas consortium",
+      "coordinates": [
+        [30.616, 32.265],
+        [30.572, 33.062],
+        [31.471, 34.491],
+        [32.234, 35.812],
+        [32.949, 36.578],
+        [33.514, 36.296],
+        [34.815, 36.273]
+      ]
+    },
+    {
+      "id": "tanap",
+      "name_ar": "خط الأناضول للغاز",
+      "name_en": "Trans-Anatolian Pipeline (TANAP)",
+      "type": "gas",
+      "status": "operational",
+      "capacity_bcm": 16.0,
+      "length_km": 1850,
+      "operator": "SOCAR / BOTAŞ / BP",
+      "coordinates": [
+        [40.397, 43.583],
+        [40.071, 42.347],
+        [39.916, 39.872],
+        [39.521, 36.741],
+        [40.106, 33.012],
+        [40.812, 29.541],
+        [41.025, 27.401],
+        [41.276, 26.337]
+      ]
+    },
+    {
+      "id": "scp",
+      "name_ar": "خط أنابيب جنوب القوقاز",
+      "name_en": "South Caucasus Pipeline (SCP)",
+      "type": "gas",
+      "status": "operational",
+      "capacity_bcm": 24.0,
+      "length_km": 692,
+      "operator": "BP-led consortium",
+      "coordinates": [
+        [40.357, 50.171],
+        [40.601, 47.581],
+        [41.085, 44.827],
+        [41.276, 43.583]
+      ]
+    },
+    {
+      "id": "iran-pakistan",
+      "name_ar": "خط الغاز إيران-باكستان",
+      "name_en": "Iran-Pakistan Gas Pipeline (Peace Pipeline)",
+      "type": "gas",
+      "status": "partial",
+      "capacity_bcm": 21.5,
+      "length_km": 2775,
+      "operator": "NIGC / ISGS",
+      "coordinates": [
+        [27.434, 52.547],
+        [27.115, 56.281],
+        [26.892, 58.371],
+        [25.486, 60.452],
+        [25.061, 62.318],
+        [24.892, 67.018]
+      ]
+    },
+    {
+      "id": "east-west-ksa",
+      "name_ar": "خط الأنابيب الشرقي-الغربي (السعودية)",
+      "name_en": "East-West (Petroline) Crude Oil Pipeline",
+      "type": "oil",
+      "status": "operational",
+      "capacity_mbpd": 5.0,
+      "length_km": 1200,
+      "operator": "Saudi Aramco",
+      "coordinates": [
+        [26.451, 49.992],
+        [25.412, 47.512],
+        [24.621, 44.301],
+        [23.812, 42.114],
+        [22.591, 40.157],
+        [22.183, 39.103]
+      ]
+    },
+    {
+      "id": "habshan-fujairah",
+      "name_ar": "خط أنابيب حبشان-الفجيرة (ADCOP)",
+      "name_en": "Habshan-Fujairah (ADCOP) Pipeline",
+      "type": "oil",
+      "status": "operational",
+      "capacity_mbpd": 1.8,
+      "length_km": 380,
+      "operator": "ADNOC",
+      "coordinates": [
+        [23.412, 53.687],
+        [24.107, 54.612],
+        [24.812, 55.812],
+        [25.314, 56.351]
+      ]
+    },
+    {
+      "id": "dolphin-gas",
+      "name_ar": "خط أنابيب دولفين للغاز",
+      "name_en": "Dolphin Gas Pipeline (Qatar-UAE-Oman)",
+      "type": "gas",
+      "status": "operational",
+      "capacity_bcm": 19.5,
+      "length_km": 364,
+      "operator": "Dolphin Energy",
+      "coordinates": [
+        [25.291, 51.531],
+        [25.029, 52.418],
+        [24.493, 53.821],
+        [23.412, 53.687],
+        [22.998, 55.171]
+      ]
+    },
+    {
+      "id": "tabriz-ankara",
+      "name_ar": "خط الغاز تبريز-أنقرة",
+      "name_en": "Tabriz-Ankara Gas Pipeline",
+      "type": "gas",
+      "status": "operational",
+      "capacity_bcm": 14.0,
+      "length_km": 2577,
+      "operator": "NIGC / BOTAŞ",
+      "coordinates": [
+        [38.092, 46.286],
+        [39.491, 43.587],
+        [39.916, 41.276],
+        [39.812, 37.214],
+        [39.987, 33.512],
+        [39.925, 32.866]
+      ]
+    }
+  ]
+}

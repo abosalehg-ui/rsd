@@ -183,6 +183,68 @@ async def get_timeline(
         return [_serialize_event(e) for e in events]
 
 
+# ===== مؤشر استخبارات الدول (Country Intelligence Index) v1.3 =====
+# Severity weight × Confidence weight → composite score per country
+_SEVERITY_WEIGHT = {"low": 1, "medium": 3, "high": 7, "critical": 15}
+_CONFIDENCE_WEIGHT = {"HIGH": 1.0, "MEDIUM": 0.8, "LOW": 0.5}
+
+
+@router.get("/country-index")
+async def get_country_index(
+    hours: int = Query(default=72, ge=1, le=720),
+    top: int = Query(default=20, ge=1, le=50),
+):
+    """مؤشر استخبارات لكل دولة (0-100) بناءً على عدد الأحداث × الخطورة × الثقة"""
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        since = datetime.now(timezone.utc) - timedelta(hours=hours)
+        query = (
+            select(Event)
+            .where(and_(Event.event_date >= since, Event.country_code != "", Event.country_code.isnot(None)))
+        )
+        events = (await session.execute(query)).scalars().all()
+
+        countries: dict[str, dict] = {}
+        for ev in events:
+            code = (ev.country_code or "").upper()
+            if not code:
+                continue
+            country = countries.setdefault(code, {
+                "country_code": code,
+                "country_name": ev.country or code,
+                "raw_score": 0.0,
+                "total": 0,
+                "by_severity": {"low": 0, "medium": 0, "high": 0, "critical": 0},
+                "by_category": {},
+                "by_confidence": {"HIGH": 0, "MEDIUM": 0, "LOW": 0, "NONE": 0},
+            })
+            sev = (ev.severity or "low").lower()
+            sev_w = _SEVERITY_WEIGHT.get(sev, 1)
+            conf = (ev.confidence or "").upper()
+            conf_w = _CONFIDENCE_WEIGHT.get(conf, 0.7)
+
+            country["raw_score"] += sev_w * conf_w
+            country["total"] += 1
+            country["by_severity"][sev] = country["by_severity"].get(sev, 0) + 1
+            country["by_category"][ev.category or "general"] = country["by_category"].get(ev.category or "general", 0) + 1
+            country["by_confidence"][conf if conf in country["by_confidence"] else "NONE"] += 1
+
+        if not countries:
+            return {"total_countries": 0, "period_hours": hours, "ranking": []}
+
+        max_raw = max(c["raw_score"] for c in countries.values()) or 1.0
+        ranking = sorted(countries.values(), key=lambda c: c["raw_score"], reverse=True)
+        for c in ranking:
+            c["score"] = round((c["raw_score"] / max_raw) * 100, 1)
+
+        return {
+            "total_countries": len(ranking),
+            "period_hours": hours,
+            "max_raw_score": round(max_raw, 1),
+            "ranking": ranking[:top],
+        }
+
+
 def _serialize_event(event: Event) -> dict:
     """تحويل حدث لـ JSON"""
     import json
