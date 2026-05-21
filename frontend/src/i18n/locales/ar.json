@@ -1,0 +1,85 @@
+{
+  "app": {
+    "name": "رصد",
+    "tagline": "OSINT • الشرق الأوسط",
+    "connected": "متصل",
+    "disconnected": "غير متصل",
+    "lastCheck": "آخر فحص:",
+    "events": "الأحداث:",
+    "escalation": "تصعيد:",
+    "refresh": "تحديث من المصادر",
+    "refreshing": "جاري التحديث...",
+    "breaking": "عاجل"
+  },
+  "tabs": {
+    "news": "الأحداث",
+    "timeline": "الخط الزمني",
+    "stats": "إحصائيات",
+    "iran": "إيران"
+  },
+  "map": {
+    "title": "خريطة",
+    "layers": "طبقات",
+    "events": "الأحداث",
+    "flights": "الطيران",
+    "iran": "إيران OSINT",
+    "nuclear": "منشآت نووية",
+    "bases": "قواعد عسكرية",
+    "pipelines": "خطوط أنابيب",
+    "view2d": "خريطة 2D",
+    "view3d": "كرة 3D",
+    "zoomIn": "تكبير",
+    "zoomOut": "تصغير",
+    "recenter": "إعادة التمركز"
+  },
+  "alerts": {
+    "title": "إعدادات التنبيهات",
+    "sound": "صوت الإنذار",
+    "soundDesc": "تشغيل صوت تنبيه عند ورود خبر هام",
+    "testSound": "اختبر الصوت الآن",
+    "threshold": "عتبة الخطورة",
+    "categories": "التصنيفات المهمّة",
+    "categoriesAll": "(الكل)",
+    "categoriesSelected": "{{count}} محددة",
+    "clearSelection": "مسح التحديد (= الكل)",
+    "throttle": "فاصل التكرار",
+    "throttleDesc": "حد أدنى للوقت بين تنبيهين متتاليين",
+    "desktop": "إشعارات سطح المكتب",
+    "desktopEnabled": "مفعّلة",
+    "desktopDisabled": "معطّلة",
+    "desktopRequest": "فعّل إشعارات المتصفح",
+    "desktopReask": "إعادة طلب الإذن",
+    "desktopDenied": "المتصفح رفض الإذن. يمكنك تفعيله يدويًا من إعدادات الموقع.",
+    "recent": "آخر التنبيهات",
+    "recentEmpty": "لا توجد تنبيهات حتى الآن",
+    "clear": "مسح",
+    "settings": "إعدادات التنبيهات الصوتية"
+  },
+  "severity": {
+    "low": "منخفض (أي حدث)",
+    "medium": "متوسط",
+    "high": "مرتفع (موصى به)",
+    "critical": "حرج فقط"
+  },
+  "categories": {
+    "military": "⚔️ عسكري",
+    "nuclear": "☢️ نووي",
+    "diplomatic": "🤝 دبلوماسي",
+    "humanitarian": "🆘 إنساني",
+    "economic": "💰 اقتصادي"
+  },
+  "stats": {
+    "countryIndex": "مؤشر استخبارات الدول",
+    "countryIndexDesc": "تقييم مركّب لكل دولة (0-100) من خطورة وثقة الأحداث",
+    "byCategory": "حسب التصنيف",
+    "bySeverity": "حسب الخطورة",
+    "byCountry": "حسب الدولة",
+    "bySource": "حسب المصدر",
+    "noData": "لا توجد بيانات"
+  },
+  "lang": {
+    "switch": "تبديل اللغة",
+    "ar": "العربية",
+    "en": "English"
+  }
+}

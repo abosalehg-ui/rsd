@@ -1,0 +1,85 @@
+{
+  "app": {
+    "name": "Rsd",
+    "tagline": "OSINT • Middle East",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "lastCheck": "Last check:",
+    "events": "Events:",
+    "escalation": "Escalation:",
+    "refresh": "Refresh from sources",
+    "refreshing": "Refreshing...",
+    "breaking": "BREAKING"
+  },
+  "tabs": {
+    "news": "Events",
+    "timeline": "Timeline",
+    "stats": "Statistics",
+    "iran": "Iran"
+  },
+  "map": {
+    "title": "Map",
+    "layers": "Layers",
+    "events": "Events",
+    "flights": "Flights",
+    "iran": "Iran OSINT",
+    "nuclear": "Nuclear sites",
+    "bases": "Military bases",
+    "pipelines": "Pipelines",
+    "view2d": "2D map",
+    "view3d": "3D globe",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "recenter": "Recenter"
+  },
+  "alerts": {
+    "title": "Alert settings",
+    "sound": "Alarm sound",
+    "soundDesc": "Play a tone when an important event arrives",
+    "testSound": "Test sound now",
+    "threshold": "Severity threshold",
+    "categories": "Important categories",
+    "categoriesAll": "(all)",
+    "categoriesSelected": "{{count}} selected",
+    "clearSelection": "Clear selection (= all)",
+    "throttle": "Throttle interval",
+    "throttleDesc": "Minimum time between consecutive alerts",
+    "desktop": "Desktop notifications",
+    "desktopEnabled": "Enabled",
+    "desktopDisabled": "Disabled",
+    "desktopRequest": "Enable browser notifications",
+    "desktopReask": "Request permission again",
+    "desktopDenied": "Browser denied permission. Enable manually from site settings.",
+    "recent": "Recent alerts",
+    "recentEmpty": "No alerts yet",
+    "clear": "Clear",
+    "settings": "Audio alert settings"
+  },
+  "severity": {
+    "low": "Low (any event)",
+    "medium": "Medium",
+    "high": "High (recommended)",
+    "critical": "Critical only"
+  },
+  "categories": {
+    "military": "⚔️ Military",
+    "nuclear": "☢️ Nuclear",
+    "diplomatic": "🤝 Diplomatic",
+    "humanitarian": "🆘 Humanitarian",
+    "economic": "💰 Economic"
+  },
+  "stats": {
+    "countryIndex": "Country Intelligence Index",
+    "countryIndexDesc": "Composite score per country (0-100) from event severity and confidence",
+    "byCategory": "By category",
+    "bySeverity": "By severity",
+    "byCountry": "By country",
+    "bySource": "By source",
+    "noData": "No data"
+  },
+  "lang": {
+    "switch": "Switch language",
+    "ar": "العربية",
+    "en": "English"
+  }
+}

@@ -3,9 +3,12 @@
  */
 import LiveTVDrawer from './components/Layout/LiveTVDrawer';
 import AlertSettings from './components/Layout/AlertSettings';
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, Suspense, lazy } from 'react';
+import { useTranslation } from 'react-i18next';
 import Header from './components/Layout/Header';
 import RasadMap from './components/Map/RasadMap';
+// تحميل كسول للكرة الأرضية — Three.js كبير الحجم
+const RasadGlobe = lazy(() => import('./components/Map/RasadGlobe'));
 import NewsFeed from './components/NewsFeed/NewsFeed';
 import Timeline from './components/Timeline/Timeline';
 import StatsPanel from './components/Stats/StatsPanel';
@@ -13,19 +16,26 @@ import IranPanel from './components/Iran/IranPanel';
 import { usePolling, useFilters } from './hooks/usePolling';
 import { useAudioAlert } from './hooks/useAudioAlert';
 import { MapPin, Newspaper, Clock, BarChart3, PanelLeftClose, PanelLeftOpen, Crosshair } from 'lucide-react';
-import { getEvents, getMapEvents, getStats, getLiveFlights, refreshSources, getIranStrikes, getNuclearFacilities } from './utils/api';
-
-const TABS = [
-  { id: 'news', label: 'الأحداث', icon: Newspaper },
-  { id: 'timeline', label: 'الخط الزمني', icon: Clock },
-  { id: 'stats', label: 'إحصائيات', icon: BarChart3 },
-  { id: 'iran', label: '🇮🇷 إيران', icon: Crosshair },
-];
+import {
+  getEvents, getMapEvents, getStats, getLiveFlights, refreshSources,
+  getIranStrikes, getNuclearFacilities,
+  getCountryIndex, getMilitaryBases, getPipelines,
+} from './utils/api';
 
 export default function App() {
+  const { t } = useTranslation();
+  const TABS = [
+    { id: 'news', labelKey: 'tabs.news', icon: Newspaper },
+    { id: 'timeline', labelKey: 'tabs.timeline', icon: Clock },
+    { id: 'stats', labelKey: 'tabs.stats', icon: BarChart3 },
+    { id: 'iran', labelKey: 'tabs.iran', icon: Crosshair },
+  ];
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [activeTab, setActiveTab] = useState('news');
   const [panelOpen, setPanelOpen] = useState(true);
+  const [viewMode, setViewMode] = useState(() => {
+    try { return localStorage.getItem('rsd-view-mode') || '2d'; } catch { return '2d'; }
+  });
   const { filters, updateFilter, resetFilters } = useFilters();
 
   // جلب البيانات مع تحديث تلقائي
@@ -60,10 +70,28 @@ const { data: flights } = usePolling(
     3600000
   );
 
+  // قواعد عسكرية + خطوط أنابيب — بيانات ثابتة (v1.3)
+  const { data: basesData } = usePolling(
+    useCallback(() => getMilitaryBases(), []),
+    3600000
+  );
+  const { data: pipelinesData } = usePolling(
+    useCallback(() => getPipelines(), []),
+    3600000
+  );
+
+  // مؤشر استخبارات الدول (v1.3)
+  const { data: countryIndex } = usePolling(
+    useCallback(() => getCountryIndex({ hours: 72, top: 15 }), []),
+    120000
+  );
+
   const events = useMemo(() => eventsData?.events || [], [eventsData]);
   const iranStrikes = useMemo(() => iranData?.strikes || [], [iranData]);
   const mapEvts = useMemo(() => mapEvents || [], [mapEvents]);
   const nuclearFacilities = useMemo(() => nuclearData?.facilities || [], [nuclearData]);
+  const militaryBases = useMemo(() => basesData?.bases || [], [basesData]);
+  const pipelines = useMemo(() => pipelinesData?.pipelines || [], [pipelinesData]);
 
   // 🔔 محرّك التنبيهات الصوتية — يراقب الأحداث الجديدة
   const {
@@ -79,6 +107,14 @@ const { data: flights } = usePolling(
   const [alertsOpen, setAlertsOpen] = useState(false);
 
   const [refreshing, setRefreshing] = useState(false);
+
+  const toggleViewMode = useCallback(() => {
+    setViewMode(prev => {
+      const next = prev === '2d' ? '3d' : '2d';
+      try { localStorage.setItem('rsd-view-mode', next); } catch {}
+      return next;
+    });
+  }, []);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -105,13 +141,15 @@ const { data: flights } = usePolling(
         lastAlertEvent={lastAlertEvent}
         recentAlertCount={recentAlerts.length}
         onOpenAlerts={() => setAlertsOpen(true)}
+        viewMode={viewMode}
+        onToggleView={toggleViewMode}
       />
 
       {/* شريط الأخبار العاجلة */}
       {events.length > 0 && (
         <div className="bg-red-500/10 border-b border-red-500/20 px-4 py-1 overflow-hidden">
           <div className="flex items-center gap-3">
-            <span className="text-xs bg-red-500 text-white px-3 py-1 rounded font-bold animate-pulse whitespace-nowrap">عاجل</span>
+            <span className="text-xs bg-red-500 text-white px-3 py-1 rounded font-bold animate-pulse whitespace-nowrap">{t('app.breaking')}</span>
             <div className="overflow-hidden flex-1">
               <div className="flex gap-8 animate-[ticker-scroll_60s_linear_infinite] whitespace-nowrap">
                 {events.filter(e => e.severity === 'critical' || e.severity === 'high').slice(0, 10).map((ev, i) => (
@@ -127,16 +165,32 @@ const { data: flights } = usePolling(
 
       {/* المحتوى الرئيسي */}
       <div className="flex-1 flex overflow-hidden">
-        {/* الخريطة */}
+        {/* الخريطة / الكرة الأرضية */}
         <div className="flex-1 relative">
-          <RasadMap
-            events={mapEvts}
-            flights={flights}
-            iranStrikes={iranStrikes}
-            nuclearFacilities={nuclearFacilities}
-            selectedEvent={selectedEvent}
-            onSelectEvent={setSelectedEvent}
-          />
+          {viewMode === '3d' ? (
+            <Suspense fallback={<div className="flex items-center justify-center h-full text-cyan-400 text-sm">🌍 جاري تحميل الكرة الأرضية...</div>}>
+              <RasadGlobe
+                events={mapEvts}
+                iranStrikes={iranStrikes}
+                nuclearFacilities={nuclearFacilities}
+                bases={militaryBases}
+                pipelines={pipelines}
+                selectedEvent={selectedEvent}
+                onSelectEvent={setSelectedEvent}
+              />
+            </Suspense>
+          ) : (
+            <RasadMap
+              events={mapEvts}
+              flights={flights}
+              iranStrikes={iranStrikes}
+              nuclearFacilities={nuclearFacilities}
+              militaryBases={militaryBases}
+              pipelines={pipelines}
+              selectedEvent={selectedEvent}
+              onSelectEvent={setSelectedEvent}
+            />
+          )}
 
           {/* زر طي/فتح اللوحة — داخل الخريطة على حافتها */}
           <button
@@ -155,6 +209,7 @@ const { data: flights } = usePolling(
             <div className="flex border-b border-[#1e293b]">
               {TABS.map(tab => {
                 const Icon = tab.icon;
+                const label = t(tab.labelKey);
                 return (
                   <button
                     key={tab.id}
@@ -166,7 +221,7 @@ const { data: flights } = usePolling(
                     }`}
                   >
                     <Icon className="w-4 h-4" />
-                    {tab.label}
+                    {tab.id === 'iran' ? <span>🇮🇷 {label}</span> : label}
                   </button>
                 );
               })}
@@ -186,7 +241,7 @@ const { data: flights } = usePolling(
                 <Timeline events={events} onSelectEvent={setSelectedEvent} />
               )}
               {activeTab === 'stats' && (
-                <StatsPanel stats={stats} />
+                <StatsPanel stats={stats} countryIndex={countryIndex} />
               )}
               {activeTab === 'iran' && (
                 <IranPanel onSelectStrike={setSelectedEvent} />
