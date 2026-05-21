@@ -1,11 +1,11 @@
 <div align="center">
 
-# 🛰️ رصد (Rsd) v1.3
+# 🛰️ رصد (Rsd) v1.4
 
 ### منصة استخبارات المصادر المفتوحة للشرق الأوسط
 **Open Source Intelligence (OSINT) Dashboard for the Middle East**
 
-![Version](https://img.shields.io/badge/version-1.3.0-blue)
+![Version](https://img.shields.io/badge/version-1.4.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Docker%20%7C%20Pages-lightgrey)
 ![Python](https://img.shields.io/badge/Python-3.10+-yellow)
@@ -22,6 +22,8 @@
 <img src="https://img.shields.io/badge/🔔_ALERTS-تنبيهات_صوتية-purple?style=for-the-badge" alt="Alerts"/>
 <img src="https://img.shields.io/badge/🌍_3D_GLOBE-كرة_أرضية-blue?style=for-the-badge" alt="3D Globe"/>
 <img src="https://img.shields.io/badge/🌐_i18n-عربي_/_English-green?style=for-the-badge" alt="i18n"/>
+<img src="https://img.shields.io/badge/📦_PWA-عمل_دون_اتصال-cyan?style=for-the-badge" alt="PWA"/>
+<img src="https://img.shields.io/badge/🧪_TESTED-pytest_+_vitest-orange?style=for-the-badge" alt="Tested"/>
 
 </div>
 
@@ -106,6 +108,11 @@ npm run dev
 | ⚔️ **قواعد عسكرية** *(جديد v1.3)* | طبقة لـ 19 قاعدة رئيسية (US, Russia, IRGC, IAF, NATO) |
 | 🛢️ **خطوط أنابيب** *(جديد v1.3)* | 10 خطوط نفط وغاز رئيسية (BTC, Arab Gas, TANAP, Dolphin) |
 | 🌐 **ثنائي اللغة** *(جديد v1.3)* | دعم عربي/إنجليزي كامل مع زر تبديل في الشريط العلوي |
+| 📦 **PWA** *(جديد v1.4)* | يعمل دون اتصال — تخزين مؤقت لبلاطات الخريطة وقوام الكرة + Service Worker تلقائي |
+| 💾 **ETag caching** *(جديد v1.4)* | استجابات 304 Not Modified + Cache-Control محسوب حسب المسار |
+| 🧪 **اختبارات** *(جديد v1.4)* | pytest (backend) + vitest (frontend) — 27 اختبار يمر |
+| 🔄 **CI workflow** *(جديد v1.4)* | GitHub Actions يشغّل lint + tests + build عند كل PR و push |
+| 🖥️ **Tauri desktop** *(جديد v1.4)* | scaffolding لتطبيق سطح المكتب على macOS/Windows/Linux |
 
 ---
 
@@ -583,12 +590,12 @@ git push origin feat/my-feature
 - [x] 🌐 i18n كامل (عربي/إنجليزي مع تبديل RTL/LTR)
 - [x] 📊 Country Intelligence Index — مؤشر تقييم 0-100 لكل دولة
 
-### 🔄 v1.4 — البنية التحتية والجودة (القادم)
-- [ ] 🧪 اختبارات pytest + vitest
-- [ ] 🔄 CI workflow للـ lint والاختبارات
-- [ ] 💾 طبقة caching (ETags + Service Worker)
-- [ ] 📦 PWA (عمل دون اتصال)
-- [ ] 🖥️ تطبيق Tauri لسطح المكتب
+### ✅ v1.4 — البنية التحتية والجودة
+- [x] 🧪 اختبارات pytest (backend, 4 ملفات) + vitest (frontend, 3 ملفات)
+- [x] 🔄 CI workflow (GitHub Actions): ruff + pytest + vitest + vite build
+- [x] 💾 ETag middleware + Cache-Control لكل مسارات `/api/*`
+- [x] 📦 PWA كامل عبر `vite-plugin-pwa` + workbox runtime caching
+- [x] 🖥️ Tauri 2 scaffolding (`src-tauri/`) — جاهز للبناء المحلي
 
 ### 🔮 v2.0 — ذكاء وتحليل
 - [ ] 🤖 **Ollama/Qwen AI** — تصنيف وتلخيص ذكي للأخبار العربية

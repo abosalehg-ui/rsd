@@ -1,16 +1,18 @@
 """رصد - جدولة جمع البيانات"""
 import logging
 from datetime import datetime
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from .config import get_settings
+
 from .collectors import (
+    collect_flights,
     collect_gdelt_events,
+    collect_iran_osint,
     collect_news,
     collect_rss_feeds,
     collect_ucdp_events,
-    collect_flights,
-    collect_iran_osint,
 )
+from .config import get_settings
 
 logger = logging.getLogger("rasad.scheduler")
 

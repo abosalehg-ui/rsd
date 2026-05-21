@@ -1,0 +1,5 @@
+# Tauri build artifacts
+/target/
+**/*.rs.bk
+Cargo.lock
+gen/

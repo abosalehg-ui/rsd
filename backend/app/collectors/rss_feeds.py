@@ -2,13 +2,15 @@
 يجمع الأخبار من مصادر RSS عربية ودولية
 مع دعم خاص لأخبار النووي ☣️
 """
-import feedparser
-import httpx
-import json
 import hashlib
+import json
 import logging
 from datetime import datetime, timezone
-from typing import List, Dict, Optional
+from typing import Dict
+
+import feedparser
+import httpx
+
 from ..models.database import Event, get_session_factory
 
 logger = logging.getLogger("rasad.rss")
