@@ -1,17 +1,29 @@
 /**
  * رصد - الشريط العلوي مع أخبار عاجلة
  */
-import React, { useState, useEffect } from 'react';
-import { Satellite, Radio, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Satellite, Radio, Wifi, WifiOff, RefreshCw, Bell, BellOff } from 'lucide-react';
 
-export default function Header({ stats, isConnected, onRefresh, refreshing }) {
+export default function Header({ stats, isConnected, onRefresh, refreshing, alertsEnabled = true, lastAlertEvent = null, recentAlertCount = 0, onOpenAlerts }) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [lastFetch, setLastFetch] = useState(new Date());
+  const [bellShake, setBellShake] = useState(false);
+  const lastAlertIdRef = useRef(null);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // اهتزاز الجرس عند ورود تنبيه جديد
+  useEffect(() => {
+    if (!lastAlertEvent) return;
+    if (lastAlertIdRef.current === lastAlertEvent.id) return;
+    lastAlertIdRef.current = lastAlertEvent.id;
+    setBellShake(true);
+    const t = setTimeout(() => setBellShake(false), 1800);
+    return () => clearTimeout(t);
+  }, [lastAlertEvent]);
 
   // تحديث وقت آخر فحص عند تغير stats
   useEffect(() => {
@@ -88,6 +100,24 @@ export default function Header({ stats, isConnected, onRefresh, refreshing }) {
             title={refreshing ? 'جاري التحديث...' : 'تحديث من المصادر'}
           >
             <RefreshCw className="w-4 h-4" />
+          </button>
+
+          {/* جرس التنبيهات */}
+          <button
+            onClick={onOpenAlerts}
+            className={`relative p-1.5 rounded hover:bg-[#1e293b] transition-colors ${
+              alertsEnabled ? 'text-cyan-400' : 'text-slate-500'
+            }`}
+            title="إعدادات التنبيهات الصوتية"
+          >
+            {alertsEnabled
+              ? <Bell className={`w-4 h-4 ${bellShake ? 'bell-alert' : ''}`} />
+              : <BellOff className="w-4 h-4" />}
+            {recentAlertCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                {recentAlertCount > 9 ? '9+' : recentAlertCount}
+              </span>
+            )}
           </button>
 
           <div className={`flex items-center gap-1.5 text-xs ${isConnected ? 'text-green-400' : 'text-red-400'}`}>

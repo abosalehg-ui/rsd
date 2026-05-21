@@ -68,6 +68,22 @@ body {
   50% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
 }
 
+/* نبض المنشآت النووية ☢️ */
+@keyframes nuclear-pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(250, 204, 21, 0.5); }
+  50%      { box-shadow: 0 0 18px rgba(250, 204, 21, 0.95); }
+}
+
+/* وميض جرس التنبيهات */
+@keyframes bell-shake {
+  0%, 100% { transform: rotate(0); }
+  20%      { transform: rotate(-15deg); }
+  40%      { transform: rotate(12deg); }
+  60%      { transform: rotate(-8deg); }
+  80%      { transform: rotate(5deg); }
+}
+.bell-alert { animation: bell-shake 0.6s ease-in-out 3; }
+
 /* شريط الأخبار */
 .news-ticker {
   animation: ticker-scroll 30s linear infinite;

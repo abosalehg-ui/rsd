@@ -29,15 +29,35 @@ function clusterEvents(events, zoom) {
   }));
 }
 
-export default function RasadMap({ events = [], flights = null, iranStrikes = [], selectedEvent, onSelectEvent }) {
+// ===== ألوان أنواع المنشآت النووية =====
+const NUCLEAR_TYPES = {
+  power:       { color: '#facc15', label: 'محطة قوة',   icon: '☢️' },
+  research:    { color: '#22d3ee', label: 'أبحاث',      icon: '⚛️' },
+  enrichment:  { color: '#f97316', label: 'تخصيب',      icon: '☢️' },
+  conversion:  { color: '#a78bfa', label: 'تحويل',      icon: '⚗️' },
+  heavy_water: { color: '#38bdf8', label: 'ماء ثقيل',   icon: '💧' },
+  fuel:        { color: '#fb7185', label: 'وقود',       icon: '⚛️' },
+};
+
+const NUCLEAR_STATUS_LABELS = {
+  operational:  { ar: 'عاملة',        color: '#22c55e' },
+  construction: { ar: 'قيد الإنشاء',  color: '#f59e0b' },
+  planned:      { ar: 'مخططة',        color: '#64748b' },
+  shutdown:     { ar: 'متوقفة',       color: '#ef4444' },
+  modified:     { ar: 'معدّلة',       color: '#a78bfa' },
+};
+
+export default function RasadMap({ events = [], flights = null, iranStrikes = [], nuclearFacilities = [], selectedEvent, onSelectEvent }) {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const markersRef = useRef(null);
   const flightsRef = useRef(null);
   const iranRef = useRef(null);
+  const nuclearRef = useRef(null);
   const [showFlights, setShowFlights] = useState(true);
   const [showEvents, setShowEvents] = useState(true);
   const [showIran, setShowIran] = useState(true);
+  const [showNuclear, setShowNuclear] = useState(true);
   const [ready, setReady] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(ME_ZOOM);
 
@@ -53,6 +73,7 @@ export default function RasadMap({ events = [], flights = null, iranStrikes = []
     markersRef.current = L.layerGroup().addTo(map);
     flightsRef.current = L.layerGroup().addTo(map);
     iranRef.current = L.layerGroup().addTo(map);
+    nuclearRef.current = L.layerGroup().addTo(map);
     mapInstance.current = map;
     setReady(true);
     map.on('zoomend', () => setZoomLevel(map.getZoom()));
@@ -241,6 +262,69 @@ export default function RasadMap({ events = [], flights = null, iranStrikes = []
     });
   }, [iranStrikes, showIran, ready]);
 
+  // طبقة المنشآت النووية ☢️
+  useEffect(() => {
+    if (!ready || !nuclearRef.current) return;
+    nuclearRef.current.clearLayers();
+    if (!showNuclear) return;
+
+    nuclearFacilities.forEach(fac => {
+      if (typeof fac.latitude !== 'number' || typeof fac.longitude !== 'number') return;
+      const typeInfo = NUCLEAR_TYPES[fac.type] || NUCLEAR_TYPES.research;
+      const statusInfo = NUCLEAR_STATUS_LABELS[fac.status] || { ar: fac.status || '-', color: '#64748b' };
+      const isOperational = fac.status === 'operational';
+      const sz = fac.type === 'power' ? 22 : 18;
+
+      const pulse = isOperational ? `box-shadow:0 0 ${sz}px ${typeInfo.color}80;animation:nuclear-pulse 2.5s ease-in-out infinite;` : `box-shadow:0 0 6px ${typeInfo.color}40;opacity:0.7;`;
+
+      const icon = L.divIcon({
+        className: '',
+        iconSize: [sz + 6, sz + 6],
+        iconAnchor: [(sz + 6) / 2, (sz + 6) / 2],
+        html: `<div title="${fac.name_ar || fac.name_en}" style="
+          width:${sz}px;height:${sz}px;
+          background:${typeInfo.color}20;
+          border:2px solid ${typeInfo.color};
+          border-radius:50%;
+          display:flex;align-items:center;justify-content:center;
+          font-size:${sz - 6}px;
+          ${pulse}
+          cursor:pointer;
+        ">☢️</div>`,
+      });
+
+      const capacity = fac.capacity_mw ? `<div>السعة: <span style="color:#fbbf24">${fac.capacity_mw} MW</span></div>` : '';
+      const firstGrid = fac.first_grid ? `<div>بدء التشغيل: <span style="color:#94a3b8">${fac.first_grid}</span></div>` : '';
+      const notes = fac.notes ? `<div style="margin-top:6px;padding:6px;background:#1e293b;border-radius:4px;color:#cbd5e1;font-size:9px">${fac.notes}</div>` : '';
+
+      const m = L.marker([fac.latitude, fac.longitude], { icon }).bindPopup(`
+        <div style="min-width:240px;font-family:Tajawal,sans-serif;direction:rtl">
+          <div style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap">
+            <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${typeInfo.color}20;color:${typeInfo.color};border:1px solid ${typeInfo.color}40">
+              ☢️ ${typeInfo.label}
+            </span>
+            <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${statusInfo.color}20;color:${statusInfo.color}">
+              ${statusInfo.ar}
+            </span>
+          </div>
+          <h3 style="font-size:13px;font-weight:700;margin-bottom:6px;line-height:1.5;color:#fbbf24">${fac.name_ar || fac.name_en}</h3>
+          <div style="font-size:10px;color:#94a3b8;margin-bottom:6px">${fac.name_en || ''}</div>
+          <div style="font-size:11px;color:#cbd5e1;line-height:1.8">
+            <div>الدولة: <span style="color:#22d3ee">${fac.country || '-'}</span></div>
+            <div>النوع: <span style="color:#94a3b8">${fac.reactor_type || '-'}</span></div>
+            ${capacity}
+            ${firstGrid}
+            ${fac.operator ? `<div>المُشغّل: <span style="color:#94a3b8">${fac.operator}</span></div>` : ''}
+          </div>
+          ${notes}
+          <div style="font-size:9px;color:#64748b;margin-top:6px;font-family:monospace">
+            ${fac.latitude.toFixed(3)}, ${fac.longitude.toFixed(3)}
+          </div>
+        </div>`, { maxWidth: 320 });
+      nuclearRef.current.addLayer(m);
+    });
+  }, [nuclearFacilities, showNuclear, ready]);
+
   useEffect(() => {
     if (selectedEvent?.latitude && mapInstance.current) {
       mapInstance.current.flyTo([selectedEvent.latitude, selectedEvent.longitude], 8, { duration: 1 });
@@ -261,7 +345,12 @@ export default function RasadMap({ events = [], flights = null, iranStrikes = []
       </div>
       <div className="absolute bottom-3 left-3 z-[1000] bg-[#111827]/95 border border-[#1e293b] rounded-lg p-3 text-sm">
         <div className="flex items-center gap-2 mb-2"><Layers className="w-4 h-4 text-slate-400" /><span className="text-slate-400 font-medium">طبقات</span></div>
-        {[['الأحداث', showEvents, setShowEvents, 'cyan'], ['الطيران', showFlights, setShowFlights, 'purple'], ['🇮🇷 إيران OSINT', showIran, setShowIran, 'red']].map(([l, v, fn, c]) => (
+        {[
+          ['الأحداث', showEvents, setShowEvents, 'cyan'],
+          ['الطيران', showFlights, setShowFlights, 'purple'],
+          ['🇮🇷 إيران OSINT', showIran, setShowIran, 'red'],
+          ['☢️ منشآت نووية', showNuclear, setShowNuclear, 'yellow'],
+        ].map(([l, v, fn, c]) => (
           <label key={l} className="flex items-center gap-2 cursor-pointer mb-1">
             <input type="checkbox" checked={v} onChange={e => fn(e.target.checked)} className={`w-4 h-4 accent-${c}-400`} />
             <span className="text-slate-300">{l}</span>

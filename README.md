@@ -1,15 +1,16 @@
 <div align="center">
 
-# 🛰️ رصد (Rsd) v1.1
+# 🛰️ رصد (Rsd) v1.2
 
 ### منصة استخبارات المصادر المفتوحة للشرق الأوسط
 **Open Source Intelligence (OSINT) Dashboard for the Middle East**
 
-![Version](https://img.shields.io/badge/version-1.1.0-blue)
+![Version](https://img.shields.io/badge/version-1.2.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Docker-lightgrey)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Docker%20%7C%20Pages-lightgrey)
 ![Python](https://img.shields.io/badge/Python-3.10+-yellow)
 ![React](https://img.shields.io/badge/React-18-61DAFB)
+![Deploy](https://img.shields.io/badge/Deploy-GitHub_Actions-2088FF?logo=githubactions&logoColor=white)
 
 <br>
 
@@ -17,6 +18,8 @@
 <img src="https://img.shields.io/badge/🗺️_MAP-خريطة_تفاعلية-blue?style=for-the-badge" alt="Map"/>
 <img src="https://img.shields.io/badge/✈️_FLIGHTS-تتبع_الطيران-orange?style=for-the-badge" alt="Flights"/>
 <img src="https://img.shields.io/badge/🇮🇷_IRAN-متابعة_إيران_OSINT-darkred?style=for-the-badge" alt="Iran OSINT"/>
+<img src="https://img.shields.io/badge/☢️_NUCLEAR-منشآت_نووية-yellow?style=for-the-badge" alt="Nuclear"/>
+<img src="https://img.shields.io/badge/🔔_ALERTS-تنبيهات_صوتية-purple?style=for-the-badge" alt="Alerts"/>
 
 </div>
 
@@ -27,6 +30,45 @@
 **رصد** هي لوحة تحكم شخصية لرصد الأحداث العسكرية والأمنية والجيوسياسية في الشرق الأوسط لحظياً. تجمع البيانات من مصادر متعددة وتعرضها على خريطة تفاعلية مع تصنيف ذكي.
 
 **Rsd** is a personal OSINT dashboard for real-time monitoring of military, security, and geopolitical events across the Middle East. It aggregates data from multiple sources and displays them on an interactive map with intelligent classification.
+
+---
+
+## ⚡ التشغيل السريع | Quick Start
+
+### 1) استنساخ المشروع | Clone
+
+```bash
+git clone https://github.com/abosalehg-ui/rsd.git
+cd rsd
+```
+
+> 💡 لا توجد لديك Git؟ ثبّتها من [git-scm.com](https://git-scm.com/downloads).
+>
+> لتحديث نسختك لاحقًا: `git pull origin main`
+
+### 2) التشغيل بـ Docker (الأسهل) | Run with Docker
+
+```bash
+docker compose up -d
+# الواجهة: http://localhost:3000
+# API Docs: http://localhost:8000/docs
+```
+
+### 3) أو تشغيل محلي للتطوير | Or local dev
+
+```bash
+# نافذة طرفية 1 — Backend
+cd backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+
+# نافذة طرفية 2 — Frontend
+cd frontend
+npm install
+npm run dev
+```
+
+افتح <http://localhost:3000>.
 
 ---
 
@@ -54,6 +96,40 @@
 | 📺 **البث المباشر** | مشغل مدمج للقنوات الإخبارية (الجزيرة، العربية، BBC) |
 | 🔄 **تحديث تلقائي** | جلب الأخبار تلقائياً مع مؤشر "آخر فحص" |
 | 🇮🇷 **متابعة إيران OSINT** | طبقة مخصصة لرصد الضربات والإطلاقات والتحركات الإيرانية مع تصنيف الثقة |
+| ☢️ **منشآت نووية** *(جديد v1.2)* | علامات للمفاعلات ومراكز التخصيب والأبحاث في المنطقة + Popup بالتفاصيل والسعة |
+| 🔔 **تنبيهات صوتية** *(جديد v1.2)* | صوت إنذار في المتصفح عند ورود خبر هام، مع عتبة خطورة وتصنيفات قابلة للتخصيص |
+| 🚀 **نشر تلقائي** *(جديد v1.2)* | GitHub Actions workflow ينشر الواجهة إلى GitHub Pages عند كل push |
+
+---
+
+## ☢️ المنشآت النووية *(جديد في v1.2)*
+
+طبقة جديدة على الخريطة تعرض **24+ منشأة نووية** في المنطقة وما حولها، مبنية من بيانات IAEA PRIS العامة:
+
+- **محطات قوة**: بوشهر، براكة، آكويو، الضبعة، تارابور، شاشمة، روستوف …
+- **مراكز تخصيب**: نطنز، فوردو
+- **مفاعلات أبحاث**: طهران، سوريك، المركز الأردني JRTR
+- **معامل تحويل وماء ثقيل**: أصفهان، آراك
+- **مواقع حساسة**: ديمونا (إسرائيل)، زابوريجيا (تحت الاحتلال)
+
+كل علامة تعرض: الاسم بالعربي والإنجليزي، نوع المفاعل، السعة (MW)، الحالة (عاملة/قيد الإنشاء/متوقفة)، المُشغّل، تاريخ بدء التشغيل. يمكن إخفاء/إظهار الطبقة من لوحة "طبقات" أسفل الخريطة.
+
+> 🔄 لإضافة منشأة جديدة: حرّر `backend/app/data/nuclear_facilities.json`.
+
+---
+
+## 🔔 التنبيهات الصوتية *(جديد في v1.2)*
+
+نظام تنبيه مدمج يُنبّهك صوتيًا عند ورود أخبار مهمة دون الحاجة لمتابعة الشاشة باستمرار.
+
+- **صوت إنذار** يولّد عبر Web Audio API (لا يحتاج ملفات خارجية، يعمل offline)
+- **عتبة خطورة قابلة للتخصيص**: منخفض / متوسط / مرتفع / حرج
+- **تصفية بالتصنيفات**: عسكري، نووي، دبلوماسي، إنساني، اقتصادي
+- **فاصل تكرار قابل للضبط** (5-120 ثانية) لتفادي إزعاج الإنذارات المتكررة
+- **إشعارات سطح المكتب اختيارية** (Notification API)
+- **سجل آخر 5 تنبيهات** قابل للضغط للانتقال للحدث
+
+افتح إعدادات التنبيهات من أيقونة 🔔 في الشريط العلوي.
 
 ---
 
@@ -255,7 +331,10 @@ rasad/
 │   │   ├── 📂 api/
 │   │   │   ├── events.py           # API الأحداث
 │   │   │   ├── flights.py          # API الطيران
-│   │   │   └── iran.py             # 🆕 API إيران OSINT
+│   │   │   ├── iran.py             # API إيران OSINT
+│   │   │   └── nuclear.py          # ☢️ API المنشآت النووية (v1.2)
+│   │   ├── 📂 data/
+│   │   │   └── nuclear_facilities.json  # ☢️ بيانات المفاعلات (v1.2)
 │   │   └── 📂 models/
 │   │       └── database.py         # SQLite + SQLAlchemy
 │   └── 📄 requirements.txt
@@ -265,10 +344,11 @@ rasad/
 │   │   ├── 📄 App.jsx              # التطبيق الرئيسي
 │   │   ├── 📂 components/
 │   │   │   ├── 📂 Layout/
-│   │   │   │   ├── Header.jsx      # الشريط العلوي
-│   │   │   │   └── LiveTVDrawer.jsx # البث المباشر
+│   │   │   │   ├── Header.jsx       # الشريط العلوي (+ جرس التنبيهات)
+│   │   │   │   ├── LiveTVDrawer.jsx # البث المباشر
+│   │   │   │   └── AlertSettings.jsx # 🔔 إعدادات التنبيهات (v1.2)
 │   │   │   ├── 📂 Map/
-│   │   │   │   └── RasadMap.jsx    # خريطة Leaflet (+ طبقة إيران)
+│   │   │   │   └── RasadMap.jsx    # خريطة Leaflet (+ إيران + ☢️ نووية)
 │   │   │   ├── 📂 NewsFeed/
 │   │   │   │   └── NewsFeed.jsx    # قائمة الأخبار
 │   │   │   ├── 📂 Timeline/
@@ -278,12 +358,16 @@ rasad/
 │   │   │   └── 📂 Iran/
 │   │   │       └── IranPanel.jsx   # 🆕 لوحة إيران OSINT
 │   │   ├── 📂 hooks/
-│   │   │   └── usePolling.js       # خطاف التحديث التلقائي
+│   │   │   ├── usePolling.js       # خطاف التحديث التلقائي
+│   │   │   └── useAudioAlert.js    # 🔔 خطاف التنبيهات الصوتية (v1.2)
 │   │   └── 📂 utils/
-│   │       ├── api.js              # دوال API (+ Iran endpoints)
+│   │       ├── api.js              # دوال API (+ Iran + Nuclear endpoints)
 │   │       └── constants.js        # ثوابت (+ CONFIDENCE, IRAN_EVENT_TYPES)
+│   ├── 📄 vite.config.js           # إعدادات Vite (base path للنشر)
 │   └── 📄 package.json
 │
+├── 📂 .github/workflows/
+│   └── deploy-frontend.yml          # 🚀 نشر تلقائي إلى GitHub Pages (v1.2)
 ├── 📂 data/                         # قاعدة البيانات (SQLite)
 ├── 📄 docker-compose.yml
 ├── 📄 start-rasad.bat               # تشغيل سريع Windows
@@ -321,6 +405,14 @@ rasad/
 | `GET /api/iran/strikes` | الضربات والأحداث مع فلتر الثقة (confidence, event_type, hours) |
 | `GET /api/iran/leaders` | قائمة القادة الإيرانيين مع آخر أخبارهم |
 | `GET /api/iran/stats` | إحصائيات أحداث إيران حسب النوع والثقة |
+
+### المنشآت النووية ☢️ *(جديد v1.2)* | Nuclear
+
+| المسار | الوصف |
+|--------|-------|
+| `GET /api/nuclear/facilities` | قائمة المنشآت مع فلاتر (country, facility_type, status) |
+| `GET /api/nuclear/facilities/{id}` | تفاصيل منشأة محددة |
+| `GET /api/nuclear/stats` | إحصائيات إجمالية حسب الدولة والنوع والحالة |
 
 ### النظام | System
 
@@ -377,9 +469,10 @@ BACKEND_PORT=8000
 | React 18 | واجهة المستخدم |
 | Vite | أداة البناء |
 | Tailwind CSS | التنسيق |
-| Leaflet | الخريطة التفاعلية (3 طبقات) |
+| Leaflet | الخريطة التفاعلية (4 طبقات: أحداث + طيران + إيران + ☢️ نووي) |
 | Recharts | الرسوم البيانية |
 | Lucide React | الأيقونات |
+| Web Audio API | توليد صوت إنذار التنبيهات (بدون ملفات خارجية) |
 
 ---
 
@@ -393,15 +486,86 @@ BACKEND_PORT=8000
 
 ---
 
-## 🔮 المرحلة الثانية | Phase 2 (Planned)
+## 🌐 النشر | Deployment
 
-- [ ] 🤖 **Ollama/Qwen AI** - تصنيف ذكي للأخبار بالذكاء الاصطناعي
-- [ ] 📱 **Telegram** - رصد قنوات تيليجرام
-- [ ] 🧠 **تحليل المشاعر** - للأخبار العربية
-- [ ] 🔔 **تنبيهات ذكية** - إشعارات للأحداث المهمة
-- [ ] 📄 **تقارير PDF** - تقارير تلقائية
-- [ ] 🌐 **Twitter/X** - رصد التغريدات
-- [ ] 📍 **تحديد الموقع الدقيق** - بدل إحداثيات الدول الافتراضية
+### GitHub Pages (الواجهة فقط)
+
+يأتي المشروع بـ workflow جاهز في `.github/workflows/deploy-frontend.yml` يبني واجهة Vite وينشرها على GitHub Pages عند كل push إلى `main`.
+
+**الخطوات لتفعيله**:
+1. اذهب إلى **Settings → Pages** على GitHub
+2. اختر *Source: GitHub Actions*
+3. (اختياري) أضف Secret باسم `VITE_API_BASE` (Settings → Secrets and variables → Actions) بقيمة عنوان الـ Backend الخارجي إن وُجد، مثل: `https://api.example.com/api`
+4. ادفع تعديلات على `frontend/**` — سيبدأ النشر تلقائيًا
+
+**القيد المهم**: الـ Backend (FastAPI + SQLite + APScheduler) **لا يعمل على GitHub Pages** لأنها للملفات الثابتة فقط. لنسخة كاملة عامة:
+- استضف الباك على Railway / Render / Fly.io (نطاق مجاني متاح)
+- اضبط `VITE_API_BASE` ليشير إليه
+- أو شغّل المشروع كاملاً محليًا (الطريقة الموصى بها للاستخدام الشخصي)
+
+### Docker (محلي أو خادم خاص)
+
+```bash
+docker compose up -d --build
+```
+
+ينشر الـ Backend على `8000` والواجهة على `3000`. مناسب للتشغيل على VPS بسيط.
+
+---
+
+## 🤝 المساهمة | Contributing
+
+```bash
+# 1. Fork المشروع على GitHub
+# 2. استنسخ نسختك
+git clone https://github.com/<your-username>/rsd.git
+cd rsd
+
+# 3. أنشئ فرعاً للميزة
+git checkout -b feat/my-feature
+
+# 4. عدّل، اختبر، ثم commit
+git add .
+git commit -m "feat: وصف التغيير"
+
+# 5. ادفع وافتح Pull Request
+git push origin feat/my-feature
+```
+
+أنماط الـ commit messages: `feat:`, `fix:`, `docs:`, `refactor:`, `style:`, `test:`.
+
+---
+
+## 🗺️ خارطة الطريق | Roadmap
+
+### ✅ v1.2 (الإصدار الحالي)
+- [x] ☢️ طبقة المنشآت النووية على الخريطة
+- [x] 🔔 نظام تنبيهات صوتية في المتصفح
+- [x] 🚀 GitHub Actions workflow للنشر
+- [x] 🔧 دعم `VITE_API_BASE` لباك خارجي
+
+### 🔄 v1.3 — ترقية الخريطة والتصوّر
+- [ ] 🌍 وضع كرة أرضية ثلاثية الأبعاد (globe.gl)
+- [ ] 🗺️ طبقات بيانات إضافية (قواعد عسكرية، خطوط أنابيب)
+- [ ] 🌐 i18n كامل (عربي/إنجليزي)
+- [ ] 📊 Country Intelligence Index — مؤشر تقييم لكل دولة
+
+### 🔄 v1.4 — البنية التحتية والجودة
+- [ ] 🧪 اختبارات pytest + vitest
+- [ ] 🔄 CI workflow للـ lint والاختبارات
+- [ ] 💾 طبقة caching (ETags + Service Worker)
+- [ ] 📦 PWA (عمل دون اتصال)
+- [ ] 🖥️ تطبيق Tauri لسطح المكتب
+
+### 🔮 v2.0 — ذكاء وتحليل
+- [ ] 🤖 **Ollama/Qwen AI** — تصنيف وتلخيص ذكي للأخبار العربية
+- [ ] 🧠 **تحليل المشاعر** والكيانات (NER)
+- [ ] 📡 **Telegram** + **Twitter/X** كمصادر إضافية
+- [ ] 🎯 **Signal Convergence** — اكتشاف تقارب الإشارات تلقائيًا
+- [ ] 📄 **تقارير PDF** تلقائية
+- [ ] 📍 تحديد موقع جغرافي دقيق (بدل مراكز الدول)
+
+> 💡 خارطة الطريق هذه مستوحاة جزئيًا من المشروع المفتوح [worldmonitor](https://github.com/koala73/worldmonitor) كمصدر أفكار معمارية (مع الالتزام بترخيص رصد MIT).
 
 ---
 
