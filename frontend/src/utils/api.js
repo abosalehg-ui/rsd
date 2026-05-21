@@ -1,11 +1,16 @@
 /**
  * رصد - أدوات API
+ *
+ * في وضع التطوير: vite proxy يحوّل /api → http://localhost:8000
+ * في وضع الإنتاج (GitHub Pages مثلاً): يستخدم VITE_API_BASE من البيئة،
+ * وإلا يبقى '/api' (يتطلّب أن يكون الباك على نفس النطاق).
  */
 
-const API_BASE = '/api';
+const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
 export async function fetchAPI(endpoint, params = {}) {
-  const url = new URL(`${API_BASE}${endpoint}`, window.location.origin);
+  const base = API_BASE.startsWith('http') ? API_BASE : `${window.location.origin}${API_BASE}`;
+  const url = new URL(`${base}${endpoint}`);
   Object.entries(params).forEach(([key, val]) => {
     if (val !== undefined && val !== null && val !== '') {
       url.searchParams.set(key, val);
@@ -18,7 +23,8 @@ export async function fetchAPI(endpoint, params = {}) {
 }
 
 export async function postAPI(endpoint) {
-  const url = `${API_BASE}${endpoint}`;
+  const base = API_BASE.startsWith('http') ? API_BASE : `${window.location.origin}${API_BASE}`;
+  const url = `${base}${endpoint}`;
   const response = await fetch(url, { method: 'POST' });
   if (!response.ok) throw new Error(`API Error: ${response.status}`);
   return response.json();
@@ -45,3 +51,7 @@ export const refreshSources = () => postAPI('/refresh');
 export const getIranStrikes = (params = {}) => fetchAPI('/iran/strikes', params);
 export const getIranLeaders = (hours = 72) => fetchAPI('/iran/leaders', { hours });
 export const getIranStats = (hours = 72) => fetchAPI('/iran/stats', { hours });
+
+// Nuclear facilities ☢️
+export const getNuclearFacilities = (params = {}) => fetchAPI('/nuclear/facilities', params);
+export const getNuclearStats = () => fetchAPI('/nuclear/stats');
