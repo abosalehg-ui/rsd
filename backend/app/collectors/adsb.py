@@ -2,10 +2,12 @@
 يتتبع الرحلات الجوية فوق الشرق الأوسط عبر adsb.lol (مجاني بدون مفتاح)
 مع كشف الطائرات العسكرية
 """
-import httpx
 import logging
 from datetime import datetime, timezone
 from typing import Dict, Optional
+
+import httpx
+
 from ..models.database import FlightTrack, get_session_factory
 
 logger = logging.getLogger("rasad.adsb")

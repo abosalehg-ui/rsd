@@ -1,8 +1,10 @@
 """رصد - نقاط API للأحداث"""
-from fastapi import APIRouter, Query, Depends
-from sqlalchemy import select, func, desc, and_
 from datetime import datetime, timedelta, timezone
-from typing import Optional, List
+from typing import Optional
+
+from fastapi import APIRouter, Query
+from sqlalchemy import and_, desc, func, select
+
 from ..models.database import Event, get_session_factory
 
 router = APIRouter(prefix="/api/events", tags=["events"])

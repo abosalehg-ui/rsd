@@ -1,10 +1,12 @@
 """رصد - جامع بيانات UCDP
 جامعة أوبسالا لبيانات النزاعات - بديل مجاني عن ACLED
 """
-import httpx
 import json
 import logging
 from datetime import datetime, timezone
+
+import httpx
+
 from ..models.database import Event, get_session_factory
 
 logger = logging.getLogger("rasad.ucdp")

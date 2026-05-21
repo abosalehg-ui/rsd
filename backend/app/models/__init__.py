@@ -1,1 +1,1 @@
-from .database import Base, Event, FlightTrack, init_db, get_session_factory
+from .database import Base, Event, FlightTrack, get_session_factory, init_db

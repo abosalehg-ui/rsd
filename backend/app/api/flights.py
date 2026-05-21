@@ -1,9 +1,11 @@
 """رصد - نقاط API لتتبع الطيران"""
-from fastapi import APIRouter, Query
-from sqlalchemy import select, func, desc, and_
 from datetime import datetime, timedelta, timezone
-from ..models.database import FlightTrack, get_session_factory
+
+from fastapi import APIRouter, Query
+from sqlalchemy import and_, desc, func, select
+
 from ..collectors.adsb import get_live_flights
+from ..models.database import FlightTrack, get_session_factory
 
 router = APIRouter(prefix="/api/flights", tags=["flights"])
 
