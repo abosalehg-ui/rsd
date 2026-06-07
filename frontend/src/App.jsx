@@ -166,7 +166,9 @@ const { data: flights } = usePolling(
       {/* المحتوى الرئيسي */}
       <div className="flex-1 flex overflow-hidden">
         {/* الخريطة / الكرة الأرضية */}
-        <div className="flex-1 relative">
+        {/* min-w-0 + overflow-hidden: يمنع canvas الكرة الأرضية (globe.gl) من فرض
+            عرضه الثابت كحد أدنى للعنصر المرن وسحق اللوحة الجانبية حتى الاختفاء في وضع 3D */}
+        <div className="flex-1 relative min-w-0 overflow-hidden">
           {viewMode === '3d' ? (
             <Suspense fallback={<div className="flex items-center justify-center h-full text-cyan-400 text-sm">🌍 جاري تحميل الكرة الأرضية...</div>}>
               <RasadGlobe
