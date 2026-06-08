@@ -53,31 +53,62 @@ function ensureCtx() {
   return audioCtx;
 }
 
+// نغمة "جرس" واحدة: أساس جيبي + توافقية ثُمانية خافتة للبريق، بغلاف جرسي ناعم.
+// تُعطي إحساس تنبيه راقٍ (لا موجة مربّعة قاسية تُشبه ألعاب الريترو).
+function playBell(ctx, dest, freq, offset, dur, peak) {
+  const t = ctx.currentTime + offset;
+
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0.0001, t);
+  env.gain.exponentialRampToValueAtTime(peak, t + 0.015);
+  env.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  env.connect(dest);
+
+  const o1 = ctx.createOscillator();
+  o1.type = 'sine';
+  o1.frequency.setValueAtTime(freq, t);
+  o1.connect(env);
+  o1.start(t);
+  o1.stop(t + dur + 0.05);
+
+  // توافقية علوية خافتة (بريق الجرس)
+  const o2 = ctx.createOscillator();
+  o2.type = 'triangle';
+  o2.frequency.setValueAtTime(freq * 2, t);
+  const g2 = ctx.createGain();
+  g2.gain.setValueAtTime(0.0001, t);
+  g2.gain.exponentialRampToValueAtTime(peak * 0.22, t + 0.015);
+  g2.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.55);
+  o2.connect(g2);
+  g2.connect(dest);
+  o2.start(t);
+  o2.stop(t + dur);
+}
+
 function playAlarmTone() {
   const ctx = ensureCtx();
   if (!ctx) return;
 
   const now = ctx.currentTime;
+
+  // غلاف رئيسي ناعم → مرشّح تمرير منخفض (دفء، يزيل الحدّة) → الخرج
   const master = ctx.createGain();
   master.gain.setValueAtTime(0.0001, now);
-  master.gain.exponentialRampToValueAtTime(0.25, now + 0.02);
-  master.gain.exponentialRampToValueAtTime(0.0001, now + 1.4);
-  master.connect(ctx.destination);
+  master.gain.exponentialRampToValueAtTime(0.6, now + 0.01);
+  master.gain.exponentialRampToValueAtTime(0.0001, now + 2.0);
 
-  // نغمتان متناوبتان (إنذار كلاسيكي)
-  [[880, 0.0], [660, 0.35], [880, 0.7], [660, 1.05]].forEach(([freq, offset]) => {
-    const osc = ctx.createOscillator();
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(freq, now + offset);
-    const env = ctx.createGain();
-    env.gain.setValueAtTime(0.0001, now + offset);
-    env.gain.exponentialRampToValueAtTime(0.9, now + offset + 0.02);
-    env.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.3);
-    osc.connect(env);
-    env.connect(master);
-    osc.start(now + offset);
-    osc.stop(now + offset + 0.32);
-  });
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.setValueAtTime(5000, now);
+  lp.Q.value = 0.6;
+
+  master.connect(lp);
+  lp.connect(ctx.destination);
+
+  // موتيف تنبيه تصاعدي راقٍ (ثلاثي نوتة من سُلّم دو الكبير: G5 → C6 → E6)
+  playBell(ctx, master, 783.99, 0.0, 0.55, 0.45);   // G5
+  playBell(ctx, master, 1046.5, 0.17, 0.55, 0.45);  // C6
+  playBell(ctx, master, 1318.51, 0.34, 1.25, 0.55); // E6 — نوتة الحلّ، أطول رنيناً
 }
 
 function shouldAlert(event, prefs) {
