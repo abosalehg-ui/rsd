@@ -10,19 +10,19 @@ const CHANNELS = [
     id: 'aljazeera',
     name: 'الجزيرة',
     icon: '\u{1F7E2}',
-    embedUrl: 'https://www.youtube.com/embed/bNyUyrR0PHo',
+    embedUrl: 'https://www.youtube-nocookie.com/embed/bNyUyrR0PHo',
   },
   {
     id: 'alarabiya',
     name: 'العربية',
     icon: '\u{1F7E0}',
-    embedUrl: 'https://www.youtube.com/embed/n7eQejkXbnM',
+    embedUrl: 'https://www.youtube-nocookie.com/embed/n7eQejkXbnM',
   },
   {
     id: 'bbc_arabic',
     name: 'BBC عربي',
     icon: '\u{1F534}',
-    embedUrl: 'https://www.youtube.com/embed/O1pGmVtj2Y8',
+    embedUrl: 'https://www.youtube-nocookie.com/embed/O1pGmVtj2Y8',
   },
 ];
 
