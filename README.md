@@ -1,29 +1,29 @@
 <div align="center">
 
-# 🛰️ رصد (Rsd) v1.4
+# 🛰️ رصد (Rsd) v1.5
 
 ### منصة استخبارات المصادر المفتوحة للشرق الأوسط
 **Open Source Intelligence (OSINT) Dashboard for the Middle East**
 
-![Version](https://img.shields.io/badge/version-1.4.0-blue)
+![Version](https://img.shields.io/badge/version-1.5.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Docker%20%7C%20Pages-lightgrey)
+![Platform](https://img.shields.io/badge/platform-Windows_Installer_%7C_Docker_%7C_Pages-lightgrey)
 ![Python](https://img.shields.io/badge/Python-3.10+-yellow)
 ![React](https://img.shields.io/badge/React-18-61DAFB)
 ![Deploy](https://img.shields.io/badge/Deploy-GitHub_Actions-2088FF?logo=githubactions&logoColor=white)
 
 <br>
 
+<img src="https://img.shields.io/badge/🖥️_DESKTOP-مثبّت_ويندوز-2563eb?style=for-the-badge" alt="Desktop"/>
 <img src="https://img.shields.io/badge/🔴_LIVE-البث_المباشر-red?style=for-the-badge" alt="Live"/>
 <img src="https://img.shields.io/badge/🗺️_MAP-خريطة_تفاعلية-blue?style=for-the-badge" alt="Map"/>
+<img src="https://img.shields.io/badge/🌍_3D_GLOBE-كرة_أرضية-blue?style=for-the-badge" alt="3D Globe"/>
 <img src="https://img.shields.io/badge/✈️_FLIGHTS-تتبع_الطيران-orange?style=for-the-badge" alt="Flights"/>
 <img src="https://img.shields.io/badge/🇮🇷_IRAN-متابعة_إيران_OSINT-darkred?style=for-the-badge" alt="Iran OSINT"/>
 <img src="https://img.shields.io/badge/☢️_NUCLEAR-منشآت_نووية-yellow?style=for-the-badge" alt="Nuclear"/>
 <img src="https://img.shields.io/badge/🔔_ALERTS-تنبيهات_صوتية-purple?style=for-the-badge" alt="Alerts"/>
-<img src="https://img.shields.io/badge/🌍_3D_GLOBE-كرة_أرضية-blue?style=for-the-badge" alt="3D Globe"/>
 <img src="https://img.shields.io/badge/🌐_i18n-عربي_/_English-green?style=for-the-badge" alt="i18n"/>
 <img src="https://img.shields.io/badge/📦_PWA-عمل_دون_اتصال-cyan?style=for-the-badge" alt="PWA"/>
-<img src="https://img.shields.io/badge/🧪_TESTED-pytest_+_vitest-orange?style=for-the-badge" alt="Tested"/>
 
 </div>
 
@@ -31,34 +31,46 @@
 
 ## 📋 نظرة عامة | Overview
 
-**رصد** هي لوحة تحكم شخصية لرصد الأحداث العسكرية والأمنية والجيوسياسية في الشرق الأوسط لحظياً. تجمع البيانات من مصادر متعددة وتعرضها على خريطة تفاعلية مع تصنيف ذكي.
+**رصد** لوحة تحكم شخصية لرصد الأحداث العسكرية والأمنية والجيوسياسية في الشرق الأوسط لحظياً. تجمع البيانات من مصادر متعددة وتعرضها على خريطة تفاعلية (2D و 3D) مع تصنيف ذكي وتنبيهات صوتية.
 
-**Rsd** is a personal OSINT dashboard for real-time monitoring of military, security, and geopolitical events across the Middle East. It aggregates data from multiple sources and displays them on an interactive map with intelligent classification.
+**Rsd** is a personal OSINT dashboard for real-time monitoring of military, security, and geopolitical events across the Middle East. It aggregates data from multiple sources and displays them on an interactive 2D/3D map with intelligent classification and audio alerts.
+
+<div align="center">
+
+| الواجهة الرئيسية | الخريطة والأحداث |
+|:---:|:---:|
+| ![الواجهة الرئيسية](assets/screenshots/rsd1.png) | ![الخريطة والأحداث](assets/screenshots/rsd2.png) |
+
+</div>
 
 ---
 
-## ⚡ التشغيل السريع | Quick Start
+## ⚡ التشغيل | Getting Started
 
-### 1) استنساخ المشروع | Clone
+استنسخ المشروع أولاً (للتحديث لاحقاً: `git pull origin main`):
 
 ```bash
 git clone https://github.com/abosalehg-ui/rsd.git
 cd rsd
 ```
 
-> 💡 لا توجد لديك Git؟ ثبّتها من [git-scm.com](https://git-scm.com/downloads).
->
-> لتحديث نسختك لاحقًا: `git pull origin main`
+ثم اختر إحدى الطرق التالية:
 
-### 2) التشغيل بـ Docker (الأسهل) | Run with Docker
+### 🖥️ الطريقة A — تطبيق سطح المكتب (ويندوز، الأسهل للمستخدم النهائي)
+
+نزّل وثبّت `Rasad-Setup-x64.exe` — تطبيق مستقل لا يحتاج Python أو Node. بعد التثبيت يعمل كل شيء من `http://127.0.0.1:8000` ويفتح المتصفح تلقائياً.
+
+> لبناء المثبّت بنفسك: راجع **[`packaging/README.md`](packaging/README.md)** ثم شغّل `packaging\build_installer.bat`.
+
+### 🐳 الطريقة B — Docker (محلي أو خادم خاص)
 
 ```bash
 docker compose up -d
-# الواجهة: http://localhost:3000
+# الواجهة:  http://localhost:3000
 # API Docs: http://localhost:8000/docs
 ```
 
-### 3) أو تشغيل محلي للتطوير | Or local dev
+### 🧑‍💻 الطريقة C — تشغيل محلي للتطوير
 
 ```bash
 # نافذة طرفية 1 — Backend
@@ -74,17 +86,13 @@ npm run dev
 
 افتح <http://localhost:3000>.
 
----
+> 💡 على ويندوز يمكنك بدل ذلك النقر على `start-rasad.bat` لتشغيل Backend + Frontend معاً.
 
-## 📸 لقطات الشاشة | Screenshots
+### 📋 المتطلّبات | Requirements
 
-<div align="center">
-
-| الواجهة الرئيسية | الخريطة والأحداث |
-|:---:|:---:|
-| ![الواجهة الرئيسية](assets/screenshots/rsd1.png) | ![الخريطة والأحداث](assets/screenshots/rsd2.png) |
-
-</div>
+- **Python** 3.10+ و **Node.js** 18+ (للتطوير/البناء)
+- **مفتاح NewsAPI** (اختياري) — [احصل على مفتاح مجاني](https://newsapi.org/)
+- لبناء المثبّت: **Inno Setup 6** ([تنزيل](https://jrsoftware.org/isdl.php))
 
 ---
 
@@ -92,33 +100,46 @@ npm run dev
 
 | الميزة | الوصف |
 |--------|-------|
-| 🗺️ **خريطة تفاعلية** | عرض الأحداث على خريطة Leaflet مع تجميع ذكي للعلامات وتصنيف بالألوان |
-| 📰 **شريط أخبار عاجلة** | تدفق مباشر للأخبار مع فلاتر حسب التصنيف والخطورة والدولة |
-| ✈️ **تتبع الطيران** | رصد الطائرات فوق المنطقة عبر ADS-B مع تمييز الطيران العسكري |
-| ⏳ **خط زمني** | عرض الأحداث زمنياً مع إمكانية التصفية |
-| 📊 **إحصائيات** | مؤشر التصعيد، توزيع حسب الدولة والتصنيف والمصدر |
-| 📺 **البث المباشر** | مشغل مدمج للقنوات الإخبارية (الجزيرة، العربية، BBC) |
-| 🔄 **تحديث تلقائي** | جلب الأخبار تلقائياً مع مؤشر "آخر فحص" |
-| 🇮🇷 **متابعة إيران OSINT** | طبقة مخصصة لرصد الضربات والإطلاقات والتحركات الإيرانية مع تصنيف الثقة |
-| ☢️ **منشآت نووية** *(جديد v1.2)* | علامات للمفاعلات ومراكز التخصيب والأبحاث في المنطقة + Popup بالتفاصيل والسعة |
-| 🔔 **تنبيهات صوتية** *(جديد v1.2)* | صوت إنذار في المتصفح عند ورود خبر هام، مع عتبة خطورة وتصنيفات قابلة للتخصيص |
-| 🚀 **نشر تلقائي** *(جديد v1.2)* | GitHub Actions workflow ينشر الواجهة إلى GitHub Pages عند كل push |
-| 🌍 **كرة أرضية 3D** *(جديد v1.3)* | عرض بديل ثلاثي الأبعاد بـ globe.gl + Three.js مع arcs للضربات |
-| 📊 **مؤشر استخبارات الدول** *(جديد v1.3)* | تقييم 0-100 لكل دولة بناءً على عدد ونوع الأحداث |
-| ⚔️ **قواعد عسكرية** *(جديد v1.3)* | طبقة لـ 19 قاعدة رئيسية (US, Russia, IRGC, IAF, NATO) |
-| 🛢️ **خطوط أنابيب** *(جديد v1.3)* | 10 خطوط نفط وغاز رئيسية (BTC, Arab Gas, TANAP, Dolphin) |
-| 🌐 **ثنائي اللغة** *(جديد v1.3)* | دعم عربي/إنجليزي كامل مع زر تبديل في الشريط العلوي |
-| 📦 **PWA** *(جديد v1.4)* | يعمل دون اتصال — تخزين مؤقت لبلاطات الخريطة وقوام الكرة + Service Worker تلقائي |
-| 💾 **ETag caching** *(جديد v1.4)* | استجابات 304 Not Modified + Cache-Control محسوب حسب المسار |
-| 🧪 **اختبارات** *(جديد v1.4)* | pytest (backend) + vitest (frontend) — 27 اختبار يمر |
-| 🔄 **CI workflow** *(جديد v1.4)* | GitHub Actions يشغّل lint + tests + build عند كل PR و push |
-| 🖥️ **Tauri desktop** *(جديد v1.4)* | scaffolding لتطبيق سطح المكتب على macOS/Windows/Linux |
+| 🗺️ **خريطة 2D تفاعلية** | Leaflet مع تجميع ذكي للعلامات و6 طبقات (أحداث + طيران + إيران + نووي + قواعد + أنابيب) |
+| 🌍 **كرة أرضية 3D** | globe.gl + Three.js — نقاط متوهّجة + **حلقات رادار متحرّكة** للأحداث العاجلة + arcs للضربات (تحميل كسول) |
+| 📰 **شريط أخبار عاجلة** | تدفق مباشر مع فلاتر حسب التصنيف والخطورة والدولة |
+| ✈️ **تتبع الطيران** | رصد الطائرات عبر ADS-B مع تمييز الطيران العسكري |
+| ⏳ **خط زمني + 📊 إحصائيات** | عرض زمني للأحداث + مؤشر تصعيد وتوزيعات |
+| 📺 **البث المباشر** | مشغّل مدمج للقنوات (الجزيرة، العربية، BBC) عبر `youtube-nocookie` |
+| 🔔 **تنبيهات صوتية** | صوت تنبيه **جرسي راقٍ** (Web Audio API، يعمل offline) مع عتبة خطورة وتصنيفات قابلة للتخصيص |
+| 🇮🇷 **متابعة إيران OSINT** | طبقة لرصد الضربات/الإطلاقات/التحركات مع تصنيف الثقة + متابعة 10 قياديين |
+| ☢️ **منشآت نووية** | 24+ منشأة (مفاعلات/تخصيب/أبحاث) مع تفاصيل وسعة |
+| ⚔️ **قواعد عسكرية + 🛢️ أنابيب** | 19 قاعدة رئيسية + 10 خطوط نفط/غاز |
+| 📊 **مؤشر استخبارات الدول** | تقييم 0-100 لكل دولة بناءً على عدد ونوع الأحداث |
+| 🌐 **ثنائي اللغة** | عربي/إنجليزي كامل مع تبديل RTL/LTR |
+| 🖥️ **تطبيق سطح المكتب** *(جديد v1.5)* | مثبّت ويندوز كامل (PyInstaller + Inno Setup) — exe واحد يقدّم الـ API والواجهة معاً |
+| 📦 **PWA** | يعمل دون اتصال — تخزين مؤقت للبلاطات وقوام الكرة + Service Worker |
+| 💾 **ETag caching** | استجابات 304 Not Modified + Cache-Control حسب المسار |
+| 🧪 **اختبارات + CI** | pytest (backend) + vitest (frontend) عبر GitHub Actions عند كل PR |
 
 ---
 
-## ☢️ المنشآت النووية *(جديد في v1.2)*
+## 🖥️ تطبيق سطح المكتب *(جديد في v1.5)*
 
-طبقة جديدة على الخريطة تعرض **24+ منشأة نووية** في المنطقة وما حولها، مبنية من بيانات IAEA PRIS العامة:
+يمكن تغليف رصد كتطبيق ويندوز يُثبَّت بنقرة واحدة، دون حاجة لتثبيت Python أو Node لدى المستخدم.
+
+**الفكرة:** الـ Backend (FastAPI) يقدّم الواجهة المبنية أيضاً، فيصبح كل شيء في **ملف `.exe` واحد** على `http://127.0.0.1:8000`. يجمّع **PyInstaller** الخادم + البيانات + الواجهة، ثم يلفّه **Inno Setup** في مثبّت مع اختصارات وأيقونة وأداة إزالة.
+
+```bat
+:: من جذر المستودع (يتطلّب Inno Setup 6 في PATH)
+packaging\build_installer.bat
+:: الناتج: packaging\Output\Rasad-Setup-x64.exe
+```
+
+- 📂 بعد التثبيت تُحفظ قاعدة البيانات والمفاتيح في `%LOCALAPPDATA%\Rasad\` (قابل للكتابة).
+- 🎨 الأيقونة (طابع رادار) تُولَّد عبر `packaging/make_icon.py` وتُربط في الـ exe والمثبّت والاختصارات وأيقونة المتصفح.
+- 📖 التفاصيل الكاملة (التخصيص، الأيقونة، التوقيع، SmartScreen) في **[`packaging/README.md`](packaging/README.md)**.
+
+---
+
+## ☢️ المنشآت النووية
+
+طبقة على الخريطة تعرض **24+ منشأة نووية** في المنطقة، مبنية من بيانات IAEA PRIS العامة:
 
 - **محطات قوة**: بوشهر، براكة، آكويو، الضبعة، تارابور، شاشمة، روستوف …
 - **مراكز تخصيب**: نطنز، فوردو
@@ -126,28 +147,28 @@ npm run dev
 - **معامل تحويل وماء ثقيل**: أصفهان، آراك
 - **مواقع حساسة**: ديمونا (إسرائيل)، زابوريجيا (تحت الاحتلال)
 
-كل علامة تعرض: الاسم بالعربي والإنجليزي، نوع المفاعل، السعة (MW)، الحالة (عاملة/قيد الإنشاء/متوقفة)، المُشغّل، تاريخ بدء التشغيل. يمكن إخفاء/إظهار الطبقة من لوحة "طبقات" أسفل الخريطة.
+كل علامة تعرض: الاسم بالعربي والإنجليزي، نوع المفاعل، السعة (MW)، الحالة، المُشغّل، تاريخ بدء التشغيل. يمكن إخفاء/إظهار الطبقة من لوحة "طبقات" أسفل الخريطة.
 
 > 🔄 لإضافة منشأة جديدة: حرّر `backend/app/data/nuclear_facilities.json`.
 
 ---
 
-## 🔔 التنبيهات الصوتية *(جديد في v1.2)*
+## 🔔 التنبيهات الصوتية
 
-نظام تنبيه مدمج يُنبّهك صوتيًا عند ورود أخبار مهمة دون الحاجة لمتابعة الشاشة باستمرار.
+نظام تنبيه مدمج يُنبّهك صوتيًا عند ورود أخبار مهمة دون متابعة الشاشة باستمرار.
 
-- **صوت إنذار** يولّد عبر Web Audio API (لا يحتاج ملفات خارجية، يعمل offline)
+- **صوت تنبيه جرسي راقٍ** يُولَّد عبر Web Audio API (نغمات `sine`/`triangle` تصاعدية، بلا ملفات خارجية، يعمل offline)
 - **عتبة خطورة قابلة للتخصيص**: منخفض / متوسط / مرتفع / حرج
 - **تصفية بالتصنيفات**: عسكري، نووي، دبلوماسي، إنساني، اقتصادي
-- **فاصل تكرار قابل للضبط** (5-120 ثانية) لتفادي إزعاج الإنذارات المتكررة
+- **فاصل تكرار قابل للضبط** (5-120 ثانية) لتفادي الإزعاج
 - **إشعارات سطح المكتب اختيارية** (Notification API)
 - **سجل آخر 5 تنبيهات** قابل للضغط للانتقال للحدث
 
-افتح إعدادات التنبيهات من أيقونة 🔔 في الشريط العلوي.
+افتح إعدادات التنبيهات من أيقونة 🔔 في الشريط العلوي (زر اختبار الصوت بالداخل).
 
 ---
 
-## 🇮🇷 متابعة إيران OSINT *(جديد في v1.1)*
+## 🇮🇷 متابعة إيران OSINT
 
 ميزة مستوحاة من [iranstrikemap.com](https://iranstrikemap.com) و [live-iran-map.com](https://live-iran-map.com) تضيف طبقة متخصصة لمتابعة الأحداث الإيرانية.
 
@@ -173,39 +194,20 @@ npm run dev
 
 يتابع النظام آخر أخبار **10 قياديين إيرانيين** تلقائياً:
 
-| القائد | المنصب |
-|--------|--------|
-| علي خامنئي | المرشد الأعلى |
-| مسعود بزشكيان | الرئيس |
-| حسين سلامي | قائد الحرس الثوري |
-| محمد باقري | رئيس الأركان |
-| أمير علي حاجي زاده | قائد الفضاء IRGC |
-| عباس عراقچي | وزير الخارجية |
-| إسماعيل قاآني | قائد قوة القدس |
-| محمد إسلامي | رئيس منظمة الطاقة الذرية |
-| عزيز نصيرزاده | قائد سلاح الجو |
-| علي شمخاني | مستشار المرشد |
-
-### مصادر Iran OSINT
+| القائد | المنصب | | القائد | المنصب |
+|--------|--------|---|--------|--------|
+| علي خامنئي | المرشد الأعلى | | عباس عراقچي | وزير الخارجية |
+| مسعود بزشكيان | الرئيس | | إسماعيل قاآني | قائد قوة القدس |
+| حسين سلامي | قائد الحرس الثوري | | محمد إسلامي | رئيس منظمة الطاقة الذرية |
+| محمد باقري | رئيس الأركان | | عزيز نصيرزاده | قائد سلاح الجو |
+| أمير علي حاجي زاده | قائد الفضاء IRGC | | علي شمخاني | مستشار المرشد |
 
 <details>
-<summary>اضغط للعرض</summary>
+<summary>📚 مصادر Iran OSINT (اضغط للعرض)</summary>
 
-**HIGH CONFIDENCE:**
-- ISW - Institute for the Study of War
-- Calibre Obscura
-- The Drive - War Zone
-- OSINTdefender
-
-**MEDIUM CONFIDENCE:**
-- Breaking Defense
-- Defense One
-- Al-Monitor
-- Iran International
-
-**LOW CONFIDENCE:**
-- Reuters - Middle East
-- BBC - Middle East
+**HIGH:** ISW · Calibre Obscura · The Drive (War Zone) · OSINTdefender
+**MEDIUM:** Breaking Defense · Defense One · Al-Monitor · Iran International
+**LOW:** Reuters (Middle East) · BBC (Middle East)
 
 </details>
 
@@ -234,170 +236,65 @@ npm run dev
 | **Google Alerts** | تنبيهات مخصصة للمنطقة | كل دقيقتين |
 | **UCDP** | بيانات النزاعات المسلحة (جامعة أوبسالا) | يومياً |
 | **ADS-B** | تتبع الطيران (adsb.lol) | كل 30 ثانية |
-| **Iran OSINT** | مصادر OSINT متخصصة بإيران والشرق الأوسط | كل 5 دقائق |
-
-### 📰 مصادر RSS المدعومة
+| **Iran OSINT** | مصادر OSINT متخصصة بإيران والشرق الأوسط | كل 30 دقيقة |
 
 <details>
-<summary>اضغط للعرض</summary>
+<summary>📰 مصادر RSS المدعومة (اضغط للعرض)</summary>
 
-**أخبار عربية:**
-- الجزيرة (عربي + English)
-- العربية
-- BBC Arabic / Middle East
-- France24 Arabic
-- Sky News Arabia
-- RT Arabic
-
-**تحليلات دولية:**
-- Al-Monitor
-- Defense One
-- War on the Rocks
-- The Drive - War Zone
-- Breaking Defense
-
-**أخبار نووية:**
-- World Nuclear News
-- IAEA News
-- Arms Control Association
-
-**تنبيهات Google Alerts:**
-- Middle East Airstrikes
-- Gaza Yemen Syria
-- Houthi / حوثي
-- Red Sea
-- Iran Nuclear / تخصيب يورانيوم
-- Ceasefire / هدنة
-- Humanitarian Crisis
+**أخبار عربية:** الجزيرة (عربي + English) · العربية · BBC Arabic/Middle East · France24 Arabic · Sky News Arabia · RT Arabic
+**تحليلات دولية:** Al-Monitor · Defense One · War on the Rocks · The Drive (War Zone) · Breaking Defense
+**أخبار نووية:** World Nuclear News · IAEA News · Arms Control Association
+**Google Alerts:** Middle East Airstrikes · Gaza/Yemen/Syria · Houthi/حوثي · Red Sea · Iran Nuclear/تخصيب يورانيوم · Ceasefire/هدنة · Humanitarian Crisis
 
 </details>
-
----
-
-## 🚀 التشغيل | Getting Started
-
-### المتطلبات | Requirements
-
-- **Python** 3.10+
-- **Node.js** 18+
-- **مفتاح NewsAPI** (اختياري) - [احصل على مفتاح مجاني](https://newsapi.org/)
-
-### الطريقة 1: تشغيل سريع (Windows)
-
-```batch
-# انقر مرتين على:
-start-rasad.bat
-```
-
-سيقوم السكربت بـ:
-1. ✅ فحص Python و Node.js
-2. ✅ تثبيت المكتبات تلقائياً
-3. ✅ تشغيل Backend و Frontend
-4. ✅ فتح المتصفح على http://localhost:3000
-
-### الطريقة 2: Docker Compose
-
-```bash
-# 1. أنشئ ملف .env
-cp .env.example .env
-nano .env  # أضف NEWSAPI_KEY=xxxxx
-
-# 2. شغّل
-docker-compose up -d
-
-# 3. افتح المتصفح
-# الواجهة: http://localhost:3000
-# API Docs: http://localhost:8000/docs
-```
-
-### الطريقة 3: تشغيل يدوي
-
-```bash
-# Backend
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-
-# Frontend (terminal جديد)
-cd frontend
-npm install
-npm run dev
-```
 
 ---
 
 ## 📁 هيكل المشروع | Project Structure
 
 ```
-rasad/
+rsd/
 ├── 📂 backend/
 │   ├── 📂 app/
-│   │   ├── 📄 main.py              # نقطة الدخول + API endpoints
-│   │   ├── 📄 config.py            # الإعدادات (.env)
-│   │   ├── 📄 scheduler.py         # جدولة جمع البيانات
-│   │   ├── 📂 collectors/          # جامعات البيانات
-│   │   │   ├── gdelt.py            # GDELT Project
-│   │   │   ├── news_api.py         # NewsAPI
-│   │   │   ├── rss_feeds.py        # RSS + Google Alerts
-│   │   │   ├── ucdp.py             # UCDP Uppsala
-│   │   │   ├── adsb.py             # ADS-B تتبع الطيران
-│   │   │   └── iran_osint.py       # 🆕 Iran OSINT مصادر متخصصة
-│   │   ├── 📂 api/
-│   │   │   ├── events.py           # API الأحداث (+ /country-index v1.3)
-│   │   │   ├── flights.py          # API الطيران
-│   │   │   ├── iran.py             # API إيران OSINT
-│   │   │   ├── nuclear.py          # ☢️ API المنشآت النووية (v1.2)
-│   │   │   └── infrastructure.py   # ⚔️ 🛢️ API القواعد + الأنابيب (v1.3)
-│   │   ├── 📂 data/
-│   │   │   ├── nuclear_facilities.json  # ☢️ بيانات المفاعلات (v1.2)
-│   │   │   ├── military_bases.json      # ⚔️ بيانات القواعد (v1.3)
-│   │   │   └── pipelines.json           # 🛢️ بيانات الأنابيب (v1.3)
-│   │   └── 📂 models/
-│   │       └── database.py         # SQLite + SQLAlchemy
+│   │   ├── 📄 main.py              # نقطة الدخول + API (+ تخديم الواجهة في وضع سطح المكتب)
+│   │   ├── 📄 config.py            # الإعدادات (.env) + مسارات قابلة للكتابة عند التجميد
+│   │   ├── 📄 scheduler.py         # جدولة جمع البيانات (APScheduler)
+│   │   ├── 📂 collectors/          # gdelt · news_api · rss_feeds · ucdp · adsb · iran_osint
+│   │   ├── 📂 api/                 # events (+country-index) · flights · iran · nuclear · infrastructure
+│   │   ├── 📂 data/                # nuclear_facilities · military_bases · pipelines (JSON)
+│   │   ├── 📂 middleware/          # cache.py (ETag + Cache-Control)
+│   │   └── 📂 models/database.py   # SQLite + SQLAlchemy
+│   ├── 📄 run_desktop.py           # 🖥️ نقطة دخول تطبيق سطح المكتب (v1.5)
 │   └── 📄 requirements.txt
 │
 ├── 📂 frontend/
 │   ├── 📂 src/
-│   │   ├── 📄 App.jsx              # التطبيق الرئيسي
+│   │   ├── 📄 App.jsx
 │   │   ├── 📂 components/
-│   │   │   ├── 📂 Layout/
-│   │   │   │   ├── Header.jsx       # الشريط العلوي (+ جرس التنبيهات)
-│   │   │   │   ├── LiveTVDrawer.jsx # البث المباشر
-│   │   │   │   └── AlertSettings.jsx # 🔔 إعدادات التنبيهات (v1.2)
-│   │   │   ├── 📂 Map/
-│   │   │   │   ├── RasadMap.jsx    # خريطة Leaflet 2D (6 طبقات)
-│   │   │   │   └── RasadGlobe.jsx  # 🌍 كرة 3D بـ globe.gl (v1.3، lazy)
-│   │   │   └── 📂 Stats/
-│   │   │       └── CountryIndex.jsx # 📊 مؤشر استخبارات الدول (v1.3)
-│   │   │   ├── 📂 NewsFeed/
-│   │   │   │   └── NewsFeed.jsx    # قائمة الأخبار
-│   │   │   ├── 📂 Timeline/
-│   │   │   │   └── Timeline.jsx    # الخط الزمني
-│   │   │   ├── 📂 Stats/
-│   │   │   │   └── StatsPanel.jsx  # الإحصائيات
-│   │   │   └── 📂 Iran/
-│   │   │       └── IranPanel.jsx   # 🆕 لوحة إيران OSINT
-│   │   ├── 📂 hooks/
-│   │   │   ├── usePolling.js       # خطاف التحديث التلقائي
-│   │   │   └── useAudioAlert.js    # 🔔 خطاف التنبيهات الصوتية (v1.2)
-│   │   ├── 📂 i18n/                # 🌐 الترجمة (v1.3)
-│   │   │   ├── index.js            # إعداد i18next + كشف اللغة
-│   │   │   └── locales/
-│   │   │       ├── ar.json         # ترجمة عربية
-│   │   │       └── en.json         # ترجمة إنجليزية
-│   │   └── 📂 utils/
-│   │       ├── api.js              # دوال API (+ Iran + Nuclear + Infrastructure + CountryIndex)
-│   │       └── constants.js        # ثوابت (+ CONFIDENCE, IRAN_EVENT_TYPES)
-│   ├── 📄 vite.config.js           # إعدادات Vite (base path للنشر)
-│   └── 📄 package.json
+│   │   │   ├── 📂 Layout/          # Header · LiveTVDrawer · AlertSettings
+│   │   │   ├── 📂 Map/             # RasadMap.jsx (2D) · RasadGlobe.jsx (3D، lazy)
+│   │   │   ├── 📂 NewsFeed/        # NewsFeed.jsx
+│   │   │   ├── 📂 Timeline/        # Timeline.jsx
+│   │   │   ├── 📂 Stats/           # StatsPanel.jsx · CountryIndex.jsx
+│   │   │   └── 📂 Iran/            # IranPanel.jsx
+│   │   ├── 📂 hooks/               # usePolling.js · useAudioAlert.js
+│   │   ├── 📂 i18n/                # index.js + locales/{ar,en}.json
+│   │   └── 📂 utils/               # api.js · constants.js
+│   ├── 📂 public/                  # favicon.ico + أيقونات PWA
+│   ├── 📂 src-tauri/               # scaffolding Tauri (بديل تجريبي لسطح المكتب)
+│   └── 📄 vite.config.js · index.html · package.json
 │
-├── 📂 .github/workflows/
-│   └── deploy-frontend.yml          # 🚀 نشر تلقائي إلى GitHub Pages (v1.2)
-├── 📂 data/                         # قاعدة البيانات (SQLite)
+├── 📂 packaging/                   # 🖥️ بناء مثبّت ويندوز (v1.5)
+│   ├── 📄 build_installer.bat      # بناء كامل بأمر واحد
+│   ├── 📄 rasad.spec               # مواصفات PyInstaller (onedir)
+│   ├── 📄 rasad.iss                # سكربت Inno Setup
+│   ├── 📄 make_icon.py             # مولّد الأيقونة (Pillow)
+│   ├── 🖼️ rasad.ico                # الأيقونة الجاهزة
+│   └── 📄 README.md                # دليل البناء
+│
+├── 📂 .github/workflows/           # ci.yml (lint+tests+build) · deploy-frontend.yml
 ├── 📄 docker-compose.yml
-├── 📄 start-rasad.bat               # تشغيل سريع Windows
-├── 📄 stop-rasad.bat                # إيقاف Windows
-├── 📄 .env                          # المتغيرات (أنشئه من .env.example)
+├── 📄 start-rasad.bat / stop-rasad.bat   # تشغيل/إيقاف سريع (Windows، وضع التطوير)
 └── 📄 README.md
 ```
 
@@ -405,55 +302,51 @@ rasad/
 
 ## ⚙️ API Endpoints
 
-### الأحداث | Events
+<details open>
+<summary><b>الأحداث | Events</b></summary>
 
 | المسار | الوصف |
 |--------|-------|
 | `GET /api/events/` | الأحداث مع فلاتر (category, severity, country_code, hours, limit) |
 | `GET /api/events/latest` | أحدث 20 حدث |
-| `GET /api/events/map` | أحداث الخريطة (فقط التي لها إحداثيات) |
+| `GET /api/events/map` | أحداث الخريطة (التي لها إحداثيات) |
 | `GET /api/events/stats` | إحصائيات شاملة |
 | `GET /api/events/timeline` | بيانات الخط الزمني |
+| `GET /api/events/country-index?hours=72&top=20` | ترتيب الدول حسب درجة 0-100 |
 
-### الطيران | Flights
+</details>
 
+<details>
+<summary><b>الطيران · إيران · النووي · البنية التحتية · النظام</b></summary>
+
+**الطيران | Flights**
 | المسار | الوصف |
 |--------|-------|
 | `GET /api/flights/live` | الرحلات الحية الآن |
 | `GET /api/flights/military/history` | سجل الطيران العسكري |
 | `GET /api/flights/military/stats` | إحصائيات الطيران |
 
-### إيران OSINT *(جديد)* | Iran OSINT
-
+**إيران OSINT**
 | المسار | الوصف |
 |--------|-------|
-| `GET /api/iran/strikes` | الضربات والأحداث مع فلتر الثقة (confidence, event_type, hours) |
-| `GET /api/iran/leaders` | قائمة القادة الإيرانيين مع آخر أخبارهم |
-| `GET /api/iran/stats` | إحصائيات أحداث إيران حسب النوع والثقة |
+| `GET /api/iran/strikes` | الضربات (confidence, event_type, hours) |
+| `GET /api/iran/leaders` | القادة الإيرانيون مع آخر أخبارهم |
+| `GET /api/iran/stats` | إحصائيات حسب النوع والثقة |
 
-### المنشآت النووية ☢️ *(جديد v1.2)* | Nuclear
-
+**المنشآت النووية ☢️**
 | المسار | الوصف |
 |--------|-------|
-| `GET /api/nuclear/facilities` | قائمة المنشآت مع فلاتر (country, facility_type, status) |
-| `GET /api/nuclear/facilities/{id}` | تفاصيل منشأة محددة |
-| `GET /api/nuclear/stats` | إحصائيات إجمالية حسب الدولة والنوع والحالة |
+| `GET /api/nuclear/facilities` | قائمة المنشآت (country, facility_type, status) |
+| `GET /api/nuclear/facilities/{id}` | تفاصيل منشأة |
+| `GET /api/nuclear/stats` | إحصائيات حسب الدولة/النوع/الحالة |
 
-### البنية التحتية ⚔️ + 🛢️ *(جديد v1.3)* | Infrastructure
-
+**البنية التحتية ⚔️ 🛢️**
 | المسار | الوصف |
 |--------|-------|
-| `GET /api/infrastructure/bases` | قواعد عسكرية (filters: country, operator, base_type) |
-| `GET /api/infrastructure/pipelines` | خطوط أنابيب نفط/غاز (filters: pipeline_type, status) |
+| `GET /api/infrastructure/bases` | قواعد عسكرية (country, operator, base_type) |
+| `GET /api/infrastructure/pipelines` | خطوط أنابيب (pipeline_type, status) |
 
-### مؤشر استخبارات الدول 📊 *(جديد v1.3)* | Country Index
-
-| المسار | الوصف |
-|--------|-------|
-| `GET /api/events/country-index?hours=72&top=20` | ترتيب الدول حسب درجة 0-100 محسوبة من خطورة وثقة الأحداث |
-
-### النظام | System
-
+**النظام | System**
 | المسار | الوصف |
 |--------|-------|
 | `GET /api/health` | فحص صحة النظام |
@@ -461,26 +354,29 @@ rasad/
 | `GET /api/collectors/status` | حالة جامعي البيانات |
 | `POST /api/refresh` | تحديث يدوي من جميع المصادر |
 
+</details>
+
+> 📚 توثيق تفاعلي كامل عبر Swagger على `http://localhost:8000/docs`.
+
 ---
 
 ## 🔧 الإعدادات | Configuration
 
-أنشئ ملف `.env` في المجلد الرئيسي:
+أنشئ ملف `.env` في المجلد الرئيسي (أو في `%LOCALAPPDATA%\Rasad\.env` لتطبيق سطح المكتب):
 
 ```env
 # مفاتيح API (اختيارية)
 NEWSAPI_KEY=your_newsapi_key_here
 
-# قاعدة البيانات
-DATABASE_URL=sqlite+aiosqlite:///./data/rasad.db
+# قاعدة البيانات (الافتراضي: ملف محلي ./rasad.db ؛ تطبيق سطح المكتب يستخدم %LOCALAPPDATA%\Rasad)
+DATABASE_URL=sqlite+aiosqlite:///./rasad.db
 
 # فترات التحديث (بالثواني)
 GDELT_INTERVAL=900        # 15 دقيقة
 NEWSAPI_INTERVAL=600      # 10 دقائق
-RSS_INTERVAL=120          # دقيقتين
+RSS_INTERVAL=120          # دقيقتان
 UCDP_INTERVAL=86400       # يوم
 ADSB_INTERVAL=30          # 30 ثانية
-# Iran OSINT يتحدث كل 5 دقائق (مثبت في الكود)
 
 # الخادم
 BACKEND_HOST=0.0.0.0
@@ -491,28 +387,14 @@ BACKEND_PORT=8000
 
 ## 🛠️ التقنيات | Tech Stack
 
-### Backend
-| التقنية | الاستخدام |
-|---------|----------|
-| FastAPI | إطار العمل الرئيسي |
-| SQLAlchemy | ORM + قاعدة البيانات |
-| aiosqlite | SQLite غير متزامن |
-| APScheduler | جدولة المهام |
-| httpx | طلبات HTTP غير متزامنة |
-| feedparser | تحليل RSS |
-
-### Frontend
-| التقنية | الاستخدام |
-|---------|----------|
-| React 18 | واجهة المستخدم |
-| Vite | أداة البناء |
-| Tailwind CSS | التنسيق |
-| Leaflet | الخريطة 2D (6 طبقات: أحداث + طيران + إيران + ☢️ نووي + ⚔️ قواعد + 🛢️ أنابيب) |
-| globe.gl + Three.js | الكرة الأرضية 3D (lazy-loaded) |
-| react-i18next | الترجمة عربي/إنجليزي مع RTL |
-| Recharts | الرسوم البيانية |
-| Lucide React | الأيقونات |
-| Web Audio API | توليد صوت إنذار التنبيهات (بدون ملفات خارجية) |
+| الطبقة | التقنيات |
+|--------|----------|
+| **Backend** | FastAPI · SQLAlchemy · aiosqlite · APScheduler · httpx · feedparser |
+| **Frontend** | React 18 · Vite · Tailwind CSS · react-i18next (RTL) · Recharts · Lucide |
+| **الخرائط** | Leaflet (2D، 6 طبقات) · globe.gl + Three.js (3D: نقاط + حلقات رادار + arcs) |
+| **الصوت/PWA** | Web Audio API (توليد التنبيه) · vite-plugin-pwa + Workbox |
+| **التغليف** | PyInstaller + Inno Setup (مثبّت ويندوز) · Pillow (الأيقونة) |
+| **الجودة** | pytest · vitest · ruff · GitHub Actions CI |
 
 ---
 
@@ -522,126 +404,100 @@ BACKEND_PORT=8000
 |--------|-------|
 | `events` | جميع الأحداث من كل المصادر (+ حقلا confidence و video_url) |
 | `flight_tracks` | سجل تتبع الطيران |
-| `iranian_leader_news` | 🆕 أخبار القادة الإيرانيين المرصودة |
+| `iranian_leader_news` | أخبار القادة الإيرانيين المرصودة |
 
 ---
 
 ## 🌐 النشر | Deployment
 
-### GitHub Pages (الواجهة فقط)
+### 🖥️ تطبيق سطح المكتب (Windows)
+ابنِ مثبّتاً مستقلاً عبر `packaging\build_installer.bat` (راجع [`packaging/README.md`](packaging/README.md)). الأنسب للاستخدام الشخصي بلا اعتماديات.
 
-يأتي المشروع بـ workflow جاهز في `.github/workflows/deploy-frontend.yml` يبني واجهة Vite وينشرها على GitHub Pages عند كل push إلى `main`.
-
-**الخطوات لتفعيله**:
-1. اذهب إلى **Settings → Pages** على GitHub
-2. اختر *Source: GitHub Actions*
-3. (اختياري) أضف Secret باسم `VITE_API_BASE` (Settings → Secrets and variables → Actions) بقيمة عنوان الـ Backend الخارجي إن وُجد، مثل: `https://api.example.com/api`
-4. ادفع تعديلات على `frontend/**` — سيبدأ النشر تلقائيًا
-
-**القيد المهم**: الـ Backend (FastAPI + SQLite + APScheduler) **لا يعمل على GitHub Pages** لأنها للملفات الثابتة فقط. لنسخة كاملة عامة:
-- استضف الباك على Railway / Render / Fly.io (نطاق مجاني متاح)
-- اضبط `VITE_API_BASE` ليشير إليه
-- أو شغّل المشروع كاملاً محليًا (الطريقة الموصى بها للاستخدام الشخصي)
-
-### Docker (محلي أو خادم خاص)
-
+### 🐳 Docker (محلي أو VPS)
 ```bash
 docker compose up -d --build
 ```
+ينشر الـ Backend على `8000` والواجهة على `3000`.
 
-ينشر الـ Backend على `8000` والواجهة على `3000`. مناسب للتشغيل على VPS بسيط.
+### 📄 GitHub Pages (الواجهة فقط)
+workflow جاهز في `.github/workflows/deploy-frontend.yml` يبني الواجهة وينشرها عند كل push إلى `main`.
+
+1. **Settings → Pages** → اختر *Source: GitHub Actions*
+2. (اختياري) أضف Secret باسم `VITE_API_BASE` يشير لـ Backend خارجي، مثل: `https://api.example.com/api`
+3. ادفع تعديلات على `frontend/**` — يبدأ النشر تلقائياً
+
+> ⚠️ **قيد مهم:** الـ Backend (FastAPI + SQLite + APScheduler) **لا يعمل على GitHub Pages** (ملفات ثابتة فقط). لنسخة عامة كاملة استضف الباك على Railway / Render / Fly.io واضبط `VITE_API_BASE`، أو شغّل المشروع محلياً.
 
 ---
 
 ## 🤝 المساهمة | Contributing
 
 ```bash
-# 1. Fork المشروع على GitHub
-# 2. استنسخ نسختك
-git clone https://github.com/<your-username>/rsd.git
-cd rsd
-
-# 3. أنشئ فرعاً للميزة
 git checkout -b feat/my-feature
-
-# 4. عدّل، اختبر، ثم commit
-git add .
+# عدّل، اختبر (pytest / npm test)، ثم:
 git commit -m "feat: وصف التغيير"
-
-# 5. ادفع وافتح Pull Request
-git push origin feat/my-feature
+git push origin feat/my-feature   # ثم افتح Pull Request
 ```
 
-أنماط الـ commit messages: `feat:`, `fix:`, `docs:`, `refactor:`, `style:`, `test:`.
+أنماط رسائل الـ commit: `feat:` · `fix:` · `docs:` · `refactor:` · `style:` · `test:` · `chore:`.
 
 ---
 
 ## 🗺️ خارطة الطريق | Roadmap
 
-### ✅ v1.2 (الإصدار الحالي)
-- [x] ☢️ طبقة المنشآت النووية على الخريطة
-- [x] 🔔 نظام تنبيهات صوتية في المتصفح
-- [x] 🚀 GitHub Actions workflow للنشر
-- [x] 🔧 دعم `VITE_API_BASE` لباك خارجي
+<details>
+<summary>✅ الإصدارات السابقة (v1.1 → v1.4)</summary>
 
-### ✅ v1.3 — ترقية الخريطة والتصوّر
-- [x] 🌍 وضع كرة أرضية ثلاثية الأبعاد (globe.gl + Three.js، lazy-loaded)
-- [x] 🗺️ طبقات بيانات إضافية (19 قاعدة عسكرية + 10 خطوط أنابيب)
-- [x] 🌐 i18n كامل (عربي/إنجليزي مع تبديل RTL/LTR)
-- [x] 📊 Country Intelligence Index — مؤشر تقييم 0-100 لكل دولة
+- **v1.1** — طبقة إيران OSINT + تصنيف الثقة + متابعة القادة
+- **v1.2** — المنشآت النووية + التنبيهات الصوتية + نشر GitHub Pages
+- **v1.3** — كرة 3D + i18n عربي/إنجليزي + مؤشر استخبارات الدول + قواعد/أنابيب
+- **v1.4** — اختبارات (pytest + vitest) + CI + ETag caching + PWA + Tauri scaffold
 
-### ✅ v1.4 — البنية التحتية والجودة
-- [x] 🧪 اختبارات pytest (backend, 4 ملفات) + vitest (frontend, 3 ملفات)
-- [x] 🔄 CI workflow (GitHub Actions): ruff + pytest + vitest + vite build
-- [x] 💾 ETag middleware + Cache-Control لكل مسارات `/api/*`
-- [x] 📦 PWA كامل عبر `vite-plugin-pwa` + workbox runtime caching
-- [x] 🖥️ Tauri 2 scaffolding (`src-tauri/`) — جاهز للبناء المحلي
+</details>
+
+### ✅ v1.5 — تطبيق سطح المكتب وتحسينات (الحالي)
+- [x] 🖥️ مثبّت ويندوز كامل (PyInstaller + Inno Setup) — exe واحد يقدّم الـ API والواجهة
+- [x] 🎨 أيقونة تطبيق (طابع رادار) + favicon
+- [x] 🖼️ تحسين عرض 3D — نقاط متوهّجة + حلقات رادار للأحداث العاجلة (بدل الأعمدة)
+- [x] 🔔 صوت تنبيه جرسي محسّن (بدل الموجة المربّعة القاسية)
+- [x] 🐛 إصلاحات: ظهور اللوحة الجانبية في وضع 3D · تنظيف `docker-compose` · `youtube-nocookie`
 
 ### 🔮 v2.0 — ذكاء وتحليل
 - [ ] 🤖 **Ollama/Qwen AI** — تصنيف وتلخيص ذكي للأخبار العربية
 - [ ] 🧠 **تحليل المشاعر** والكيانات (NER)
 - [ ] 📡 **Telegram** + **Twitter/X** كمصادر إضافية
-- [ ] 🎯 **Signal Convergence** — اكتشاف تقارب الإشارات تلقائيًا
+- [ ] 🎯 **Signal Convergence** — اكتشاف تقارب الإشارات تلقائياً
 - [ ] 📄 **تقارير PDF** تلقائية
 - [ ] 📍 تحديد موقع جغرافي دقيق (بدل مراكز الدول)
 
-> 💡 خارطة الطريق هذه مستوحاة جزئيًا من المشروع المفتوح [worldmonitor](https://github.com/koala73/worldmonitor) كمصدر أفكار معمارية (مع الالتزام بترخيص رصد MIT).
+> 💡 خارطة الطريق مستوحاة جزئياً من المشروع المفتوح [worldmonitor](https://github.com/koala73/worldmonitor) كمصدر أفكار معمارية (مع الالتزام بترخيص رصد MIT).
 
 ---
 
 ## 🐛 استكشاف الأخطاء | Troubleshooting
 
-### لا تظهر أخبار جديدة
-1. تأكد من تشغيل Backend: `curl http://localhost:8000/api/health`
-2. افحص حالة الجامعات: `curl http://localhost:8000/api/collectors/status`
-3. جرب التحديث اليدوي: اضغط زر 🔄 في الواجهة
-
-### طبقة إيران OSINT فارغة
-1. تحقق من البيانات: `curl http://localhost:8000/api/iran/strikes`
-2. إذا `total: 0` — انتظر دقيقة بعد تشغيل الباكند ثم اضغط 🔄
-3. البيانات تظهر بعد أول دورة جمع (تلقائي عند التشغيل)
-
-### خطأ في NewsAPI
-- تأكد من وجود `NEWSAPI_KEY` في `.env`
-- المفتاح المجاني يعطي أخبار قديمة فقط (24+ ساعة)
-
-### الخريطة لا تعمل
-- تأكد من اتصال الإنترنت (Leaflet يحتاج tiles من CartoCDN)
-- افحص Console في المتصفح للأخطاء
+| المشكلة | الحل |
+|---------|------|
+| **لا تظهر أخبار جديدة** | تأكد من تشغيل Backend (`/api/health`)، افحص `/api/collectors/status`، ثم اضغط 🔄 |
+| **طبقة إيران OSINT فارغة** | تظهر بعد أول دورة جمع — انتظر دقيقة بعد التشغيل واضغط 🔄 (`/api/iran/strikes`) |
+| **خطأ NewsAPI** | أضف `NEWSAPI_KEY` في `.env` (المفتاح المجاني يعطي أخباراً قديمة 24+ ساعة) |
+| **الخريطة 2D لا تعمل** | تحقق من الإنترنت (Leaflet يحتاج tiles من CartoCDN) وافحص Console |
+| **🖥️ المثبّت: تحذير SmartScreen/مكافح فيروسات** | طبيعي لتطبيق غير موقّع — اختر "Run anyway" (للتوقيع: شهادة Code Signing) |
+| **🖥️ المنفذ 8000 مشغول** | أغلق أي نسخة عاملة (أو خادم تطوير) — التطبيق يكتفي بفتح المتصفح على النسخة العاملة |
+| **🖥️ لا يُعثر على ISCC أثناء البناء** | ثبّت Inno Setup 6 وأضف مجلّده إلى PATH (أو افتح `rasad.iss` يدوياً واضغط Compile) |
 
 ---
 
 ## 📝 الترخيص | License
 
-هذا المشروع للاستخدام الشخصي والتعليمي.
+هذا المشروع للاستخدام الشخصي والتعليمي (MIT).
 
 ---
 
 <div align="center">
 
-**رصد** 🛰️ - صُنع بـ ❤️ للمعرفة والتوثيق
-
-**Rsd** - Made with ❤️ for Knowledge and Documentation
+**رصد** 🛰️ — صُنع بـ ❤️ للمعرفة والتوثيق
+**Rsd** — Made with ❤️ for Knowledge and Documentation
 
 ---
 
