@@ -204,3 +204,33 @@ async def get_sources():
             {"id": "ai", "name": "Ollama/Qwen AI", "status": "phase_2"},
         ],
     }
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# تخديم الواجهة المبنية (الوضع المُجمّع / سطح المكتب)
+#
+# عند توفّر مجلّد frontend/dist (يُحزَم داخل تطبيق PyInstaller) نُقدّمه على "/".
+# يُسجَّل آخر شيء، فتبقى مسارات /api و /docs أعلى أولوية. لا يؤثّر على وضع
+# التطوير أو Docker أو الاختبارات (حيث لا يوجد dist).
+# ──────────────────────────────────────────────────────────────────────────
+def _frontend_dist():
+    import sys
+    from pathlib import Path
+
+    candidates = []
+    if getattr(sys, "frozen", False):
+        candidates.append(Path(getattr(sys, "_MEIPASS", ".")) / "frontend_dist")
+    # مستودع التطوير: backend/app/main.py → ../../frontend/dist
+    candidates.append(Path(__file__).resolve().parent.parent.parent / "frontend" / "dist")
+    for c in candidates:
+        if (c / "index.html").exists():
+            return c
+    return None
+
+
+_dist = _frontend_dist()
+if _dist is not None:
+    from fastapi.staticfiles import StaticFiles
+
+    app.mount("/", StaticFiles(directory=str(_dist), html=True), name="frontend")
+    logger.info(f"🖥️  تخديم الواجهة من: {_dist}")
