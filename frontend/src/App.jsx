@@ -46,12 +46,12 @@ export default function App() {
 
   const { data: mapEvents } = usePolling(
     useCallback(() => getMapEvents(filters.hours), [filters.hours]),
-    30000
+    30000, [filters.hours]
   );
 
   const { data: stats, refetch: refetchStats } = usePolling(
     useCallback(() => getStats(filters.hours), [filters.hours]),
-    60000
+    60000, [filters.hours]
   );
 
 const { data: flights } = usePolling(
