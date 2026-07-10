@@ -219,7 +219,7 @@ export default function IranPanel({ onSelectStrike }) {
                     </span>
                   )}
                 </div>
-                {leader.recent_news.length > 0 && (
+                {leader.recent_news?.length > 0 && (
                   <div className="mt-2 space-y-1">
                     {leader.recent_news.slice(0, 2).map((n, i) => (
                       <a

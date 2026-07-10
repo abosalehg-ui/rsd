@@ -31,7 +31,6 @@ def start_scheduler():
         id="gdelt_collector",
         name="جامع GDELT",
         max_instances=1,
-        next_run_time=datetime.now(),
     )
 
     # NewsAPI - كل 10 دقائق
@@ -41,8 +40,7 @@ def start_scheduler():
         seconds=settings.newsapi_interval,
         id="newsapi_collector",
         name="جامع الأخبار",
-              max_instances=1,
-        next_run_time=datetime.now(),
+        max_instances=1,
     )
 
     # RSS - كل 5 دقائق
@@ -53,7 +51,6 @@ def start_scheduler():
         id="rss_collector",
         name="جامع RSS",
         max_instances=1,
-        next_run_time=datetime.now(),
     )
 
     # UCDP - كل يوم
@@ -64,17 +61,19 @@ def start_scheduler():
         id="ucdp_collector",
         name="جامع UCDP",
         max_instances=1,
-        next_run_time=datetime.now(),
     )
 
     # الطيران - كل 30 ثانية (مخفف عن 10 ثوان لحماية الحصة)
+    # ملاحظة: بقيّة المجمّعات تُجمَع مرة عند الإقلاع في lifespan، لذا لا نمرّر لها
+    # next_run_time تجنّبًا لتشغيل متزامن مزدوج يُسبّب تعارض المفتاح الفريد.
+    # الطيران وحده غير مشمول في جمع الإقلاع (ولا يعتمد source_id فريد)، فنُبقيه فوريًا.
     scheduler.add_job(
         collect_flights,
         "interval",
         seconds=max(settings.adsb_interval, 30),
         id="adsb_collector",
         name="متتبع الطيران",
-              max_instances=1,
+        max_instances=1,
         next_run_time=datetime.now(),
     )
 
@@ -86,7 +85,6 @@ def start_scheduler():
         id="iran_osint_collector",
         name="جامع إيران OSINT",
         max_instances=1,
-        next_run_time=datetime.now(),
     )
 
     scheduler.start()

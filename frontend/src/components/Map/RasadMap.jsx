@@ -11,6 +11,18 @@ import { Layers, ZoomIn, ZoomOut, Crosshair } from 'lucide-react';
 const ME_CENTER = [29.0, 42.0];
 const ME_ZOOM = 5;
 
+// ===== تهريب HTML ومنع حقن السكربتات في نوافذ Leaflet =====
+// بيانات الأحداث/الضربات/الطيران قادمة من مصادر خارجية (RSS/OSINT/ADS-B)
+// وتُحقن في popup عبر innerHTML، لذا نُهرّب كل نص خارجي قبل إدراجه.
+const ESC_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ESC_MAP[c]);
+
+// يسمح فقط بروابط http/https — يمنع javascript: وأشباهها
+const safeUrl = (u) => {
+  const s = String(u ?? '').trim();
+  return /^https?:\/\//i.test(s) ? s : '';
+};
+
 // ===== تجميع النقاط القريبة =====
 function clusterEvents(events, zoom) {
   const gridSize = Math.max(2, 30 / Math.pow(2, zoom - 3));
@@ -114,12 +126,12 @@ export default function RasadMap({ events = [], flights = null, iranStrikes = []
               <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${cat.color}20;color:${cat.color}">${cat.label}</span>
               <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${sev.color}20;color:${sev.color}">${sev.label}</span>
             </div>
-            <h3 style="font-size:12px;font-weight:700;margin-bottom:4px;line-height:1.5">${ev.title}</h3>
-            <p style="font-size:10px;color:#94a3b8;margin-bottom:6px">${(ev.description||'').substring(0,100)}</p>
+            <h3 style="font-size:12px;font-weight:700;margin-bottom:4px;line-height:1.5">${esc(ev.title)}</h3>
+            <p style="font-size:10px;color:#94a3b8;margin-bottom:6px">${esc((ev.description||'').substring(0,100))}</p>
             <div style="display:flex;justify-content:space-between;font-size:9px;color:#64748b">
-              <span>${flag} ${ev.country||''}</span><span>${timeAgo(ev.event_date)}</span>
+              <span>${flag} ${esc(ev.country||'')}</span><span>${timeAgo(ev.event_date)}</span>
             </div>
-            ${ev.url ? `<a href="${ev.url}" target="_blank" style="display:block;margin-top:6px;font-size:10px;color:#22d3ee">المصدر ←</a>` : ''}
+            ${safeUrl(ev.url) ? `<a href="${esc(safeUrl(ev.url))}" target="_blank" rel="noopener noreferrer" style="display:block;margin-top:6px;font-size:10px;color:#22d3ee">المصدر ←</a>` : ''}
           </div>`, { maxWidth: 280 });
         m.on('click', () => onSelectEvent?.(ev));
         markersRef.current.addLayer(m);
@@ -137,7 +149,7 @@ export default function RasadMap({ events = [], flights = null, iranStrikes = []
         // قائمة العناوين في popup التجميع
         const listHtml = cluster.events.slice(0, 8).map(ev => {
           const cat = CATEGORIES[ev.category] || CATEGORIES.general;
-          return `<div class="rasad-cluster-item" data-id="${ev.id}" style="padding:4px 0;border-bottom:1px solid #1e293b;font-size:10px;line-height:1.5;cursor:pointer;color:#cbd5e1" onmouseover="this.style.color='#22d3ee'" onmouseout="this.style.color='#cbd5e1'">${cat.icon} ${ev.title.substring(0, 60)}</div>`;
+          return `<div class="rasad-cluster-item" data-id="${ev.id}" style="padding:4px 0;border-bottom:1px solid #1e293b;font-size:10px;line-height:1.5;cursor:pointer;color:#cbd5e1" onmouseover="this.style.color='#22d3ee'" onmouseout="this.style.color='#cbd5e1'">${cat.icon} ${esc((ev.title || '').substring(0, 60))}</div>`;
         }).join('');
         const moreText = count > 8 ? `<div style="font-size:9px;color:#64748b;padding-top:4px">+ ${count - 8} أحداث أخرى</div>` : '';
 
@@ -157,7 +169,8 @@ export default function RasadMap({ events = [], flights = null, iranStrikes = []
                 const ev = events.find(e => e.id === id);
                 if (ev) {
                   onSelectEvent?.(ev);
-                  if (ev.url) window.open(ev.url, '_blank');
+                  const u = safeUrl(ev.url);
+                  if (u) window.open(u, '_blank', 'noopener');
                 }
               });
             });
@@ -197,10 +210,10 @@ export default function RasadMap({ events = [], flights = null, iranStrikes = []
       });
       L.marker([f.latitude, f.longitude], { icon }).bindPopup(`
         <div style="min-width:160px;font-family:Tajawal,sans-serif;direction:rtl">
-          <div style="font-weight:700;font-family:monospace">${f.callsign||f.icao24}</div>
+          <div style="font-weight:700;font-family:monospace">${esc(f.callsign||f.icao24)}</div>
           ${isMil?'<span style="font-size:10px;color:#a855f7">⚔️ عسكري</span>':''}
           <div style="font-size:10px;color:#94a3b8;margin-top:4px">
-            ${f.origin_country}<br/>
+            ${esc(f.origin_country||'')}<br/>
             الارتفاع: ${f.altitude?Math.round(f.altitude)+'م':'—'}<br/>
             السرعة: ${f.velocity?Math.round(f.velocity*3.6)+' كم/س':'—'}
           </div>
@@ -254,15 +267,15 @@ export default function RasadMap({ events = [], flights = null, iranStrikes = []
             <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${evType.color}20;color:${evType.color}">
               ${evType.icon} ${evType.label}
             </span>
-            ${strike.video_url ? `<a href="${strike.video_url}" target="_blank" style="font-size:10px;padding:2px 6px;border-radius:4px;background:#7c3aed20;color:#a78bfa">🎥 فيديو OSINT</a>` : ''}
+            ${safeUrl(strike.video_url) ? `<a href="${esc(safeUrl(strike.video_url))}" target="_blank" rel="noopener noreferrer" style="font-size:10px;padding:2px 6px;border-radius:4px;background:#7c3aed20;color:#a78bfa">🎥 فيديو OSINT</a>` : ''}
           </div>
-          <h3 style="font-size:12px;font-weight:700;margin-bottom:4px;line-height:1.5">${strike.title}</h3>
-          <p style="font-size:10px;color:#94a3b8;margin-bottom:6px">${(strike.description || '').substring(0, 120)}</p>
+          <h3 style="font-size:12px;font-weight:700;margin-bottom:4px;line-height:1.5">${esc(strike.title)}</h3>
+          <p style="font-size:10px;color:#94a3b8;margin-bottom:6px">${esc((strike.description || '').substring(0, 120))}</p>
           <div style="font-size:9px;color:#64748b;display:flex;justify-content:space-between">
-            <span>📍 ${strike.location_name || strike.country}</span>
-            <span>${strike.feed_name || ''}</span>
+            <span>📍 ${esc(strike.location_name || strike.country || '')}</span>
+            <span>${esc(strike.feed_name || '')}</span>
           </div>
-          ${strike.url ? `<a href="${strike.url}" target="_blank" style="display:block;margin-top:6px;font-size:10px;color:#22d3ee">المصدر ←</a>` : ''}
+          ${safeUrl(strike.url) ? `<a href="${esc(safeUrl(strike.url))}" target="_blank" rel="noopener noreferrer" style="display:block;margin-top:6px;font-size:10px;color:#22d3ee">المصدر ←</a>` : ''}
         </div>`, { maxWidth: 300 });
 
       m.on('click', () => onSelectEvent?.(strike));
@@ -409,15 +422,16 @@ export default function RasadMap({ events = [], flights = null, iranStrikes = []
       <div className="absolute bottom-3 left-3 z-[1000] bg-[#111827]/95 border border-[#1e293b] rounded-lg p-3 text-sm">
         <div className="flex items-center gap-2 mb-2"><Layers className="w-4 h-4 text-slate-400" /><span className="text-slate-400 font-medium">{t('map.layers')}</span></div>
         {[
-          [t('map.events'), showEvents, setShowEvents, 'cyan'],
-          [t('map.flights'), showFlights, setShowFlights, 'purple'],
-          ['🇮🇷 ' + t('map.iran'), showIran, setShowIran, 'red'],
-          ['☢️ ' + t('map.nuclear'), showNuclear, setShowNuclear, 'yellow'],
-          ['⚔️ ' + t('map.bases'), showBases, setShowBases, 'violet'],
-          ['🛢️ ' + t('map.pipelines'), showPipelines, setShowPipelines, 'amber'],
+          // ملاحظة: أسماء أصناف Tailwind كاملة صراحةً كي لا يحذفها فحص المحتوى الثابت
+          [t('map.events'), showEvents, setShowEvents, 'accent-cyan-400'],
+          [t('map.flights'), showFlights, setShowFlights, 'accent-purple-400'],
+          ['🇮🇷 ' + t('map.iran'), showIran, setShowIran, 'accent-red-400'],
+          ['☢️ ' + t('map.nuclear'), showNuclear, setShowNuclear, 'accent-yellow-400'],
+          ['⚔️ ' + t('map.bases'), showBases, setShowBases, 'accent-violet-400'],
+          ['🛢️ ' + t('map.pipelines'), showPipelines, setShowPipelines, 'accent-amber-400'],
         ].map(([l, v, fn, c]) => (
           <label key={l} className="flex items-center gap-2 cursor-pointer mb-1">
-            <input type="checkbox" checked={v} onChange={e => fn(e.target.checked)} className={`w-4 h-4 accent-${c}-400`} />
+            <input type="checkbox" checked={v} onChange={e => fn(e.target.checked)} className={`w-4 h-4 ${c}`} />
             <span className="text-slate-300">{l}</span>
           </label>
         ))}
