@@ -17,6 +17,10 @@ function pointRad(severity) {
   return severity === 'critical' ? 0.5 : severity === 'high' ? 0.4 : severity === 'medium' ? 0.3 : 0.22;
 }
 
+// تهريب HTML للنصوص الخارجية قبل حقنها في وسوم pointLabel (تُعرض عبر innerHTML)
+const ESC_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ESC_MAP[c]);
+
 // تحويل لون hex إلى rgba بشفافية (لتلاشي حلقات الرادار للخارج)
 function hexToRgba(hex, a) {
   if (typeof hex !== 'string') return `rgba(56,189,248,${a})`;
@@ -110,8 +114,8 @@ export default function RasadGlobe({
           lat: ev.latitude, lng: ev.longitude, radius: pointRad(ev.severity), color,
           kind: 'event', data: ev,
           label: `<div style="direction:rtl;font-family:Tajawal,sans-serif;background:#111827;border:1px solid #1e293b;padding:6px 8px;border-radius:6px;max-width:280px">
-            <div style="color:${color};font-size:11px;font-weight:700;margin-bottom:2px">${(CATEGORIES[ev.category]||CATEGORIES.general).icon} ${ev.title || ''}</div>
-            <div style="color:#94a3b8;font-size:10px">${ev.country || ''}</div>
+            <div style="color:${color};font-size:11px;font-weight:700;margin-bottom:2px">${(CATEGORIES[ev.category]||CATEGORIES.general).icon} ${esc(ev.title)}</div>
+            <div style="color:#94a3b8;font-size:10px">${esc(ev.country)}</div>
           </div>`,
         });
         if (ev.severity === 'critical' || ev.severity === 'high') {
@@ -128,7 +132,7 @@ export default function RasadGlobe({
           kind: 'iran', data: s,
           label: `<div style="direction:rtl;font-family:Tajawal,sans-serif;background:#111827;border:1px solid ${conf.color};padding:6px 8px;border-radius:6px;max-width:280px">
             <div style="color:${conf.color};font-size:10px;margin-bottom:2px">${conf.icon} ${conf.label}</div>
-            <div style="color:#fff;font-size:11px;font-weight:700">${s.title || ''}</div>
+            <div style="color:#fff;font-size:11px;font-weight:700">${esc(s.title)}</div>
           </div>`,
         });
         if (s.event_type === 'strike') {

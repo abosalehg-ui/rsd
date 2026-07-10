@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 /**
  * خطاف جلب البيانات مع تحديث تلقائي
  */
-export function usePolling(fetchFn, interval = 30000) {
+export function usePolling(fetchFn, interval = 30000, deps = []) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -29,11 +29,13 @@ export function usePolling(fetchFn, interval = 30000) {
     }
   }, []);
 
+  // يُعاد الجلب فورًا عند تغيّر deps (مثل الفلاتر) لا فقط في الدورة التالية
   useEffect(() => {
     doFetch();
     intervalRef.current = setInterval(doFetch, interval);
     return () => clearInterval(intervalRef.current);
-  }, [doFetch, interval]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doFetch, interval, ...deps]);
 
   return { data, loading, error, refetch: doFetch };
 }
