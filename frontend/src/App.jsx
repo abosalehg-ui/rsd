@@ -15,6 +15,7 @@ import StatsPanel from './components/Stats/StatsPanel';
 import IranPanel from './components/Iran/IranPanel';
 import { usePolling, useFilters } from './hooks/usePolling';
 import { useAudioAlert } from './hooks/useAudioAlert';
+import ErrorBoundary from './components/common/ErrorBoundary';
 import { MapPin, Newspaper, Clock, BarChart3, PanelLeftClose, PanelLeftOpen, Crosshair } from 'lucide-react';
 import {
   getEvents, getMapEvents, getStats, getLiveFlights, refreshSources,
@@ -49,7 +50,7 @@ export default function App() {
     30000, [filters.hours]
   );
 
-  const { data: stats, refetch: refetchStats } = usePolling(
+  const { data: stats, error: statsError, refetch: refetchStats } = usePolling(
     useCallback(() => getStats(filters.hours), [filters.hours]),
     60000, [filters.hours]
   );
@@ -134,7 +135,7 @@ const { data: flights } = usePolling(
       {/* الشريط العلوي */}
       <Header
         stats={stats}
-        isConnected={true}
+        isConnected={!statsError}
         onRefresh={handleRefresh}
         refreshing={refreshing}
         alertsEnabled={alertPrefs.enabled}
@@ -145,6 +146,15 @@ const { data: flights } = usePolling(
         onToggleView={toggleViewMode}
       />
 
+      {/* بانر تعذّر الاتصال — البيانات المعروضة قد تكون قديمة */}
+      {statsError && (
+        <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-1.5 text-center" role="alert">
+          <span className="text-xs text-amber-300">
+            ⚠️ {t('app.connectionLost')}
+          </span>
+        </div>
+      )}
+
       {/* شريط الأخبار العاجلة */}
       {events.length > 0 && (
         <div className="bg-red-500/10 border-b border-red-500/20 px-4 py-1 overflow-hidden">
@@ -152,8 +162,8 @@ const { data: flights } = usePolling(
             <span className="text-xs bg-red-500 text-white px-3 py-1 rounded font-bold animate-pulse whitespace-nowrap">{t('app.breaking')}</span>
             <div className="overflow-hidden flex-1">
               <div className="flex gap-8 animate-[ticker-scroll_60s_linear_infinite] whitespace-nowrap">
-                {events.filter(e => e.severity === 'critical' || e.severity === 'high').slice(0, 10).map((ev, i) => (
-                  <span key={i} className="text-sm text-red-200 cursor-pointer hover:text-white" onClick={() => setSelectedEvent(ev)}>
+                {events.filter(e => e.severity === 'critical' || e.severity === 'high').slice(0, 10).map((ev) => (
+                  <span key={ev.id} className="text-sm text-red-200 cursor-pointer hover:text-white" onClick={() => setSelectedEvent(ev)}>
                     <span className="text-red-400">●</span> {ev.title}
                   </span>
                 ))}
@@ -170,28 +180,32 @@ const { data: flights } = usePolling(
             عرضه الثابت كحد أدنى للعنصر المرن وسحق اللوحة الجانبية حتى الاختفاء في وضع 3D */}
         <div className="flex-1 relative min-w-0 overflow-hidden">
           {viewMode === '3d' ? (
-            <Suspense fallback={<div className="flex items-center justify-center h-full text-cyan-400 text-sm">🌍 جاري تحميل الكرة الأرضية...</div>}>
-              <RasadGlobe
+            <ErrorBoundary onReset={() => setViewMode('2d')}>
+              <Suspense fallback={<div className="flex items-center justify-center h-full text-cyan-400 text-sm">🌍 جاري تحميل الكرة الأرضية...</div>}>
+                <RasadGlobe
+                  events={mapEvts}
+                  iranStrikes={iranStrikes}
+                  nuclearFacilities={nuclearFacilities}
+                  bases={militaryBases}
+                  pipelines={pipelines}
+                  selectedEvent={selectedEvent}
+                  onSelectEvent={setSelectedEvent}
+                />
+              </Suspense>
+            </ErrorBoundary>
+          ) : (
+            <ErrorBoundary>
+              <RasadMap
                 events={mapEvts}
+                flights={flights}
                 iranStrikes={iranStrikes}
                 nuclearFacilities={nuclearFacilities}
-                bases={militaryBases}
+                militaryBases={militaryBases}
                 pipelines={pipelines}
                 selectedEvent={selectedEvent}
                 onSelectEvent={setSelectedEvent}
               />
-            </Suspense>
-          ) : (
-            <RasadMap
-              events={mapEvts}
-              flights={flights}
-              iranStrikes={iranStrikes}
-              nuclearFacilities={nuclearFacilities}
-              militaryBases={militaryBases}
-              pipelines={pipelines}
-              selectedEvent={selectedEvent}
-              onSelectEvent={setSelectedEvent}
-            />
+            </ErrorBoundary>
           )}
 
           {/* زر طي/فتح اللوحة — داخل الخريطة على حافتها */}
@@ -206,7 +220,7 @@ const { data: flights } = usePolling(
 
         {/* اللوحة الجانبية — تظهر/تختفي بالكامل */}
         {panelOpen && (
-          <div className="w-[500px] flex flex-col border-r border-[#1e293b] bg-[#111827]">
+          <div className="w-[320px] md:w-[400px] xl:w-[500px] flex flex-col border-r border-[#1e293b] bg-[#111827]">
             {/* تبويبات */}
             <div className="flex border-b border-[#1e293b]">
               {TABS.map(tab => {

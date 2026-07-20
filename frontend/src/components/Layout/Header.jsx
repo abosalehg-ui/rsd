@@ -103,6 +103,7 @@ export default function Header({ stats, isConnected, onRefresh, refreshing, aler
               onClick={onToggleView}
               className="flex items-center gap-1 px-2 py-1 rounded bg-[#111827] border border-[#1e293b] hover:border-cyan-500 text-cyan-400 transition-colors"
               title={viewMode === '3d' ? t('map.view2d') : t('map.view3d')}
+              aria-label={viewMode === '3d' ? t('map.view2d') : t('map.view3d')}
             >
               {viewMode === '3d' ? <MapIcon className="w-3.5 h-3.5" /> : <Box className="w-3.5 h-3.5" />}
               <span className="text-[10px] font-medium">{viewMode === '3d' ? t('map.view2d') : t('map.view3d')}</span>
@@ -114,6 +115,7 @@ export default function Header({ stats, isConnected, onRefresh, refreshing, aler
             onClick={toggleLang}
             className="flex items-center gap-1 px-2 py-1 rounded bg-[#111827] border border-[#1e293b] hover:border-cyan-500 text-cyan-400 transition-colors"
             title={t('lang.switch')}
+            aria-label={t('lang.switch')}
           >
             <Globe2 className="w-3.5 h-3.5" />
             <span className="text-[10px] font-medium font-mono">{isAr ? 'EN' : 'ع'}</span>
@@ -126,6 +128,7 @@ export default function Header({ stats, isConnected, onRefresh, refreshing, aler
               refreshing ? 'text-cyan-400 animate-spin' : 'text-slate-400 hover:text-cyan-400'
             }`}
             title={refreshing ? t('app.refreshing') : t('app.refresh')}
+            aria-label={refreshing ? t('app.refreshing') : t('app.refresh')}
           >
             <RefreshCw className="w-4 h-4" />
           </button>
@@ -137,6 +140,7 @@ export default function Header({ stats, isConnected, onRefresh, refreshing, aler
               alertsEnabled ? 'text-cyan-400' : 'text-slate-500'
             }`}
             title={t('alerts.settings')}
+            aria-label={t('alerts.settings')}
           >
             {alertsEnabled
               ? <Bell className={`w-4 h-4 ${bellShake ? 'bell-alert' : ''}`} />

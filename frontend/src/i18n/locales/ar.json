@@ -9,13 +9,42 @@
     "escalation": "تصعيد:",
     "refresh": "تحديث من المصادر",
     "refreshing": "جاري التحديث...",
-    "breaking": "عاجل"
+    "breaking": "عاجل",
+    "connectionLost": "تعذّر الاتصال بالخادم — البيانات المعروضة قد تكون قديمة"
   },
   "tabs": {
     "news": "الأحداث",
     "timeline": "الخط الزمني",
     "stats": "إحصائيات",
     "iran": "إيران"
+  },
+  "news": {
+    "title": "الأحداث",
+    "noEvents": "لا توجد أحداث",
+    "sourceLink": "المصدر الأصلي",
+    "all": "الكل"
+  },
+  "timeline": {
+    "title": "الخط الزمني",
+    "noEvents": "لا توجد أحداث",
+    "all": "الكل"
+  },
+  "iranPanel": {
+    "title": "متابعة إيران OSINT",
+    "strikes": "الضربات",
+    "leaders": "القادة",
+    "loading": "جارٍ التحميل...",
+    "noData": "لا توجد بيانات",
+    "total": "إجمالي",
+    "trusted": "🟢 موثوق",
+    "strikesCount": "💥 ضربات",
+    "active": "نشط",
+    "source": "المصدر ←",
+    "video": "🎥 فيديو",
+    "confAll": "الكل",
+    "confHigh": "🟢 موثوق",
+    "confMedium": "🟡 متوسط",
+    "confLow": "🔵 غير مؤكد"
   },
   "map": {
     "title": "خريطة",

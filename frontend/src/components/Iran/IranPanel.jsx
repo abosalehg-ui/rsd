@@ -3,19 +3,20 @@
  * مستوحاة من: iranstrikemap.com + live-iran-map.com
  */
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getIranStrikes, getIranLeaders, getIranStats } from '../../utils/api';
 import { CONFIDENCE, IRAN_EVENT_TYPES, timeAgo } from '../../utils/constants';
 import { safeUrl } from '../../utils/security';
 import { Target, Users, RefreshCw } from 'lucide-react';
 
-const CONF_TABS = [
-  { id: 'all', label: 'الكل' },
-  { id: 'HIGH', label: '🟢 موثوق' },
-  { id: 'MEDIUM', label: '🟡 متوسط' },
-  { id: 'LOW', label: '🔵 غير مؤكد' },
-];
-
 export default function IranPanel({ onSelectStrike }) {
+  const { t } = useTranslation();
+  const CONF_TABS = [
+    { id: 'all', label: t('iranPanel.confAll') },
+    { id: 'HIGH', label: t('iranPanel.confHigh') },
+    { id: 'MEDIUM', label: t('iranPanel.confMedium') },
+    { id: 'LOW', label: t('iranPanel.confLow') },
+  ];
   const [tab, setTab] = useState('strikes');
   const [confFilter, setConfFilter] = useState('all');
   const [strikes, setStrikes] = useState([]);
@@ -53,7 +54,7 @@ export default function IranPanel({ onSelectStrike }) {
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#1e293b] bg-[#111827]">
         <div className="flex items-center gap-2">
           <span className="text-lg">🇮🇷</span>
-          <span className="font-bold text-sm text-red-400">متابعة إيران OSINT</span>
+          <span className="font-bold text-sm text-red-400">{t('iranPanel.title')}</span>
           <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full border border-red-500/30 animate-pulse">
             LIVE
           </span>
@@ -67,9 +68,9 @@ export default function IranPanel({ onSelectStrike }) {
       {stats && (
         <div className="grid grid-cols-3 gap-2 p-3 border-b border-[#1e293b]">
           {[
-            { label: 'إجمالي', value: stats.total, color: 'text-white' },
-            { label: '🟢 موثوق', value: stats.by_confidence?.HIGH || 0, color: 'text-green-400' },
-            { label: '💥 ضربات', value: stats.by_type?.strike || 0, color: 'text-red-400' },
+            { label: t('iranPanel.total'), value: stats.total, color: 'text-white' },
+            { label: t('iranPanel.trusted'), value: stats.by_confidence?.HIGH || 0, color: 'text-green-400' },
+            { label: t('iranPanel.strikesCount'), value: stats.by_type?.strike || 0, color: 'text-red-400' },
           ].map(({ label, value, color }) => (
             <div key={label} className="bg-[#1a2236] rounded-lg p-2 text-center">
               <div className={`text-lg font-bold font-mono ${color}`}>{value}</div>
@@ -82,19 +83,19 @@ export default function IranPanel({ onSelectStrike }) {
       {/* تبويبات */}
       <div className="flex border-b border-[#1e293b]">
         {[
-          { id: 'strikes', label: 'الضربات', icon: <Target className="w-3 h-3" /> },
-          { id: 'leaders', label: 'القادة', icon: <Users className="w-3 h-3" /> },
-        ].map(t => (
+          { id: 'strikes', label: t('iranPanel.strikes'), icon: <Target className="w-3 h-3" /> },
+          { id: 'leaders', label: t('iranPanel.leaders'), icon: <Users className="w-3 h-3" /> },
+        ].map(tabItem => (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
+            key={tabItem.id}
+            onClick={() => setTab(tabItem.id)}
             className={`flex-1 flex items-center justify-center gap-1 py-2.5 text-xs transition-colors ${
-              tab === t.id
+              tab === tabItem.id
                 ? 'text-red-400 border-b-2 border-red-400 bg-red-400/5'
                 : 'text-slate-500 hover:text-slate-300'
             }`}
           >
-            {t.icon} {t.label}
+            {tabItem.icon} {tabItem.label}
           </button>
         ))}
       </div>
@@ -123,9 +124,9 @@ export default function IranPanel({ onSelectStrike }) {
             </div>
 
             {loading ? (
-              <div className="text-center py-8 text-slate-500 text-sm">جارٍ التحميل...</div>
+              <div className="text-center py-8 text-slate-500 text-sm">{t('iranPanel.loading')}</div>
             ) : filteredStrikes.length === 0 ? (
-              <div className="text-center py-8 text-slate-500 text-sm">لا توجد بيانات</div>
+              <div className="text-center py-8 text-slate-500 text-sm">{t('iranPanel.noData')}</div>
             ) : (
               filteredStrikes.map(strike => {
                 const conf = CONFIDENCE[strike.confidence] || CONFIDENCE.LOW;
@@ -133,8 +134,11 @@ export default function IranPanel({ onSelectStrike }) {
                 return (
                   <div
                     key={strike.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => onSelectStrike?.(strike)}
-                    className="border-b border-[#1e293b] px-3 py-2.5 hover:bg-[#1a2236] cursor-pointer group"
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectStrike?.(strike); } }}
+                    className="border-b border-[#1e293b] px-3 py-2.5 hover:bg-[#1a2236] cursor-pointer group focus:outline-none focus:ring-1 focus:ring-red-500"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
@@ -160,7 +164,7 @@ export default function IranPanel({ onSelectStrike }) {
                               onClick={e => e.stopPropagation()}
                               className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/30"
                             >
-                              🎥 فيديو
+                              {t('iranPanel.video')}
                             </a>
                           )}
                         </div>
@@ -181,7 +185,7 @@ export default function IranPanel({ onSelectStrike }) {
                               onClick={e => e.stopPropagation()}
                               className="text-[10px] text-cyan-500 hover:text-cyan-400 mr-auto"
                             >
-                              المصدر ←
+                              {t('iranPanel.source')}
                             </a>
                           )}
                         </div>
@@ -216,7 +220,7 @@ export default function IranPanel({ onSelectStrike }) {
                   </div>
                   {leader.active && (
                     <span className="text-[9px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full border border-red-500/30">
-                      نشط
+                      {t('iranPanel.active')}
                     </span>
                   )}
                 </div>
