@@ -17,23 +17,44 @@ export function usePolling(fetchFn, interval = 30000, deps = []) {
     fetchRef.current = fetchFn;
   }, [fetchFn]);
 
+  // حارس تسلسل: يمنع استجابة قديمة (شبكة بطيئة) من الكتابة فوق أحدث منها
+  const seqRef = useRef(0);
+
   const doFetch = useCallback(async () => {
+    const mySeq = ++seqRef.current;
     try {
       const result = await fetchRef.current();
+      if (mySeq !== seqRef.current) return; // وصلت استجابة أحدث — تجاهل هذه
       setData(result);
       setError(null);
     } catch (err) {
+      if (mySeq !== seqRef.current) return;
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (mySeq === seqRef.current) setLoading(false);
     }
   }, []);
 
-  // يُعاد الجلب فورًا عند تغيّر deps (مثل الفلاتر) لا فقط في الدورة التالية
+  // يُعاد الجلب فورًا عند تغيّر deps (مثل الفلاتر) لا فقط في الدورة التالية.
+  // كما نوقف الاستطلاع عندما يكون التبويب مخفياً (توفير شبكة/معالج) ونجلب فوراً
+  // عند العودة إليه.
   useEffect(() => {
+    const tick = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      doFetch();
+    };
     doFetch();
-    intervalRef.current = setInterval(doFetch, interval);
-    return () => clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(tick, interval);
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') doFetch();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      clearInterval(intervalRef.current);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doFetch, interval, ...deps]);
 

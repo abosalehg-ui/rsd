@@ -18,6 +18,26 @@ export default defineConfig({
         globIgnores: ['**/three-*.js'],
         runtimeCaching: [
           {
+            // خطوط Google (CSS) — كي تعمل الطباعة دون اتصال
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'rsd-google-fonts-css',
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // ملفات الخطوط نفسها (woff2) من gstatic
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'rsd-google-fonts-files',
+              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
             // طبقة بلاطات OpenStreetMap / CartoDB — تخزين مؤقت لمدة شهر
             urlPattern: /^https:\/\/[a-d]\.basemaps\.cartocdn\.com\/.*\.png/,
             handler: 'CacheFirst',

@@ -106,17 +106,20 @@ export default function LiveTVDrawer() {
             </button>
           </div>
 
-          {/* ===== مشغل الفيديو ===== */}
+          {/* ===== مشغل الفيديو — يُركَّب فقط عند الفتح كي لا يبقى البث يستهلك
+              الشبكة/المعالج في الخلفية عند الإغلاق (PERF-2) ===== */}
           <div className="bg-black" style={{ height: '200px' }}>
-            <iframe
-              key={activeChannel.id}
-              src={activeChannel.embedUrl + '?autoplay=1&mute=0'}
-              title={activeChannel.name}
-              className="w-full h-full"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
+            {isOpen && (
+              <iframe
+                key={activeChannel.id}
+                src={activeChannel.embedUrl + '?autoplay=1&mute=0'}
+                title={activeChannel.name}
+                className="w-full h-full"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            )}
           </div>
 
           {/* ===== أزرار القنوات ===== */}
