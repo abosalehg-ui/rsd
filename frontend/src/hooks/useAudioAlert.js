@@ -171,7 +171,7 @@ export function useAudioAlert(events) {
           icon: '/favicon.ico',
           tag: `rsd-${top.id}`,
         });
-      } catch {}
+      } catch { /* منع الإشعار — تجاهل */ }
     }
   }, [events, prefs]);
 

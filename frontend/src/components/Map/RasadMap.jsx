@@ -6,22 +6,11 @@ import { useTranslation } from 'react-i18next';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { CATEGORIES, SEVERITIES, timeAgo, COUNTRIES, CONFIDENCE, IRAN_EVENT_TYPES } from '../../utils/constants';
+import { esc, safeUrl } from '../../utils/security';
 import { Layers, ZoomIn, ZoomOut, Crosshair } from 'lucide-react';
 
 const ME_CENTER = [29.0, 42.0];
 const ME_ZOOM = 5;
-
-// ===== تهريب HTML ومنع حقن السكربتات في نوافذ Leaflet =====
-// بيانات الأحداث/الضربات/الطيران قادمة من مصادر خارجية (RSS/OSINT/ADS-B)
-// وتُحقن في popup عبر innerHTML، لذا نُهرّب كل نص خارجي قبل إدراجه.
-const ESC_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ESC_MAP[c]);
-
-// يسمح فقط بروابط http/https — يمنع javascript: وأشباهها
-const safeUrl = (u) => {
-  const s = String(u ?? '').trim();
-  return /^https?:\/\//i.test(s) ? s : '';
-};
 
 // ===== تجميع النقاط القريبة =====
 function clusterEvents(events, zoom) {
@@ -160,21 +149,22 @@ export default function RasadMap({ events = [], flights = null, iranStrikes = []
             ${moreText}
           </div>`, { maxWidth: 300 });
 
-        // عند الضغط — تكبير إذا الزوم منخفض
-        m.on('popupopen', () => {
-          setTimeout(() => {
-            document.querySelectorAll('.rasad-cluster-item').forEach(el => {
-              el.addEventListener('click', () => {
-                const id = parseInt(el.dataset.id);
-                const ev = events.find(e => e.id === id);
-                if (ev) {
-                  onSelectEvent?.(ev);
-                  const u = safeUrl(ev.url);
-                  if (u) window.open(u, '_blank', 'noopener');
-                }
-              });
-            });
-          }, 100);
+        // تفويض حدث واحد على عنصر الـ popup نفسه (بدل مستمعات عامة على المستند
+        // تتراكم عند كل فتح) — يُنظَّف تلقائياً مع إزالة الـ popup.
+        m.on('popupopen', (e) => {
+          const root = e.popup.getElement();
+          if (!root) return;
+          root.addEventListener('click', (ev2) => {
+            const item = ev2.target.closest('.rasad-cluster-item');
+            if (!item) return;
+            const id = parseInt(item.dataset.id, 10);
+            const found = events.find(x => x.id === id);
+            if (found) {
+              onSelectEvent?.(found);
+              const u = safeUrl(found.url);
+              if (u) window.open(u, '_blank', 'noopener');
+            }
+          });
         });
 
         m.on('click', () => {
@@ -187,14 +177,7 @@ export default function RasadMap({ events = [], flights = null, iranStrikes = []
       }
     });
 
-    // دالة اختيار حدث من popup التجميع
-    window._rasadSelect = (id) => {
-      const ev = events.find(e => e.id === id);
-      if (ev) onSelectEvent?.(ev);
-    };
-
-    return () => { delete window._rasadSelect; };
-  }, [events, showEvents, ready, zoomLevel]);
+  }, [events, showEvents, ready, zoomLevel, onSelectEvent]);
 
   useEffect(() => {
     if (!ready || !flightsRef.current) return;
@@ -281,7 +264,7 @@ export default function RasadMap({ events = [], flights = null, iranStrikes = []
       m.on('click', () => onSelectEvent?.(strike));
       iranRef.current.addLayer(m);
     });
-  }, [iranStrikes, showIran, ready]);
+  }, [iranStrikes, showIran, ready, onSelectEvent]);
 
   // طبقة المنشآت النووية ☢️
   useEffect(() => {
@@ -314,9 +297,9 @@ export default function RasadMap({ events = [], flights = null, iranStrikes = []
         ">☢️</div>`,
       });
 
-      const capacity = fac.capacity_mw ? `<div>السعة: <span style="color:#fbbf24">${fac.capacity_mw} MW</span></div>` : '';
-      const firstGrid = fac.first_grid ? `<div>بدء التشغيل: <span style="color:#94a3b8">${fac.first_grid}</span></div>` : '';
-      const notes = fac.notes ? `<div style="margin-top:6px;padding:6px;background:#1e293b;border-radius:4px;color:#cbd5e1;font-size:9px">${fac.notes}</div>` : '';
+      const capacity = fac.capacity_mw ? `<div>السعة: <span style="color:#fbbf24">${esc(fac.capacity_mw)} MW</span></div>` : '';
+      const firstGrid = fac.first_grid ? `<div>بدء التشغيل: <span style="color:#94a3b8">${esc(fac.first_grid)}</span></div>` : '';
+      const notes = fac.notes ? `<div style="margin-top:6px;padding:6px;background:#1e293b;border-radius:4px;color:#cbd5e1;font-size:9px">${esc(fac.notes)}</div>` : '';
 
       const m = L.marker([fac.latitude, fac.longitude], { icon }).bindPopup(`
         <div style="min-width:240px;font-family:Tajawal,sans-serif;direction:rtl">
@@ -325,17 +308,17 @@ export default function RasadMap({ events = [], flights = null, iranStrikes = []
               ☢️ ${typeInfo.label}
             </span>
             <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${statusInfo.color}20;color:${statusInfo.color}">
-              ${statusInfo.ar}
+              ${esc(statusInfo.ar)}
             </span>
           </div>
-          <h3 style="font-size:13px;font-weight:700;margin-bottom:6px;line-height:1.5;color:#fbbf24">${fac.name_ar || fac.name_en}</h3>
-          <div style="font-size:10px;color:#94a3b8;margin-bottom:6px">${fac.name_en || ''}</div>
+          <h3 style="font-size:13px;font-weight:700;margin-bottom:6px;line-height:1.5;color:#fbbf24">${esc(fac.name_ar || fac.name_en)}</h3>
+          <div style="font-size:10px;color:#94a3b8;margin-bottom:6px">${esc(fac.name_en || '')}</div>
           <div style="font-size:11px;color:#cbd5e1;line-height:1.8">
-            <div>الدولة: <span style="color:#22d3ee">${fac.country || '-'}</span></div>
-            <div>النوع: <span style="color:#94a3b8">${fac.reactor_type || '-'}</span></div>
+            <div>الدولة: <span style="color:#22d3ee">${esc(fac.country || '-')}</span></div>
+            <div>النوع: <span style="color:#94a3b8">${esc(fac.reactor_type || '-')}</span></div>
             ${capacity}
             ${firstGrid}
-            ${fac.operator ? `<div>المُشغّل: <span style="color:#94a3b8">${fac.operator}</span></div>` : ''}
+            ${fac.operator ? `<div>المُشغّل: <span style="color:#94a3b8">${esc(fac.operator)}</span></div>` : ''}
           </div>
           ${notes}
           <div style="font-size:9px;color:#64748b;margin-top:6px;font-family:monospace">
@@ -362,14 +345,14 @@ export default function RasadMap({ events = [], flights = null, iranStrikes = []
       });
       const m = L.marker([b.latitude, b.longitude], { icon }).bindPopup(`
         <div style="min-width:220px;font-family:Tajawal,sans-serif;direction:rtl">
-          <div style="font-size:12px;font-weight:700;color:#a78bfa;margin-bottom:4px">${b.name_ar || b.name_en}</div>
-          <div style="font-size:10px;color:#94a3b8;margin-bottom:6px">${b.name_en || ''}</div>
+          <div style="font-size:12px;font-weight:700;color:#a78bfa;margin-bottom:4px">${esc(b.name_ar || b.name_en)}</div>
+          <div style="font-size:10px;color:#94a3b8;margin-bottom:6px">${esc(b.name_en || '')}</div>
           <div style="font-size:11px;color:#cbd5e1;line-height:1.7">
-            <div>الدولة: <span style="color:#22d3ee">${b.country || '-'}</span></div>
-            <div>المُشغّل: <span style="color:#fbbf24">${b.operator || '-'}</span></div>
-            <div>النوع: <span style="color:#94a3b8">${b.type || '-'}</span></div>
+            <div>الدولة: <span style="color:#22d3ee">${esc(b.country || '-')}</span></div>
+            <div>المُشغّل: <span style="color:#fbbf24">${esc(b.operator || '-')}</span></div>
+            <div>النوع: <span style="color:#94a3b8">${esc(b.type || '-')}</span></div>
           </div>
-          ${b.notes ? `<div style="margin-top:6px;padding:6px;background:#1e293b;border-radius:4px;color:#cbd5e1;font-size:9px">${b.notes}</div>` : ''}
+          ${b.notes ? `<div style="margin-top:6px;padding:6px;background:#1e293b;border-radius:4px;color:#cbd5e1;font-size:9px">${esc(b.notes)}</div>` : ''}
         </div>`, { maxWidth: 280 });
       basesRef.current.addLayer(m);
     });
@@ -388,13 +371,13 @@ export default function RasadMap({ events = [], flights = null, iranStrikes = []
       });
       line.bindPopup(`
         <div style="min-width:220px;font-family:Tajawal,sans-serif;direction:rtl">
-          <div style="font-size:12px;font-weight:700;color:${color};margin-bottom:4px">${p.type === 'oil' ? '🛢️' : '🔥'} ${p.name_ar || p.name_en}</div>
-          <div style="font-size:10px;color:#94a3b8;margin-bottom:6px">${p.name_en || ''}</div>
+          <div style="font-size:12px;font-weight:700;color:${color};margin-bottom:4px">${p.type === 'oil' ? '🛢️' : '🔥'} ${esc(p.name_ar || p.name_en)}</div>
+          <div style="font-size:10px;color:#94a3b8;margin-bottom:6px">${esc(p.name_en || '')}</div>
           <div style="font-size:11px;color:#cbd5e1;line-height:1.7">
-            <div>الطول: <span style="color:#22d3ee">${p.length_km || '-'} كم</span></div>
-            <div>السعة: <span style="color:#fbbf24">${p.capacity_mbpd ? p.capacity_mbpd + ' مليون برميل/يوم' : p.capacity_bcm ? p.capacity_bcm + ' BCM' : '-'}</span></div>
-            <div>المُشغّل: <span style="color:#94a3b8">${p.operator || '-'}</span></div>
-            <div>الحالة: <span style="color:#94a3b8">${p.status || '-'}</span></div>
+            <div>الطول: <span style="color:#22d3ee">${esc(p.length_km || '-')} كم</span></div>
+            <div>السعة: <span style="color:#fbbf24">${p.capacity_mbpd ? esc(p.capacity_mbpd) + ' مليون برميل/يوم' : p.capacity_bcm ? esc(p.capacity_bcm) + ' BCM' : '-'}</span></div>
+            <div>المُشغّل: <span style="color:#94a3b8">${esc(p.operator || '-')}</span></div>
+            <div>الحالة: <span style="color:#94a3b8">${esc(p.status || '-')}</span></div>
           </div>
         </div>`);
       pipelinesRef.current.addLayer(line);
@@ -412,11 +395,11 @@ export default function RasadMap({ events = [], flights = null, iranStrikes = []
       <div ref={mapRef} className="w-full h-full" />
       <div className="absolute top-3 left-3 z-[1000] flex flex-col gap-2">
         {[
-          { fn: () => mapInstance.current?.zoomIn(), icon: <ZoomIn className="w-5 h-5" /> },
-          { fn: () => mapInstance.current?.zoomOut(), icon: <ZoomOut className="w-5 h-5" /> },
-          { fn: () => mapInstance.current?.flyTo(ME_CENTER, ME_ZOOM, { duration: 0.5 }), icon: <Crosshair className="w-5 h-5" /> },
-        ].map((b, i) => (
-          <button key={i} onClick={b.fn} className="w-11 h-11 bg-[#111827] border border-[#1e293b] rounded-lg flex items-center justify-center hover:bg-[#1e293b] text-cyan-400">{b.icon}</button>
+          { fn: () => mapInstance.current?.zoomIn(), icon: <ZoomIn className="w-5 h-5" />, label: t('map.zoomIn') },
+          { fn: () => mapInstance.current?.zoomOut(), icon: <ZoomOut className="w-5 h-5" />, label: t('map.zoomOut') },
+          { fn: () => mapInstance.current?.flyTo(ME_CENTER, ME_ZOOM, { duration: 0.5 }), icon: <Crosshair className="w-5 h-5" />, label: t('map.recenter') },
+        ].map((b) => (
+          <button key={b.label} onClick={b.fn} aria-label={b.label} title={b.label} className="w-11 h-11 bg-[#111827] border border-[#1e293b] rounded-lg flex items-center justify-center hover:bg-[#1e293b] text-cyan-400">{b.icon}</button>
         ))}
       </div>
       <div className="absolute bottom-3 left-3 z-[1000] bg-[#111827]/95 border border-[#1e293b] rounded-lg p-3 text-sm">

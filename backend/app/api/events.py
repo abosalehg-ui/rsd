@@ -167,9 +167,9 @@ async def get_stats(hours: int = Query(default=24, ge=1, le=720)):
 @router.get("/timeline")
 async def get_timeline(
     hours: int = Query(default=48, ge=1, le=720),
-    interval: str = Query(default="hour", pattern="^(hour|day)$"),
+    limit: int = Query(default=500, ge=1, le=2000),
 ):
-    """بيانات الخط الزمني"""
+    """بيانات الخط الزمني — أحدث الأحداث ضمن الفترة (بحدّ أقصى لتفادي استجابات ضخمة)."""
     session_factory = get_session_factory()
     async with session_factory() as session:
         since = datetime.now(timezone.utc) - timedelta(hours=hours)
@@ -177,7 +177,8 @@ async def get_timeline(
         query = (
             select(Event)
             .where(Event.event_date >= since)
-            .order_by(Event.event_date)
+            .order_by(desc(Event.event_date))
+            .limit(limit)
         )
         result = await session.execute(query)
         events = result.scalars().all()
@@ -196,40 +197,61 @@ async def get_country_index(
     hours: int = Query(default=72, ge=1, le=720),
     top: int = Query(default=20, ge=1, le=50),
 ):
-    """مؤشر استخبارات لكل دولة (0-100) بناءً على عدد الأحداث × الخطورة × الثقة"""
+    """مؤشر استخبارات لكل دولة (0-100) بناءً على عدد الأحداث × الخطورة × الثقة.
+
+    يُجمَّع في SQL (GROUP BY) بدل تحميل كل الأحداث في الذاكرة — عدد الصفوف
+    المُعادة صغير ثابت (دول × خطورة × ثقة) بدل آلاف الصفوف (PERF-3)."""
     session_factory = get_session_factory()
     async with session_factory() as session:
         since = datetime.now(timezone.utc) - timedelta(hours=hours)
-        query = (
-            select(Event)
-            .where(and_(Event.event_date >= since, Event.country_code != "", Event.country_code.isnot(None)))
+        base = and_(
+            Event.event_date >= since,
+            Event.country_code != "",
+            Event.country_code.isnot(None),
         )
-        events = (await session.execute(query)).scalars().all()
+
+        # تجميع مشترك حسب (الدولة، الخطورة، الثقة) — يكفي لحساب الدرجة والتوزيعات
+        sev_conf_rows = (await session.execute(
+            select(
+                Event.country_code, Event.country, Event.severity,
+                Event.confidence, func.count(Event.id),
+            ).where(base).group_by(
+                Event.country_code, Event.country, Event.severity, Event.confidence,
+            )
+        )).all()
+
+        # تجميع منفصل حسب (الدولة، التصنيف)
+        cat_rows = (await session.execute(
+            select(Event.country_code, Event.category, func.count(Event.id))
+            .where(base).group_by(Event.country_code, Event.category)
+        )).all()
 
         countries: dict[str, dict] = {}
-        for ev in events:
-            code = (ev.country_code or "").upper()
+        for code_raw, country_name, severity, confidence, cnt in sev_conf_rows:
+            code = (code_raw or "").upper()
             if not code:
                 continue
             country = countries.setdefault(code, {
                 "country_code": code,
-                "country_name": ev.country or code,
+                "country_name": country_name or code,
                 "raw_score": 0.0,
                 "total": 0,
                 "by_severity": {"low": 0, "medium": 0, "high": 0, "critical": 0},
                 "by_category": {},
                 "by_confidence": {"HIGH": 0, "MEDIUM": 0, "LOW": 0, "NONE": 0},
             })
-            sev = (ev.severity or "low").lower()
-            sev_w = _SEVERITY_WEIGHT.get(sev, 1)
-            conf = (ev.confidence or "").upper()
-            conf_w = _CONFIDENCE_WEIGHT.get(conf, 0.7)
+            sev = (severity or "low").lower()
+            conf = (confidence or "").upper()
+            country["raw_score"] += _SEVERITY_WEIGHT.get(sev, 1) * _CONFIDENCE_WEIGHT.get(conf, 0.7) * cnt
+            country["total"] += cnt
+            country["by_severity"][sev] = country["by_severity"].get(sev, 0) + cnt
+            country["by_confidence"][conf if conf in country["by_confidence"] else "NONE"] += cnt
 
-            country["raw_score"] += sev_w * conf_w
-            country["total"] += 1
-            country["by_severity"][sev] = country["by_severity"].get(sev, 0) + 1
-            country["by_category"][ev.category or "general"] = country["by_category"].get(ev.category or "general", 0) + 1
-            country["by_confidence"][conf if conf in country["by_confidence"] else "NONE"] += 1
+        for code_raw, category, cnt in cat_rows:
+            code = (code_raw or "").upper()
+            if code in countries:
+                cat = category or "general"
+                countries[code]["by_category"][cat] = countries[code]["by_category"].get(cat, 0) + cnt
 
         if not countries:
             return {"total_countries": 0, "period_hours": hours, "ranking": []}

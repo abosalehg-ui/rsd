@@ -62,12 +62,24 @@ cd rsd
 
 > لبناء المثبّت بنفسك: راجع **[`packaging/README.md`](packaging/README.md)** ثم شغّل `packaging\build_installer.bat`.
 
-### 🐳 الطريقة B — Docker (محلي أو خادم خاص)
+> أولاً انسخ ملف المتغيّرات البيئية واملأ مفاتيحك (كلها اختيارية):
+> ```bash
+> cp .env.example .env
+> ```
+> راجع التعليقات داخل `.env.example` لمعرفة مصدر كل مفتاح.
 
+### 🐳 الطريقة B — Docker
+
+**تطوير** (خوادم dev + HMR):
 ```bash
 docker compose up -d
-# الواجهة:  http://localhost:3000
-# API Docs: http://localhost:8000/docs
+# الواجهة:  http://localhost:3000   •   API Docs: http://localhost:8000/docs
+```
+
+**إنتاج** (واجهة مبنية عبر nginx + خلفية بلا reload):
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+# الواجهة:  http://localhost:3000  (nginx يوكّل /api إلى الخلفية)
 ```
 
 ### 🧑‍💻 الطريقة C — تشغيل محلي للتطوير
@@ -85,6 +97,8 @@ npm run dev
 ```
 
 افتح <http://localhost:3000>.
+
+> للمساهمة وتشغيل الفحوص: راجع **[`CONTRIBUTING.md`](CONTRIBUTING.md)**.
 
 > 💡 على ويندوز يمكنك بدل ذلك النقر على `start-rasad.bat` لتشغيل Backend + Frontend معاً.
 

@@ -7,7 +7,7 @@
 ; أو يدوياً (راجع packaging\README.md)، ثم صرّف هذا الملف بـ Inno Setup 6.
 
 #define MyAppName "رصد Rasad"
-#define MyAppVersion "1.4.0"
+#define MyAppVersion "1.5.0"
 #define MyAppPublisher "عبدالكريم العبود"
 #define MyAppURL "https://github.com/abosalehg-ui/rsd"
 #define MyAppExeName "rasad.exe"
