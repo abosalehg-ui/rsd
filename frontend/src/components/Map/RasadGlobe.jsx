@@ -8,6 +8,7 @@ import React, { useEffect, useRef } from 'react';
 import Globe from 'globe.gl';
 import { useTranslation } from 'react-i18next';
 import { CATEGORIES, SEVERITIES, CONFIDENCE } from '../../utils/constants';
+import { esc } from '../../utils/security';
 
 const ME_LAT = 29.0;
 const ME_LNG = 42.0;
@@ -16,10 +17,6 @@ const ME_LNG = 42.0;
 function pointRad(severity) {
   return severity === 'critical' ? 0.5 : severity === 'high' ? 0.4 : severity === 'medium' ? 0.3 : 0.22;
 }
-
-// تهريب HTML للنصوص الخارجية قبل حقنها في وسوم pointLabel (تُعرض عبر innerHTML)
-const ESC_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ESC_MAP[c]);
 
 // تحويل لون hex إلى rgba بشفافية (لتلاشي حلقات الرادار للخارج)
 function hexToRgba(hex, a) {
@@ -147,8 +144,8 @@ export default function RasadGlobe({
           lat: f.latitude, lng: f.longitude, radius: f.type === 'power' ? 0.46 : 0.36, color: '#facc15',
           kind: 'nuclear', data: f,
           label: `<div style="direction:rtl;font-family:Tajawal,sans-serif;background:#0d1117;border:1px solid #facc15;padding:6px 8px;border-radius:6px;max-width:260px">
-            <div style="color:#facc15;font-size:11px;font-weight:700">☢️ ${f.name_ar || f.name_en}</div>
-            <div style="color:#94a3b8;font-size:9px">${f.country || ''} • ${f.capacity_mw ? f.capacity_mw + ' MW' : f.type}</div>
+            <div style="color:#facc15;font-size:11px;font-weight:700">☢️ ${esc(f.name_ar || f.name_en)}</div>
+            <div style="color:#94a3b8;font-size:9px">${esc(f.country || '')} • ${f.capacity_mw ? esc(f.capacity_mw) + ' MW' : esc(f.type)}</div>
           </div>`,
         });
       });
@@ -160,8 +157,8 @@ export default function RasadGlobe({
           lat: b.latitude, lng: b.longitude, radius: 0.28, color: '#a78bfa',
           kind: 'base', data: b,
           label: `<div style="direction:rtl;font-family:Tajawal,sans-serif;background:#0d1117;border:1px solid #a78bfa;padding:6px 8px;border-radius:6px;max-width:260px">
-            <div style="color:#a78bfa;font-size:11px;font-weight:700">⚔️ ${b.name_ar || b.name_en}</div>
-            <div style="color:#94a3b8;font-size:9px">${b.country || ''} • ${b.operator || ''}</div>
+            <div style="color:#a78bfa;font-size:11px;font-weight:700">⚔️ ${esc(b.name_ar || b.name_en)}</div>
+            <div style="color:#94a3b8;font-size:9px">${esc(b.country || '')} • ${esc(b.operator || '')}</div>
           </div>`,
         });
       });

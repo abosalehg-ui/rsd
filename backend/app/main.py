@@ -7,9 +7,10 @@
 """
 import asyncio
 import logging
+import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api.events import router as events_router
@@ -86,12 +87,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS
+# CORS — أصول محدّدة من الإعدادات بدل "*" (لا credentials؛ لا جلسات مستخدم).
+_settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=_settings.cors_origins_list,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
     expose_headers=["ETag", "Cache-Control"],
 )
@@ -117,11 +119,26 @@ async def health_check():
     }
 
 
+# تحديد معدل التحديث اليدوي — يمنع قصف المصادر الخارجية بطلبات متتالية
+_REFRESH_COOLDOWN_SECONDS = 120
+_last_manual_refresh: float = 0.0
+
+
 @app.post("/api/refresh")
 async def manual_refresh():
-    """تحديث يدوي - جلب أخبار جديدة من جميع المصادر"""
-    import time
-    start = time.time()
+    """تحديث يدوي - جلب أخبار جديدة من جميع المصادر (بحدّ أدنى بين الطلبات)"""
+    global _last_manual_refresh
+    now = time.time()
+    elapsed_since_last = now - _last_manual_refresh
+    if elapsed_since_last < _REFRESH_COOLDOWN_SECONDS:
+        retry_after = round(_REFRESH_COOLDOWN_SECONDS - elapsed_since_last)
+        raise HTTPException(
+            status_code=429,
+            detail=f"التحديث اليدوي محدود — أعد المحاولة بعد {retry_after} ثانية",
+            headers={"Retry-After": str(retry_after)},
+        )
+    _last_manual_refresh = now
+    start = now
 
     results = await asyncio.gather(
         collect_gdelt_events(),

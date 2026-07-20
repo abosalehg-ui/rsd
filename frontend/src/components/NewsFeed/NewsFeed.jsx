@@ -3,7 +3,8 @@
  */
 import React, { useState } from 'react';
 import { CATEGORIES, SEVERITIES, timeAgo, COUNTRIES } from '../../utils/constants';
-import { Newspaper, ExternalLink, Filter, ChevronDown } from 'lucide-react';
+import { safeUrl } from '../../utils/security';
+import { Newspaper, ExternalLink, Filter } from 'lucide-react';
 
 export default function NewsFeed({ events = [], onSelectEvent, filters, onFilterChange }) {
   const [expandedId, setExpandedId] = useState(null);
@@ -92,8 +93,8 @@ export default function NewsFeed({ events = [], onSelectEvent, filters, onFilter
                     {event.description && (
                       <p className="text-[11px] text-slate-400 leading-relaxed mb-2">{event.description}</p>
                     )}
-                    {event.url && (
-                      <a href={event.url} target="_blank" rel="noopener noreferrer"
+                    {safeUrl(event.url) && (
+                      <a href={safeUrl(event.url)} target="_blank" rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-[10px] text-cyan-400 hover:underline">
                         <ExternalLink className="w-3 h-3" /> المصدر الأصلي
                       </a>
