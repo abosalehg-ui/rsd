@@ -2,8 +2,8 @@
  * رصد - الخط الزمني التفاعلي
  */
 import React, { useState, useMemo } from 'react';
-import { CATEGORIES, SEVERITIES, timeAgo } from '../../utils/constants';
-import { Clock, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { CATEGORIES, SEVERITIES } from '../../utils/constants';
+import { Clock, Calendar } from 'lucide-react';
 
 export default function Timeline({ events = [], onSelectEvent }) {
   const [hoursBack, setHoursBack] = useState(24);

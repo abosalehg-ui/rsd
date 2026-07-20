@@ -1,6 +1,6 @@
 """
 ╔══════════════════════════════════════════════════════════════╗
-║                    رصد (Rsd) v1.0                        ║
+║                    رصد (Rsd)                             ║
 ║         منصة استخبارات المصادر المفتوحة - OSINT            ║
 ║              الشرق الأوسط - لوحة تحكم شخصية                ║
 ╚══════════════════════════════════════════════════════════════╝
@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from . import __version__
 from .api.events import router as events_router
 from .api.flights import router as flights_router
 from .api.infrastructure import router as infrastructure_router
@@ -83,7 +84,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="رصد (Rasad)",
     description="منصة استخبارات المصادر المفتوحة للشرق الأوسط",
-    version="1.0.0",
+    version=__version__,
     lifespan=lifespan,
 )
 
@@ -115,7 +116,7 @@ async def health_check():
     return {
         "status": "running",
         "name": "رصد (Rasad)",
-        "version": "1.0.0",
+        "version": __version__,
     }
 
 
