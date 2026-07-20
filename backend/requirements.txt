@@ -7,7 +7,7 @@ apscheduler==3.10.4
 feedparser==6.0.11
 python-dotenv==1.0.1
 pydantic==2.9.0
-pydantic-settings==2.5.0
+pydantic-settings==2.14.2
 websockets==13.0
 python-dateutil==2.9.0
 
