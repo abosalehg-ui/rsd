@@ -167,9 +167,9 @@ async def get_stats(hours: int = Query(default=24, ge=1, le=720)):
 @router.get("/timeline")
 async def get_timeline(
     hours: int = Query(default=48, ge=1, le=720),
-    interval: str = Query(default="hour", pattern="^(hour|day)$"),
+    limit: int = Query(default=500, ge=1, le=2000),
 ):
-    """بيانات الخط الزمني"""
+    """بيانات الخط الزمني — أحدث الأحداث ضمن الفترة (بحدّ أقصى لتفادي استجابات ضخمة)."""
     session_factory = get_session_factory()
     async with session_factory() as session:
         since = datetime.now(timezone.utc) - timedelta(hours=hours)
@@ -177,7 +177,8 @@ async def get_timeline(
         query = (
             select(Event)
             .where(Event.event_date >= since)
-            .order_by(Event.event_date)
+            .order_by(desc(Event.event_date))
+            .limit(limit)
         )
         result = await session.execute(query)
         events = result.scalars().all()

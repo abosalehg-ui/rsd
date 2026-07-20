@@ -5,13 +5,14 @@
 import hashlib
 import json
 import logging
-from datetime import datetime, timezone
+import re
 from typing import Dict
 
 import feedparser
 import httpx
 
-from ..models.database import Event, get_session_factory
+from ..models.database import get_session_factory, insert_event_if_new
+from ..processors.text_analysis import classify, geolocate, parse_entry_date
 
 logger = logging.getLogger("rasad.rss")
 
@@ -152,7 +153,7 @@ async def collect_rss_feeds() -> int:
     return count
 
 
-async def _process_feed(client: httpx.AsyncClient, feed_config: Dict) -> int:
+async def _process_feed(client: httpx.AsyncClient, feed_config: Dict) -> int:  # noqa: C901
     """معالجة خلاصة RSS واحدة"""
     count = 0
     session_factory = get_session_factory()
@@ -175,24 +176,12 @@ async def _process_feed(client: httpx.AsyncClient, feed_config: Dict) -> int:
                     link = entry.get("link", "")
                     source_id = f"rss_{hashlib.md5(link.encode()).hexdigest()}"
 
-                    from sqlalchemy import select
-                    existing = await session.execute(
-                        select(Event).where(Event.source_id == source_id)
-                    )
-                    if existing.scalar_one_or_none():
-                        continue
-
                     description = entry.get("summary", entry.get("description", ""))
-                    # تنظيف HTML
-                    import re
                     description = re.sub(r'<[^>]+>', '', description)[:500]
 
-                    # التصنيف
                     base_category = feed_config.get("category", "general")
-                    category, severity = _classify_rss(title, description, base_category)
-
-                    # الموقع
-                    country_code, country_name, lat, lon = _geolocate_rss(title, description)
+                    category, severity = classify(title, description, base_category)
+                    country_code, country_name, lat, lon = geolocate(title, description)
 
                     # الصورة
                     image_url = ""
@@ -201,21 +190,13 @@ async def _process_feed(client: httpx.AsyncClient, feed_config: Dict) -> int:
                     elif hasattr(entry, "enclosures") and entry.enclosures:
                         image_url = entry.enclosures[0].get("href", "")
 
-                    # التاريخ
-                    event_date = datetime.now(timezone.utc)
-                    if hasattr(entry, "published_parsed") and entry.published_parsed:
-                        try:
-                            from time import mktime
-                            event_date = datetime.fromtimestamp(
-                                mktime(entry.published_parsed), tz=timezone.utc
-                            )
-                        except (TypeError, ValueError, OverflowError):
-                            pass
+                    event_date = parse_entry_date(entry)
 
                     icon = feed_config.get("icon", "")
                     display_title = f"{icon} {title}" if icon else title
 
-                    event = Event(
+                    inserted = await insert_event_if_new(
+                        session,
                         source="rss",
                         source_id=source_id,
                         title=display_title,
@@ -236,9 +217,8 @@ async def _process_feed(client: httpx.AsyncClient, feed_config: Dict) -> int:
                             "is_nuclear": category == "nuclear",
                         }),
                     )
-
-                    session.add(event)
-                    count += 1
+                    if inserted:
+                        count += 1
 
                 except Exception as e:
                     logger.error(f"خطأ في مقال RSS: {e}")
@@ -251,65 +231,3 @@ async def _process_feed(client: httpx.AsyncClient, feed_config: Dict) -> int:
 
     return count
 
-
-def _classify_rss(title: str, description: str, base_category: str) -> tuple:
-    """تصنيف خبر RSS"""
-    if base_category == "nuclear":
-        return "nuclear", "high"
-
-    text = f"{title} {description}".lower()
-
-    nuclear_kw = ["nuclear", "uranium", "enrichment", "iaea", "atomic", "reactor",
-                  "نووي", "يورانيوم", "تخصيب", "مفاعل", "ذري"]
-    if any(kw in text for kw in nuclear_kw):
-        return "nuclear", "high"
-
-    military_kw = ["attack", "strike", "bomb", "missile", "war", "troops", "drone",
-                   "killed", "هجوم", "قصف", "صاروخ", "غارة", "حرب", "قتل"]
-    if any(kw in text for kw in military_kw):
-        return "military", "high"
-
-    diplomatic_kw = ["ceasefire", "peace", "diplomat", "negotiate", "summit",
-                     "هدنة", "سلام", "دبلوماسي", "مفاوضات", "قمة"]
-    if any(kw in text for kw in diplomatic_kw):
-        return "diplomatic", "medium"
-
-    humanitarian_kw = ["humanitarian", "refugee", "aid", "إنساني", "لاجئ", "إغاثة"]
-    if any(kw in text for kw in humanitarian_kw):
-        return "humanitarian", "medium"
-
-    return base_category, "medium"
-
-
-# نفس إحداثيات الدول
-COUNTRY_COORDS = {
-    "PS": (31.5, 34.47, "فلسطين"), "IL": (31.77, 35.23, "إسرائيل"),
-    "YE": (15.55, 48.52, "اليمن"), "SY": (34.8, 38.99, "سوريا"),
-    "LB": (33.87, 35.51, "لبنان"), "IR": (35.69, 51.39, "إيران"),
-    "IQ": (33.31, 44.37, "العراق"), "SA": (24.71, 46.68, "السعودية"),
-    "EG": (30.04, 31.24, "مصر"), "JO": (31.95, 35.93, "الأردن"),
-    "TR": (39.93, 32.86, "تركيا"),
-}
-
-
-def _geolocate_rss(title: str, description: str) -> tuple:
-    """تحديد الموقع"""
-    text = f"{title} {description}".lower()
-    country_keywords = {
-        "PS": ["gaza", "palestine", "west bank", "غزة", "فلسطين"],
-        "IL": ["israel", "tel aviv", "إسرائيل"],
-        "YE": ["yemen", "houthi", "اليمن", "حوثي"],
-        "SY": ["syria", "damascus", "سوريا", "دمشق"],
-        "LB": ["lebanon", "beirut", "hezbollah", "لبنان", "بيروت"],
-        "IR": ["iran", "tehran", "إيران", "طهران"],
-        "IQ": ["iraq", "baghdad", "العراق", "بغداد"],
-        "SA": ["saudi", "riyadh", "السعودية", "الرياض"],
-        "EG": ["egypt", "cairo", "مصر", "القاهرة"],
-        "JO": ["jordan", "الأردن"],
-        "TR": ["turkey", "تركيا"],
-    }
-    for code, keywords in country_keywords.items():
-        if any(kw in text for kw in keywords):
-            coords = COUNTRY_COORDS.get(code, (0, 0, ""))
-            return code, coords[2], coords[0], coords[1]
-    return "", "", None, None

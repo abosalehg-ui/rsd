@@ -172,49 +172,81 @@ async def manual_refresh():
 
 @app.get("/api/collectors/status")
 async def get_collectors_status():
-    """حالة جامعي البيانات"""
+    """حالة جامعي البيانات — الصحة تُقاس مقابل فاصل الجمع الفعلي لكل مصدر،
+    لا بعدد أحداث آخر ساعة (كان يُظهر UCDP اليومي وإيران نصف الساعي كأنهما معطّلان)."""
     from datetime import datetime, timedelta, timezone
 
     from sqlalchemy import func, select
 
     from .models.database import Event, get_session_factory
 
+    settings = get_settings()
+    # فاصل الجمع المتوقّع لكل مصدر (ثواني)
+    intervals = {
+        "gdelt": settings.gdelt_interval,
+        "newsapi": settings.newsapi_interval,
+        "rss": settings.rss_interval,
+        "ucdp": settings.ucdp_interval,
+        "iran_osint": 1800,
+    }
+
     session_factory = get_session_factory()
+    now = datetime.now(timezone.utc)
     async with session_factory() as session:
-        sources = ["gdelt", "newsapi", "rss", "ucdp"]
         status = {}
+        for src, interval in intervals.items():
+            last_collect = (await session.execute(
+                select(func.max(Event.collected_at)).where(Event.source == src)
+            )).scalar()
 
-        for src in sources:
-            # آخر خبر من هذا المصدر
-            query = select(func.max(Event.collected_at)).where(Event.source == src)
-            last_collect = (await session.execute(query)).scalar()
+            window = timedelta(hours=1) if interval < 3600 else timedelta(seconds=interval)
+            recent_count = (await session.execute(
+                select(func.count(Event.id)).where(
+                    Event.source == src, Event.collected_at >= now - window
+                )
+            )).scalar()
 
-            # عدد الأخبار في آخر ساعة
-            hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
-            count_query = select(func.count(Event.id)).where(
-                Event.source == src,
-                Event.collected_at >= hour_ago
+            # صحّي إذا جُمع خلال ضعف فاصله المتوقّع (هامش تسامح)
+            if last_collect is not None and last_collect.tzinfo is None:
+                last_collect_aware = last_collect.replace(tzinfo=timezone.utc)
+            else:
+                last_collect_aware = last_collect
+            healthy = bool(
+                last_collect_aware
+                and (now - last_collect_aware) < timedelta(seconds=interval * 2)
             )
-            recent_count = (await session.execute(count_query)).scalar()
 
             status[src] = {
                 "last_collect": last_collect.isoformat() if last_collect else None,
                 "recent_count": recent_count,
-                "healthy": recent_count > 0
+                "interval_seconds": interval,
+                "healthy": healthy,
             }
 
         return status
 
 @app.get("/api/sources")
 async def get_sources():
-    """المصادر المتاحة"""
+    """المصادر المتاحة — الفواصل مشتقّة من الإعدادات الفعلية."""
+    s = get_settings()
+
+    def _fmt(seconds: int) -> str:
+        if seconds >= 86400:
+            return "يومي"
+        if seconds >= 3600:
+            return f"كل {seconds // 3600} ساعة"
+        if seconds >= 60:
+            return f"كل {seconds // 60} دقيقة"
+        return f"كل {seconds} ثانية"
+
     return {
         "active": [
-            {"id": "gdelt", "name": "GDELT Project", "interval": "15 دقيقة", "status": "active"},
-            {"id": "newsapi", "name": "NewsAPI", "interval": "10 دقائق", "status": "active"},
-            {"id": "rss", "name": "RSS Feeds", "interval": "5 دقائق", "status": "active"},
-            {"id": "ucdp", "name": "UCDP Uppsala", "interval": "يومي", "status": "active"},
-            {"id": "adsb", "name": "OpenSky ADS-B", "interval": "30 ثانية", "status": "active"},
+            {"id": "gdelt", "name": "GDELT Project", "interval": _fmt(s.gdelt_interval), "status": "active"},
+            {"id": "newsapi", "name": "NewsAPI", "interval": _fmt(s.newsapi_interval), "status": "active"},
+            {"id": "rss", "name": "RSS Feeds", "interval": _fmt(s.rss_interval), "status": "active"},
+            {"id": "ucdp", "name": "UCDP Uppsala", "interval": _fmt(s.ucdp_interval), "status": "active"},
+            {"id": "iran_osint", "name": "Iran OSINT", "interval": "كل 30 دقيقة", "status": "active"},
+            {"id": "adsb", "name": "adsb.lol ADS-B", "interval": _fmt(max(s.adsb_interval, 30)), "status": "active"},
         ],
         "planned": [
             {"id": "telegram", "name": "Telegram", "status": "phase_2"},
