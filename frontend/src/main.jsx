@@ -11,7 +11,6 @@ if (!window.__TAURI__) {
   registerSW({
     immediate: true,
     onRegisterError(err) {
-      // eslint-disable-next-line no-console
       console.warn('SW registration failed:', err);
     },
   });

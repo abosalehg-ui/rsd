@@ -6,8 +6,7 @@
  */
 import React, { useEffect, useRef } from 'react';
 import Globe from 'globe.gl';
-import { useTranslation } from 'react-i18next';
-import { CATEGORIES, SEVERITIES, CONFIDENCE } from '../../utils/constants';
+import { CATEGORIES, CONFIDENCE } from '../../utils/constants';
 import { esc } from '../../utils/security';
 
 const ME_LAT = 29.0;
@@ -47,17 +46,17 @@ export default function RasadGlobe({
   showPipelines = true,
   selectedEvent,
 }) {
-  const { t } = useTranslation();
   const containerRef = useRef(null);
   const globeRef = useRef(null);
 
   // إنشاء الكرة مرة واحدة
   useEffect(() => {
     if (!containerRef.current || globeRef.current) return;
-    const w = containerRef.current.clientWidth || 800;
-    const h = containerRef.current.clientHeight || 600;
+    const container = containerRef.current;
+    const w = container.clientWidth || 800;
+    const h = container.clientHeight || 600;
 
-    const g = Globe()(containerRef.current)
+    const g = Globe()(container)
       .width(w)
       .height(h)
       .backgroundColor('#0a0e17')
@@ -82,12 +81,12 @@ export default function RasadGlobe({
       globeRef.current.width(containerRef.current.clientWidth);
       globeRef.current.height(containerRef.current.clientHeight);
     });
-    ro.observe(containerRef.current);
+    ro.observe(container);
 
     return () => {
       ro.disconnect();
-      try { globeRef.current?._destructor?.(); } catch {}
-      if (containerRef.current) containerRef.current.innerHTML = '';
+      try { globeRef.current?._destructor?.(); } catch { /* الكرة أُتلفت مسبقاً */ }
+      container.innerHTML = '';
       globeRef.current = null;
     };
   }, []);

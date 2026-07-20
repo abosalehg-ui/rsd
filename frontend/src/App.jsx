@@ -36,7 +36,7 @@ export default function App() {
   const [viewMode, setViewMode] = useState(() => {
     try { return localStorage.getItem('rsd-view-mode') || '2d'; } catch { return '2d'; }
   });
-  const { filters, updateFilter, resetFilters } = useFilters();
+  const { filters, updateFilter } = useFilters();
 
   // جلب البيانات مع تحديث تلقائي
   const { data: eventsData, refetch: refetchEvents } = usePolling(
@@ -111,7 +111,7 @@ const { data: flights } = usePolling(
   const toggleViewMode = useCallback(() => {
     setViewMode(prev => {
       const next = prev === '2d' ? '3d' : '2d';
-      try { localStorage.setItem('rsd-view-mode', next); } catch {}
+      try { localStorage.setItem('rsd-view-mode', next); } catch { /* التخزين معطّل */ }
       return next;
     });
   }, []);

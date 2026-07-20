@@ -264,7 +264,7 @@ export default function RasadMap({ events = [], flights = null, iranStrikes = []
       m.on('click', () => onSelectEvent?.(strike));
       iranRef.current.addLayer(m);
     });
-  }, [iranStrikes, showIran, ready]);
+  }, [iranStrikes, showIran, ready, onSelectEvent]);
 
   // طبقة المنشآت النووية ☢️
   useEffect(() => {
