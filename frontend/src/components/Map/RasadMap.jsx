@@ -395,11 +395,11 @@ export default function RasadMap({ events = [], flights = null, iranStrikes = []
       <div ref={mapRef} className="w-full h-full" />
       <div className="absolute top-3 left-3 z-[1000] flex flex-col gap-2">
         {[
-          { fn: () => mapInstance.current?.zoomIn(), icon: <ZoomIn className="w-5 h-5" /> },
-          { fn: () => mapInstance.current?.zoomOut(), icon: <ZoomOut className="w-5 h-5" /> },
-          { fn: () => mapInstance.current?.flyTo(ME_CENTER, ME_ZOOM, { duration: 0.5 }), icon: <Crosshair className="w-5 h-5" /> },
-        ].map((b, i) => (
-          <button key={i} onClick={b.fn} className="w-11 h-11 bg-[#111827] border border-[#1e293b] rounded-lg flex items-center justify-center hover:bg-[#1e293b] text-cyan-400">{b.icon}</button>
+          { fn: () => mapInstance.current?.zoomIn(), icon: <ZoomIn className="w-5 h-5" />, label: t('map.zoomIn') },
+          { fn: () => mapInstance.current?.zoomOut(), icon: <ZoomOut className="w-5 h-5" />, label: t('map.zoomOut') },
+          { fn: () => mapInstance.current?.flyTo(ME_CENTER, ME_ZOOM, { duration: 0.5 }), icon: <Crosshair className="w-5 h-5" />, label: t('map.recenter') },
+        ].map((b) => (
+          <button key={b.label} onClick={b.fn} aria-label={b.label} title={b.label} className="w-11 h-11 bg-[#111827] border border-[#1e293b] rounded-lg flex items-center justify-center hover:bg-[#1e293b] text-cyan-400">{b.icon}</button>
         ))}
       </div>
       <div className="absolute bottom-3 left-3 z-[1000] bg-[#111827]/95 border border-[#1e293b] rounded-lg p-3 text-sm">
