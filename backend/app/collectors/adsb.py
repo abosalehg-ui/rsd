@@ -34,6 +34,10 @@ MILITARY_CALLSIGN_PATTERNS = [
 MILITARY_SQUAWKS = ["7700", "7600", "7500", "0021", "0022", "0023"]
 MILITARY_AIRCRAFT_TYPES = ["F16", "F15", "F35", "F18", "B52", "C130", "C17", "E3", "P8", "RC135", "U2"]
 
+# لقطة آخر جمع ناجح — تقرأها /flights/live بدل استدعاء المزوّد الخارجي والكتابة
+# في DB عند كل طلب من كل عميل (PERF-1). تحدّثها الوظيفة المجدولة وحدها.
+_last_snapshot: Dict = {"total": 0, "military": 0, "flights": [], "updated_at": None}
+
 
 async def collect_flights() -> Dict:
     """جمع بيانات الطيران فوق الشرق الأوسط"""
@@ -101,6 +105,14 @@ async def collect_flights() -> Dict:
 
     except Exception as e:
         logger.error(f"خطأ في جمع بيانات الطيران: {e}")
+
+    # حدّث اللقطة المشتركة (تقرأها /flights/live)
+    _last_snapshot.update(
+        total=flights_data["total"],
+        military=flights_data["military"],
+        flights=flights_data["flights"],
+        updated_at=datetime.now(timezone.utc).isoformat(),
+    )
 
     logger.info(f"ADS-B: {flights_data['total']} رحلة ({flights_data['military']} عسكرية)")
     return flights_data
@@ -183,4 +195,10 @@ def _country_from_icao(icao24: str) -> str:
 
 
 async def get_live_flights() -> Dict:
-    return await collect_flights()
+    """يعيد آخر لقطة مُجمَّعة (من الوظيفة المجدولة) دون استدعاء المزوّد الخارجي
+    أو الكتابة في DB — يمنع تضخيم الطلبات عبر العملاء المتعددين (PERF-1).
+
+    عند عدم توفّر لقطة بعد (إقلاع بارد) نجمع مرة واحدة فقط."""
+    if _last_snapshot["updated_at"] is None:
+        return await collect_flights()
+    return _last_snapshot

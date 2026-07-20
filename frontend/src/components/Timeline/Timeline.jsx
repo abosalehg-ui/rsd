@@ -2,18 +2,23 @@
  * رصد - الخط الزمني التفاعلي
  */
 import React, { useState, useMemo } from 'react';
-import { CATEGORIES, SEVERITIES, timeAgo } from '../../utils/constants';
-import { Clock, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { CATEGORIES, SEVERITIES } from '../../utils/constants';
+import { Clock, Calendar } from 'lucide-react';
 
 export default function Timeline({ events = [], onSelectEvent }) {
+  const { t } = useTranslation();
   const [hoursBack, setHoursBack] = useState(24);
   const [selectedCategory, setSelectedCategory] = useState('');
 
   const filtered = useMemo(() => {
-    let list = [...events].sort((a, b) => new Date(b.event_date) - new Date(a.event_date));
+    const cutoff = Date.now() - hoursBack * 3600 * 1000;
+    let list = [...events]
+      .filter(e => new Date(e.event_date).getTime() >= cutoff)
+      .sort((a, b) => new Date(b.event_date) - new Date(a.event_date));
     if (selectedCategory) list = list.filter(e => e.category === selectedCategory);
     return list;
-  }, [events, selectedCategory]);
+  }, [events, selectedCategory, hoursBack]);
 
   // تجميع حسب الساعة
   const grouped = useMemo(() => {
@@ -32,7 +37,7 @@ export default function Timeline({ events = [], onSelectEvent }) {
       <div className="flex items-center justify-between px-3 py-2 border-b border-[#1e293b]">
         <div className="flex items-center gap-2">
           <Clock className="w-4 h-4 text-cyan-400" />
-          <span className="text-sm font-bold">الخط الزمني</span>
+          <span className="text-sm font-bold">{t('timeline.title')}</span>
         </div>
         <div className="flex items-center gap-1">
           {[6, 12, 24, 48].map(h => (
@@ -48,7 +53,7 @@ export default function Timeline({ events = [], onSelectEvent }) {
       <div className="flex gap-1 px-3 py-1.5 border-b border-[#1e293b]/50 overflow-x-auto">
         <button onClick={() => setSelectedCategory('')}
           className={`text-[9px] px-1.5 py-0.5 rounded whitespace-nowrap ${!selectedCategory ? 'bg-cyan-400/20 text-cyan-400' : 'text-slate-500'}`}>
-          الكل
+          {t('timeline.all')}
         </button>
         {Object.entries(CATEGORIES).map(([k, c]) => (
           <button key={k} onClick={() => setSelectedCategory(k)}
@@ -62,7 +67,7 @@ export default function Timeline({ events = [], onSelectEvent }) {
       {/* المحتوى */}
       <div className="flex-1 overflow-y-auto px-3 py-2">
         {grouped.length === 0 ? (
-          <div className="text-center text-slate-500 text-sm mt-8">لا توجد أحداث</div>
+          <div className="text-center text-slate-500 text-sm mt-8">{t('timeline.noEvents')}</div>
         ) : (
           grouped.map(([timeKey, items]) => (
             <div key={timeKey} className="mb-4">

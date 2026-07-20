@@ -5,14 +5,14 @@ import hashlib
 import json
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Dict, List, Tuple
 
 import feedparser
 import httpx
-from sqlalchemy import select
 
-from ..models.database import Event, IranianLeaderNews, get_session_factory
+from ..models.database import IranianLeaderNews, get_session_factory, insert_event_if_new
+from ..processors.text_analysis import parse_entry_date
 
 logger = logging.getLogger("rasad.iran_osint")
 
@@ -195,23 +195,11 @@ async def _process_iran_feed(client: httpx.AsyncClient, feed_config: Dict) -> in
                     link = entry.get("link", "")
                     source_id = f"iran_{hashlib.md5(link.encode()).hexdigest()}"
 
-                    existing = await session.execute(
-                        select(Event).where(Event.source_id == source_id)
-                    )
-                    if existing.scalar_one_or_none():
-                        continue
-
                     # الموقع
                     lat, lon, location_name, country_code = _geolocate_iran(text)
 
                     # التاريخ
-                    event_date = datetime.now(timezone.utc)
-                    if hasattr(entry, "published_parsed") and entry.published_parsed:
-                        try:
-                            from time import mktime
-                            event_date = datetime.fromtimestamp(mktime(entry.published_parsed), tz=timezone.utc)
-                        except Exception:
-                            pass
+                    event_date = parse_entry_date(entry)
 
                     # رابط الفيديو (إذا وجد)
                     video_url = ""
@@ -230,7 +218,8 @@ async def _process_iran_feed(client: httpx.AsyncClient, feed_config: Dict) -> in
                     conf = feed_config["confidence"]
                     conf_icon = "🟢" if conf == "HIGH" else "🟡" if conf == "MEDIUM" else "🔵"
 
-                    event = Event(
+                    inserted = await insert_event_if_new(
+                        session,
                         source="iran_osint",
                         source_id=source_id,
                         title=f"{icon} {title}",
@@ -255,10 +244,11 @@ async def _process_iran_feed(client: httpx.AsyncClient, feed_config: Dict) -> in
                             "is_iran_osint": True,
                         }),
                     )
-                    session.add(event)
+                    if not inserted:
+                        continue
                     count += 1
 
-                    # تحقق من ذكر القادة
+                    # تحقق من ذكر القادة (للأحداث الجديدة فقط)
                     await _check_leader_mentions(session, title, description, link, event_date)
 
                 except Exception as e:

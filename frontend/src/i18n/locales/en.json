@@ -9,13 +9,42 @@
     "escalation": "Escalation:",
     "refresh": "Refresh from sources",
     "refreshing": "Refreshing...",
-    "breaking": "BREAKING"
+    "breaking": "BREAKING",
+    "connectionLost": "Cannot reach the server — displayed data may be stale"
   },
   "tabs": {
     "news": "Events",
     "timeline": "Timeline",
     "stats": "Statistics",
     "iran": "Iran"
+  },
+  "news": {
+    "title": "Events",
+    "noEvents": "No events",
+    "sourceLink": "Original source",
+    "all": "All"
+  },
+  "timeline": {
+    "title": "Timeline",
+    "noEvents": "No events",
+    "all": "All"
+  },
+  "iranPanel": {
+    "title": "Iran OSINT Watch",
+    "strikes": "Strikes",
+    "leaders": "Leaders",
+    "loading": "Loading...",
+    "noData": "No data",
+    "total": "Total",
+    "trusted": "🟢 Trusted",
+    "strikesCount": "💥 Strikes",
+    "active": "active",
+    "source": "Source →",
+    "video": "🎥 Video",
+    "confAll": "All",
+    "confHigh": "🟢 Trusted",
+    "confMedium": "🟡 Medium",
+    "confLow": "🔵 Unverified"
   },
   "map": {
     "title": "Map",
