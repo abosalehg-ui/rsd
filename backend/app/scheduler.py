@@ -13,6 +13,7 @@ from .collectors import (
     collect_ucdp_events,
 )
 from .config import get_settings
+from .models.database import prune_old_data
 
 logger = logging.getLogger("rasad.scheduler")
 
@@ -84,6 +85,23 @@ def start_scheduler():
         seconds=1800,
         id="iran_osint_collector",
         name="جامع إيران OSINT",
+        max_instances=1,
+    )
+
+    # تنظيف البيانات القديمة — يومياً (يمنع نمو قاعدة البيانات بلا حدود)
+    async def _prune():
+        s = get_settings()
+        await prune_old_data(
+            events_days=s.retention_events_days,
+            flights_days=s.retention_flights_days,
+        )
+
+    scheduler.add_job(
+        _prune,
+        "interval",
+        hours=24,
+        id="data_pruner",
+        name="منظّف البيانات",
         max_instances=1,
     )
 

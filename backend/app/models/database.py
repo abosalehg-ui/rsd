@@ -1,9 +1,23 @@
 """رصد (Rasad) - نماذج قاعدة البيانات"""
-from datetime import datetime, timezone
+import logging
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import Boolean, Column, DateTime, Float, Index, Integer, String, Text
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    Index,
+    Integer,
+    String,
+    Text,
+    delete,
+    event,
+)
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
+
+logger = logging.getLogger("rasad.database")
 
 
 class Base(DeclarativeBase):
@@ -106,11 +120,27 @@ _engine = None
 _session_factory = None
 
 
+def _register_sqlite_pragmas(engine) -> None:
+    """تفعيل WAL + مهلة قفل على اتصالات SQLite لتفادي 'database is locked'
+    مع الكتّاب المتزامنين (6 وظائف مجدولة + طلبات API)."""
+    if not engine.url.get_backend_name().startswith("sqlite"):
+        return
+
+    @event.listens_for(engine.sync_engine, "connect")
+    def _set_pragma(dbapi_conn, _record):  # pragma: no cover - callback بسيط
+        cur = dbapi_conn.cursor()
+        cur.execute("PRAGMA journal_mode=WAL")
+        cur.execute("PRAGMA busy_timeout=5000")
+        cur.execute("PRAGMA synchronous=NORMAL")
+        cur.close()
+
+
 async def init_db(database_url: str = "sqlite+aiosqlite:///./data/rasad.db"):
     """تهيئة قاعدة البيانات وإنشاء الجداول"""
     global _engine, _session_factory
 
     _engine = create_async_engine(database_url, echo=False)
+    _register_sqlite_pragmas(_engine)
     _session_factory = async_sessionmaker(_engine, class_=AsyncSession, expire_on_commit=False)
 
     async with _engine.begin() as conn:
@@ -121,3 +151,39 @@ async def init_db(database_url: str = "sqlite+aiosqlite:///./data/rasad.db"):
 
 def get_session_factory():
     return _session_factory
+
+
+async def prune_old_data(events_days: int = 30, flights_days: int = 7) -> dict:
+    """حذف البيانات الأقدم من عتبات الاحتفاظ — يمنع نمو قاعدة البيانات بلا حدود.
+
+    - الأحداث وأخبار القادة: أقدم من events_days.
+    - مسارات الطيران (تنمو الأسرع): أقدم من flights_days.
+    يعيد عدد الصفوف المحذوفة لكل جدول.
+    """
+    if not _session_factory:
+        return {}
+
+    now = datetime.now(timezone.utc)
+    events_cutoff = now - timedelta(days=events_days)
+    flights_cutoff = now - timedelta(days=flights_days)
+    removed: dict = {}
+
+    async with _session_factory() as session:
+        r1 = await session.execute(delete(Event).where(Event.collected_at < events_cutoff))
+        r2 = await session.execute(
+            delete(FlightTrack).where(FlightTrack.tracked_at < flights_cutoff)
+        )
+        r3 = await session.execute(
+            delete(IranianLeaderNews).where(IranianLeaderNews.collected_at < events_cutoff)
+        )
+        await session.commit()
+        removed = {
+            "events": r1.rowcount or 0,
+            "flight_tracks": r2.rowcount or 0,
+            "iranian_leader_news": r3.rowcount or 0,
+        }
+
+    total = sum(removed.values())
+    if total:
+        logger.info(f"🧹 تنظيف البيانات: حُذف {total} صفاً {removed}")
+    return removed
