@@ -153,6 +153,23 @@ def get_session_factory():
     return _session_factory
 
 
+async def insert_event_if_new(session, **fields) -> bool:
+    """إدراج حدث مع تجاهل التعارض على source_id ذرّياً (INSERT ... ON CONFLICT
+    DO NOTHING). يعيد True إذا أُدرِج فعلاً، False إذا كان مكرّراً.
+
+    يحل محل نمط 'SELECT ثم add' الذي يسبب سباقاً يُسقط دفعات كاملة عند التزامن،
+    ويلغي استعلام SELECT لكل مقال (تحسين أداء)."""
+    from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+    stmt = (
+        sqlite_insert(Event)
+        .values(**fields)
+        .on_conflict_do_nothing(index_elements=["source_id"])
+    )
+    result = await session.execute(stmt)
+    return bool(result.rowcount)
+
+
 async def prune_old_data(events_days: int = 30, flights_days: int = 7) -> dict:
     """حذف البيانات الأقدم من عتبات الاحتفاظ — يمنع نمو قاعدة البيانات بلا حدود.
 
