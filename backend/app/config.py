@@ -5,7 +5,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 def get_app_data_dir() -> Path:
@@ -62,9 +62,26 @@ class Settings(BaseSettings):
     backend_host: str = "0.0.0.0"
     backend_port: int = 8000
 
-    class Config:
-        env_file = _env_files()
-        env_file_encoding = "utf-8"
+    # أمن الشبكة — أصول CORS المسموح بها (سلسلة مفصولة بفواصل)
+    cors_origins: str = (
+        "http://localhost:3000,http://127.0.0.1:3000,"
+        "http://localhost:8000,http://127.0.0.1:8000"
+    )
+
+    # سياسة الاحتفاظ بالبيانات (أيام)
+    retention_events_days: int = 30
+    retention_flights_days: int = 7
+
+    model_config = SettingsConfigDict(
+        env_file=_env_files(),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        """قائمة الأصول المسموح بها بعد التقسيم والتنظيف."""
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
 
 @lru_cache()

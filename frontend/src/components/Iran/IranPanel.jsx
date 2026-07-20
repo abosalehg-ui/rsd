@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { getIranStrikes, getIranLeaders, getIranStats } from '../../utils/api';
 import { CONFIDENCE, IRAN_EVENT_TYPES, timeAgo } from '../../utils/constants';
+import { safeUrl } from '../../utils/security';
 import { Target, Users, RefreshCw } from 'lucide-react';
 
 const CONF_TABS = [
@@ -151,9 +152,9 @@ export default function IranPanel({ onSelectStrike }) {
                           >
                             {evType.icon} {evType.label}
                           </span>
-                          {strike.video_url && (
+                          {safeUrl(strike.video_url) && (
                             <a
-                              href={strike.video_url}
+                              href={safeUrl(strike.video_url)}
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={e => e.stopPropagation()}
@@ -172,9 +173,9 @@ export default function IranPanel({ onSelectStrike }) {
                           <span className="text-[10px] text-slate-500">{strike.location_name || strike.country}</span>
                           <span className="text-[10px] text-slate-600">•</span>
                           <span className="text-[10px] text-slate-500">{timeAgo(strike.event_date)}</span>
-                          {strike.url && (
+                          {safeUrl(strike.url) && (
                             <a
-                              href={strike.url}
+                              href={safeUrl(strike.url)}
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={e => e.stopPropagation()}
@@ -224,7 +225,7 @@ export default function IranPanel({ onSelectStrike }) {
                     {leader.recent_news.slice(0, 2).map((n, i) => (
                       <a
                         key={i}
-                        href={n.url}
+                        href={safeUrl(n.url) || undefined}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="block text-[10px] text-slate-400 hover:text-cyan-400 truncate"
