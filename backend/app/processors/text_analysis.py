@@ -5,8 +5,6 @@
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
 # ===== إحداثيات مراكز دول الشرق الأوسط (lat, lon, الاسم العربي) — مصدر واحد =====
 COUNTRY_COORDS: dict[str, tuple[float, float, str]] = {
     "PS": (31.5, 34.47, "فلسطين"),
@@ -38,7 +36,7 @@ ME_COUNTRY_NAMES: dict[str, str] = {
 COUNTRY_KEYWORDS: dict[str, list[str]] = {
     "PS": ["gaza", "palestine", "west bank", "غزة", "فلسطين", "الضفة"],
     "IL": ["israel", "tel aviv", "jerusalem", "إسرائيل", "تل أبيب", "القدس"],
-    "YE": ["yemen", "houthi", "sanaa", "اليمن", "حوثي", "صنعاء"],
+    "YE": ["yemen", "houthi", "sanaa", "red sea", "اليمن", "حوثي", "صنعاء", "البحر الأحمر"],
     "SY": ["syria", "damascus", "aleppo", "سوريا", "دمشق", "حلب"],
     "LB": ["lebanon", "beirut", "hezbollah", "لبنان", "بيروت", "حزب الله"],
     "IR": ["iran", "tehran", "إيران", "طهران"],
@@ -111,23 +109,22 @@ def classify(
     return base_category, "medium" if base_category != "general" else "low"
 
 
+def country_code_from_text(text: str) -> str:
+    """رمز ISO للدولة المذكورة في النص، أو "" عند التعذّر.
+
+    مصدر واحد لمطابقة الدول — كان مكرّراً في `collectors/gdelt.py`.
+    """
+    lowered = text.lower()
+    for code, keywords in COUNTRY_KEYWORDS.items():
+        if _has(lowered, keywords):
+            return code
+    return ""
+
+
 def geolocate(title: str, description: str = "") -> tuple[str, str, float | None, float | None]:
     """تحديد (code, name_ar, lat, lon) من النص. يعيد ("", "", None, None) عند التعذّر."""
-    text = f"{title} {description}".lower()
-    for code, keywords in COUNTRY_KEYWORDS.items():
-        if _has(text, keywords):
-            lat, lon, name = COUNTRY_COORDS[code]
-            return code, name, lat, lon
-    return "", "", None, None
-
-
-def parse_entry_date(entry) -> datetime:
-    """تحويل تاريخ مدخل feedparser إلى datetime واعٍ بالمنطقة الزمنية (UTC)."""
-    parsed = getattr(entry, "published_parsed", None) or getattr(entry, "updated_parsed", None)
-    if parsed:
-        try:
-            from time import mktime
-            return datetime.fromtimestamp(mktime(parsed), tz=timezone.utc)
-        except (TypeError, ValueError, OverflowError):
-            pass
-    return datetime.now(timezone.utc)
+    code = country_code_from_text(f"{title} {description}")
+    if not code:
+        return "", "", None, None
+    lat, lon, name = COUNTRY_COORDS[code]
+    return code, name, lat, lon

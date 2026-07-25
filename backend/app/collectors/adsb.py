@@ -4,7 +4,8 @@
 """
 import logging
 from datetime import datetime, timezone
-from typing import Dict, Optional
+from math import asin, cos, radians, sin, sqrt
+from typing import Dict, Optional, Tuple
 
 import httpx
 
@@ -37,6 +38,15 @@ MILITARY_AIRCRAFT_TYPES = ["F16", "F15", "F35", "F18", "B52", "C130", "C17", "E3
 # لقطة آخر جمع ناجح — تقرأها /flights/live بدل استدعاء المزوّد الخارجي والكتابة
 # في DB عند كل طلب من كل عميل (PERF-1). تحدّثها الوظيفة المجدولة وحدها.
 _last_snapshot: Dict = {"total": 0, "military": 0, "flights": [], "updated_at": None}
+
+# إزالة تكرار كتابات المسارات: نسجّل صفّاً فقط عند حركة معتبرة أو بعد فجوة
+# زمنية، بدل صفّ لكل طائرة كل 30 ثانية.
+_MIN_MOVE_KM = 5.0
+_MAX_GAP_SECONDS = 600      # 10 دقائق — نضمن نقطة دورية حتى للطائرة الواقفة
+_TRACK_MEMORY_SECONDS = 3600
+
+# icao24 → (آخر تسجيل، خط العرض، خط الطول)
+_last_recorded: Dict[str, Tuple[datetime, float, float]] = {}
 
 
 async def collect_flights() -> Dict:
@@ -78,30 +88,7 @@ async def collect_flights() -> Dict:
             flights_data["flights"] = parsed
 
             if session_factory:
-                try:
-                    async with session_factory() as session:
-                        for flight in parsed:
-                            if flight["is_military"]:
-                                track = FlightTrack(
-                                    icao24=flight["icao24"],
-                                    callsign=flight["callsign"],
-                                    origin_country=flight["origin_country"],
-                                    latitude=flight["latitude"],
-                                    longitude=flight["longitude"],
-                                    altitude=flight["altitude"],
-                                    velocity=flight["velocity"],
-                                    heading=flight["heading"],
-                                    vertical_rate=flight.get("vertical_rate"),
-                                    on_ground=flight["on_ground"],
-                                    is_military=True,
-                                    aircraft_type=flight.get("military_type", ""),
-                                    squawk=flight.get("squawk", ""),
-                                    tracked_at=now,
-                                )
-                                session.add(track)
-                        await session.commit()
-                except Exception as e:
-                    logger.warning(f"DB save error: {e}")
+                await _persist_military_tracks(session_factory, parsed, now)
 
     except Exception as e:
         logger.error(f"خطأ في جمع بيانات الطيران: {e}")
@@ -116,6 +103,83 @@ async def collect_flights() -> Dict:
 
     logger.info(f"ADS-B: {flights_data['total']} رحلة ({flights_data['military']} عسكرية)")
     return flights_data
+
+
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """المسافة بالكيلومترات بين نقطتين على سطح الأرض."""
+    r = 6371.0
+    p1, p2 = radians(lat1), radians(lat2)
+    dp = radians(lat2 - lat1)
+    dl = radians(lon2 - lon1)
+    a = sin(dp / 2) ** 2 + cos(p1) * cos(p2) * sin(dl / 2) ** 2
+    return 2 * r * asin(sqrt(a))
+
+
+def _should_record(flight: Dict, now: datetime) -> bool:
+    """هل نُسجّل صفّاً جديداً لهذه الطائرة؟
+
+    التسجيل عند كل دورة (30 ثانية) كان ينتج ~144 ألف صف يومياً لبيانات شبه
+    ثابتة. نكتفي بصفّ عند تغيّر الموقع أكثر من `_MIN_MOVE_KM` أو مرور
+    `_MAX_GAP_SECONDS` — يقلّص الحجم بأكثر من 90% مع الحفاظ على شكل المسار.
+    """
+    icao = flight["icao24"]
+    lat, lon = flight["latitude"], flight["longitude"]
+    if lat is None or lon is None:
+        return False
+
+    last = _last_recorded.get(icao)
+    if last is None:
+        _last_recorded[icao] = (now, lat, lon)
+        return True
+
+    last_at, last_lat, last_lon = last
+    moved = _haversine_km(last_lat, last_lon, lat, lon)
+    elapsed = (now - last_at).total_seconds()
+    if moved >= _MIN_MOVE_KM or elapsed >= _MAX_GAP_SECONDS:
+        _last_recorded[icao] = (now, lat, lon)
+        return True
+    return False
+
+
+def _prune_recorded(now: datetime) -> None:
+    """أسقط الطائرات التي اختفت — يمنع نمو ذاكرة التتبّع بلا حدود."""
+    stale = [
+        icao for icao, (seen_at, _, _) in _last_recorded.items()
+        if (now - seen_at).total_seconds() > _TRACK_MEMORY_SECONDS
+    ]
+    for icao in stale:
+        del _last_recorded[icao]
+
+
+async def _persist_military_tracks(session_factory, parsed: list, now: datetime) -> None:
+    """يحفظ مسارات الطائرات العسكرية التي تحرّكت فعلاً منذ آخر تسجيل."""
+    try:
+        to_save = [f for f in parsed if f["is_military"] and _should_record(f, now)]
+        _prune_recorded(now)
+        if not to_save:
+            return
+
+        async with session_factory() as session:
+            for flight in to_save:
+                session.add(FlightTrack(
+                    icao24=flight["icao24"],
+                    callsign=flight["callsign"],
+                    origin_country=flight["origin_country"],
+                    latitude=flight["latitude"],
+                    longitude=flight["longitude"],
+                    altitude=flight["altitude"],
+                    velocity=flight["velocity"],
+                    heading=flight["heading"],
+                    vertical_rate=flight.get("vertical_rate"),
+                    on_ground=flight["on_ground"],
+                    is_military=True,
+                    aircraft_type=flight.get("military_type", ""),
+                    squawk=flight.get("squawk", ""),
+                    tracked_at=now,
+                ))
+            await session.commit()
+    except Exception as e:
+        logger.warning(f"DB save error: {e}")
 
 
 def _parse_aircraft(ac: dict) -> Optional[Dict]:

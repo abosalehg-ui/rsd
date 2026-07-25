@@ -1,4 +1,5 @@
 """رصد - نقاط API لمتابعة إيران OSINT"""
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -7,8 +8,13 @@ from sqlalchemy import and_, desc, func, select
 
 from ..collectors.iran_osint import get_leaders_list
 from ..models.database import Event, IranianLeaderNews, get_session_factory
+from ._serializers import serialize_iran_event
 
 router = APIRouter(prefix="/api/iran", tags=["iran"])
+
+# آخر N خبر تُعرض لكل قائد، وسقف الصفوف المجلوبة في الاستعلام الموحّد
+_LEADER_NEWS_LIMIT = 3
+_LEADER_NEWS_FETCH_CAP = 500
 
 
 @router.get("/strikes")
@@ -44,20 +50,19 @@ async def get_iran_strikes(
             select(func.count(Event.id)).where(and_(*conditions))
         )).scalar()
 
-        # إحصائيات الثقة
-        conf_stats = {}
-        for conf_level in ["HIGH", "MEDIUM", "LOW"]:
-            count = (await session.execute(
-                select(func.count(Event.id)).where(
-                    and_(Event.source == "iran_osint", Event.event_date >= since, Event.confidence == conf_level)
-                )
-            )).scalar()
-            conf_stats[conf_level] = count
+        # إحصائيات الثقة — GROUP BY واحد بدل استعلام COUNT لكل مستوى
+        conf_rows = (await session.execute(
+            select(Event.confidence, func.count(Event.id))
+            .where(and_(Event.source == "iran_osint", Event.event_date >= since))
+            .group_by(Event.confidence)
+        )).all()
+        counted = {(level or "").upper(): n for level, n in conf_rows}
+        conf_stats = {level: counted.get(level, 0) for level in ("HIGH", "MEDIUM", "LOW")}
 
         return {
             "total": total,
             "confidence_stats": conf_stats,
-            "strikes": [_serialize_iran_event(e) for e in events],
+            "strikes": [serialize_iran_event(e) for e in events],
         }
 
 
@@ -69,30 +74,37 @@ async def get_iranian_leaders(hours: int = Query(default=72, ge=1, le=720)):
 
     async with session_factory() as session:
         since = datetime.now(timezone.utc) - timedelta(hours=hours)
-        result = []
 
-        for leader in leaders:
-            news_query = (
-                select(IranianLeaderNews)
-                .where(
-                    and_(
-                        IranianLeaderNews.leader_id == leader["id"],
-                        IranianLeaderNews.news_date >= since,
-                    )
+        # استعلام واحد لكل القادة بدل استعلام لكل قائد (كان N+1 بعشرة استعلامات).
+        # نقصّ إلى آخر 3 أخبار لكل قائد في بايثون — عدد الصفوف صغير ومحدود.
+        rows = (await session.execute(
+            select(IranianLeaderNews)
+            .where(
+                and_(
+                    IranianLeaderNews.leader_id.in_([leader["id"] for leader in leaders]),
+                    IranianLeaderNews.news_date >= since,
                 )
-                .order_by(desc(IranianLeaderNews.news_date))
-                .limit(3)
             )
-            news_result = await session.execute(news_query)
-            news_items = news_result.scalars().all()
+            .order_by(desc(IranianLeaderNews.news_date))
+            .limit(_LEADER_NEWS_FETCH_CAP)
+        )).scalars().all()
 
+        by_leader: dict[int, list[IranianLeaderNews]] = defaultdict(list)
+        for row in rows:
+            bucket = by_leader[row.leader_id]
+            if len(bucket) < _LEADER_NEWS_LIMIT:
+                bucket.append(row)
+
+        result = []
+        for leader in leaders:
+            news_items = by_leader.get(leader["id"], [])
             result.append({
                 **leader,
                 "recent_news": [
                     {
                         "title": n.title,
                         "url": n.url,
-                        "date": n.news_date.isoformat(),
+                        "date": n.news_date.isoformat() if n.news_date else None,
                     }
                     for n in news_items
                 ],
@@ -136,30 +148,3 @@ async def get_iran_stats(hours: int = Query(default=72, ge=1, le=720)):
             "period_hours": hours,
         }
 
-
-def _serialize_iran_event(event: Event) -> dict:
-    import json
-    extra = {}
-    if event.extra_data:
-        try:
-            extra = json.loads(event.extra_data)
-        except Exception:
-            pass
-    return {
-        "id": event.id,
-        "title": event.title,
-        "description": event.description,
-        "url": event.url,
-        "video_url": event.video_url,
-        "category": event.category,
-        "severity": event.severity,
-        "confidence": event.confidence,
-        "confidence_icon": extra.get("confidence_icon", "🔵"),
-        "event_type": event.event_type,
-        "latitude": event.latitude,
-        "longitude": event.longitude,
-        "country": event.country,
-        "location_name": event.location_name,
-        "event_date": event.event_date.isoformat() if event.event_date else None,
-        "feed_name": extra.get("feed_name", ""),
-    }

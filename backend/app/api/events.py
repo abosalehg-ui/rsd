@@ -6,6 +6,7 @@ from fastapi import APIRouter, Query
 from sqlalchemy import and_, desc, func, select
 
 from ..models.database import Event, get_session_factory
+from ._serializers import serialize_event
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 
@@ -16,7 +17,7 @@ async def get_events(
     severity: Optional[str] = None,
     country_code: Optional[str] = None,
     source: Optional[str] = None,
-    search: Optional[str] = None,
+    search: Optional[str] = Query(default=None, max_length=100),
     hours: int = Query(default=24, ge=1, le=720),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
@@ -40,8 +41,11 @@ async def get_events(
         if source:
             conditions.append(Event.source == source)
         if search:
+            # autoescape=True يهرّب % و _ فلا يستطيع المستخدم فرض نمط LIKE
+            # يمسح الجدول كاملاً (نقطة عامة بلا مصادقة).
             conditions.append(
-                Event.title.contains(search) | Event.description.contains(search)
+                Event.title.contains(search, autoescape=True)
+                | Event.description.contains(search, autoescape=True)
             )
 
         if conditions:
@@ -57,7 +61,7 @@ async def get_events(
 
         return {
             "total": total,
-            "events": [_serialize_event(e) for e in events],
+            "events": [serialize_event(e) for e in events],
         }
 
 
@@ -69,7 +73,7 @@ async def get_latest_events(limit: int = Query(default=20, ge=1, le=100)):
         query = select(Event).order_by(desc(Event.event_date)).limit(limit)
         result = await session.execute(query)
         events = result.scalars().all()
-        return [_serialize_event(e) for e in events]
+        return [serialize_event(e) for e in events]
 
 
 @router.get("/map")
@@ -92,7 +96,7 @@ async def get_map_events(hours: int = Query(default=24, ge=1, le=720)):
         )
         result = await session.execute(query)
         events = result.scalars().all()
-        return [_serialize_event(e) for e in events]
+        return [serialize_event(e) for e in events]
 
 
 @router.get("/stats")
@@ -183,7 +187,7 @@ async def get_timeline(
         result = await session.execute(query)
         events = result.scalars().all()
 
-        return [_serialize_event(e) for e in events]
+        return [serialize_event(e) for e in events]
 
 
 # ===== مؤشر استخبارات الدول (Country Intelligence Index) v1.3 =====
@@ -267,32 +271,3 @@ async def get_country_index(
             "max_raw_score": round(max_raw, 1),
             "ranking": ranking[:top],
         }
-
-
-def _serialize_event(event: Event) -> dict:
-    """تحويل حدث لـ JSON"""
-    import json
-    extra = {}
-    if event.extra_data:
-        try:
-            extra = json.loads(event.extra_data)
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-    return {
-        "id": event.id,
-        "source": event.source,
-        "title": event.title,
-        "description": event.description,
-        "url": event.url,
-        "image_url": event.image_url,
-        "category": event.category,
-        "severity": event.severity,
-        "latitude": event.latitude,
-        "longitude": event.longitude,
-        "country": event.country,
-        "country_code": event.country_code,
-        "location_name": event.location_name,
-        "event_date": event.event_date.isoformat() if event.event_date else None,
-        "extra": extra,
-    }

@@ -4,7 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 
 router = APIRouter(prefix="/api/nuclear", tags=["nuclear"])
 
@@ -49,7 +49,8 @@ async def get_facility(facility_id: str):
     for facility in data.get("facilities", []):
         if facility.get("id") == facility_id:
             return facility
-    return {"error": "not_found", "id": facility_id}
+    # كان يعيد {"error": ...} بحالة 200 فيظنّها العميل نجاحاً
+    raise HTTPException(status_code=404, detail=f"منشأة غير موجودة: {facility_id}")
 
 
 @router.get("/stats")

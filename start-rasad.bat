@@ -4,7 +4,7 @@ color 0A
 
 echo.
 echo  ========================================
-echo       Rasad v1.0 - OSINT Dashboard
+echo       Rasad - OSINT Dashboard
 echo  ========================================
 echo.
 

@@ -1,12 +1,20 @@
-import { describe, it, expect } from 'vitest';
-import { CATEGORIES, SEVERITIES, COUNTRIES, timeAgo, formatNumber } from './constants';
+import { describe, it, expect, vi } from 'vitest';
+import {
+  CATEGORIES, SEVERITIES, COUNTRIES, CONFIDENCE, IRAN_EVENT_TYPES,
+  SOURCES, TIME_WINDOWS, categoryOf, severityOf, timeAgo, formatNumber,
+} from './constants';
+
+// بديل بسيط لدالة الترجمة: يعيد المفتاح + العدد كي نتحقّق من اختيار المفتاح
+const t = vi.fn((key, opts) => (opts?.count !== undefined ? `${key}:${opts.count}` : key));
 
 describe('constants', () => {
-  it('exposes all expected categories with shape', () => {
+  it('exposes all expected categories with a color and icon (no hardcoded labels)', () => {
     for (const key of ['military', 'diplomatic', 'humanitarian', 'nuclear', 'economic', 'general']) {
       expect(CATEGORIES[key]).toBeDefined();
-      expect(CATEGORIES[key].label).toBeTruthy();
       expect(CATEGORIES[key].color).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(CATEGORIES[key].icon).toBeTruthy();
+      // التسميات انتقلت إلى i18n — يجب ألا تبقى هنا
+      expect(CATEGORIES[key].label).toBeUndefined();
     }
   });
 
@@ -14,30 +22,60 @@ describe('constants', () => {
     expect(Object.keys(SEVERITIES)).toEqual(['critical', 'high', 'medium', 'low']);
   });
 
-  it('flags every country', () => {
+  it('flags every country and keeps names out of the module', () => {
     for (const code of Object.keys(COUNTRIES)) {
       expect(COUNTRIES[code].flag).toBeTruthy();
-      expect(COUNTRIES[code].name).toBeTruthy();
+      expect(COUNTRIES[code].name).toBeUndefined();
     }
+  });
+
+  it('exposes confidence levels and Iran event types without labels', () => {
+    for (const level of ['HIGH', 'MEDIUM', 'LOW']) {
+      expect(CONFIDENCE[level].color).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(CONFIDENCE[level].label).toBeUndefined();
+    }
+    for (const type of ['strike', 'launch', 'movement', 'nuclear', 'diplomatic']) {
+      expect(IRAN_EVENT_TYPES[type].icon).toBeTruthy();
+      expect(IRAN_EVENT_TYPES[type].label).toBeUndefined();
+    }
+  });
+
+  it('lists the backend source ids and shared time windows', () => {
+    expect(SOURCES).toContain('gdelt');
+    expect(SOURCES).toContain('iran_osint');
+    expect(TIME_WINDOWS[0]).toBeLessThan(TIME_WINDOWS[TIME_WINDOWS.length - 1]);
+  });
+});
+
+describe('categoryOf / severityOf', () => {
+  it('returns the matching entry', () => {
+    expect(categoryOf('military')).toBe(CATEGORIES.military);
+    expect(severityOf('critical')).toBe(SEVERITIES.critical);
+  });
+
+  it('falls back for unknown or missing values', () => {
+    expect(categoryOf('does-not-exist')).toBe(CATEGORIES.general);
+    expect(categoryOf(undefined)).toBe(CATEGORIES.general);
+    expect(severityOf('nope')).toBe(SEVERITIES.low);
   });
 });
 
 describe('timeAgo', () => {
-  it('returns "الآن" for < 60s', () => {
-    const t = new Date(Date.now() - 5 * 1000).toISOString();
-    expect(timeAgo(t)).toBe('الآن');
+  it('uses the "now" key for < 60s', () => {
+    expect(timeAgo(new Date(Date.now() - 5 * 1000).toISOString(), t)).toBe('time.now');
   });
-  it('returns minutes for < 1h', () => {
-    const t = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    expect(timeAgo(t)).toMatch(/منذ 5 دقيقة/);
+  it('uses minutes for < 1h', () => {
+    expect(timeAgo(new Date(Date.now() - 5 * 60 * 1000).toISOString(), t)).toBe('time.minutes:5');
   });
-  it('returns hours for < 1d', () => {
-    const t = new Date(Date.now() - 3 * 3600 * 1000).toISOString();
-    expect(timeAgo(t)).toMatch(/منذ 3 ساعة/);
+  it('uses hours for < 1d', () => {
+    expect(timeAgo(new Date(Date.now() - 3 * 3600 * 1000).toISOString(), t)).toBe('time.hours:3');
   });
-  it('returns days for older', () => {
-    const t = new Date(Date.now() - 2 * 86400 * 1000).toISOString();
-    expect(timeAgo(t)).toMatch(/منذ 2 يوم/);
+  it('uses days for older', () => {
+    expect(timeAgo(new Date(Date.now() - 2 * 86400 * 1000).toISOString(), t)).toBe('time.days:2');
+  });
+  it('returns an empty string for an invalid date instead of NaN text', () => {
+    expect(timeAgo('not-a-date', t)).toBe('');
+    expect(timeAgo(undefined, t)).toBe('');
   });
 });
 
