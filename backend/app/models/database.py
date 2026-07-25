@@ -14,6 +14,7 @@ from sqlalchemy import (
     delete,
     event,
 )
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -65,6 +66,10 @@ class Event(Base):
         Index("idx_events_country", "country_code"),
         Index("idx_events_source", "source"),
         Index("idx_events_severity", "severity"),
+        # يستخدمه prune_old_data و/api/collectors/status — كان مسحاً كاملاً
+        Index("idx_events_collected", "collected_at"),
+        # مركّب: /api/collectors/status يبحث بـ (source, collected_at) معاً
+        Index("idx_events_source_collected", "source", "collected_at"),
     )
 
 
@@ -153,21 +158,53 @@ def get_session_factory():
     return _session_factory
 
 
+def _upsert_insert(dialect_name: str):
+    """`insert()` الخاص باللهجة والداعم لـ ON CONFLICT.
+
+    SQLite و PostgreSQL يدعمان `on_conflict_do_nothing`. غيرهما يقع على
+    المسار الاحتياطي في `insert_event_if_new`.
+    """
+    if dialect_name == "sqlite":
+        from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+        return sqlite_insert
+    if dialect_name == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        return pg_insert
+    return None
+
+
 async def insert_event_if_new(session, **fields) -> bool:
     """إدراج حدث مع تجاهل التعارض على source_id ذرّياً (INSERT ... ON CONFLICT
     DO NOTHING). يعيد True إذا أُدرِج فعلاً، False إذا كان مكرّراً.
 
     يحل محل نمط 'SELECT ثم add' الذي يسبب سباقاً يُسقط دفعات كاملة عند التزامن،
-    ويلغي استعلام SELECT لكل مقال (تحسين أداء)."""
-    from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+    ويلغي استعلام SELECT لكل مقال (تحسين أداء).
 
-    stmt = (
-        sqlite_insert(Event)
-        .values(**fields)
-        .on_conflict_do_nothing(index_elements=["source_id"])
-    )
-    result = await session.execute(stmt)
-    return bool(result.rowcount)
+    كان مقفلاً على لهجة SQLite رغم أن DATABASE_URL يقبل أي محرّك؛ صار يختار
+    اللهجة من الاتصال ويسقط على SAVEPOINT + IntegrityError لما عداهما.
+    """
+    dialect_name = session.bind.dialect.name if session.bind is not None else "sqlite"
+    insert_fn = _upsert_insert(dialect_name)
+
+    if insert_fn is not None:
+        stmt = (
+            insert_fn(Event)
+            .values(**fields)
+            .on_conflict_do_nothing(index_elements=["source_id"])
+        )
+        result = await session.execute(stmt)
+        return bool(result.rowcount)
+
+    # مسار احتياطي محايد: نحاول الإدراج داخل SAVEPOINT ونبتلع تعارض التفرّد
+    # وحده — يبقى ذرّياً ولا يُفسد المعاملة الجارية عند الفشل.
+    try:
+        async with session.begin_nested():
+            session.add(Event(**fields))
+        return True
+    except IntegrityError:
+        return False
 
 
 async def prune_old_data(events_days: int = 30, flights_days: int = 7) -> dict:

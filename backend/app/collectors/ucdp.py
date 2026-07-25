@@ -3,36 +3,32 @@
 """
 import json
 import logging
-from datetime import datetime, timezone
 
 import httpx
 
-from ..models.database import Event, get_session_factory
+from ..models.database import get_session_factory, insert_event_if_new
+from ..processors.dates import parse_ymd
+from ..processors.text_analysis import COUNTRY_COORDS, ME_COUNTRY_NAMES
 
 logger = logging.getLogger("rasad.ucdp")
 
 UCDP_API = "https://ucdpapi.pcr.uu.se/api/gedevents/24.1"
 
-# دول الشرق الأوسط
-ME_COUNTRY_IDS = {
-    "Palestine": ("PS", 31.5, 34.47),
-    "Israel": ("IL", 31.77, 35.23),
-    "Yemen (North Yemen)": ("YE", 15.55, 48.52),
-    "Syria": ("SY", 34.8, 38.99),
-    "Lebanon": ("LB", 33.87, 35.51),
-    "Iran": ("IR", 35.69, 51.39),
-    "Iraq": ("IQ", 33.31, 44.37),
-    "Saudi Arabia": ("SA", 24.71, 46.68),
-    "Egypt": ("EG", 30.04, 31.24),
-    "Turkey (Ottoman Empire)": ("TR", 39.93, 32.86),
-    "Libya": ("LY", 32.9, 13.18),
-    "Sudan": ("SD", 15.59, 32.53),
-}
-
-ME_COUNTRY_NAMES = {
-    "PS": "فلسطين", "IL": "إسرائيل", "YE": "اليمن", "SY": "سوريا",
-    "LB": "لبنان", "IR": "إيران", "IQ": "العراق", "SA": "السعودية",
-    "EG": "مصر", "TR": "تركيا", "LY": "ليبيا", "SD": "السودان",
+# اسم الدولة كما يكتبه UCDP → رمز ISO. الإحداثيات والاسم العربي يأتيان من
+# `text_analysis` (مصدر واحد) بدل نسختين محليّتين هنا.
+UCDP_COUNTRY_CODES = {
+    "Palestine": "PS",
+    "Israel": "IL",
+    "Yemen (North Yemen)": "YE",
+    "Syria": "SY",
+    "Lebanon": "LB",
+    "Iran": "IR",
+    "Iraq": "IQ",
+    "Saudi Arabia": "SA",
+    "Egypt": "EG",
+    "Turkey (Ottoman Empire)": "TR",
+    "Libya": "LY",
+    "Sudan": "SD",
 }
 
 
@@ -64,22 +60,16 @@ async def collect_ucdp_events() -> int:
                 for event_data in events:
                     try:
                         country = event_data.get("country", "")
-                        if country not in ME_COUNTRY_IDS:
+                        code = UCDP_COUNTRY_CODES.get(country)
+                        if not code:
                             continue
 
                         event_id = event_data.get("id", "")
                         source_id = f"ucdp_{event_id}"
 
-                        from sqlalchemy import select
-                        existing = await session.execute(
-                            select(Event).where(Event.source_id == source_id)
-                        )
-                        if existing.scalar_one_or_none():
-                            continue
-
-                        country_info = ME_COUNTRY_IDS[country]
-                        lat = event_data.get("latitude", country_info[1])
-                        lon = event_data.get("longitude", country_info[2])
+                        default_lat, default_lon, _ = COUNTRY_COORDS[code]
+                        lat = event_data.get("latitude", default_lat)
+                        lon = event_data.get("longitude", default_lon)
 
                         deaths_a = event_data.get("deaths_a", 0) or 0
                         deaths_b = event_data.get("deaths_b", 0) or 0
@@ -98,7 +88,11 @@ async def collect_ucdp_events() -> int:
                         side_b = event_data.get("side_b", "")
                         title = f"نزاع مسلح: {side_a} vs {side_b} - {country}"
 
-                        event = Event(
+                        # إدراج ذرّي مانع للتكرار — كبقية الجامعين. النمط
+                        # السابق (SELECT ثم add) كان يُنفّذ استعلاماً لكل حدث
+                        # ويترك سباقاً بين الجامع المجدول والتحديث اليدوي.
+                        inserted = await insert_event_if_new(
+                            session,
                             source="ucdp",
                             source_id=source_id,
                             title=title,
@@ -106,12 +100,12 @@ async def collect_ucdp_events() -> int:
                             url=f"https://ucdp.uu.se/event/{event_id}",
                             category="military",
                             severity=severity,
-                            latitude=float(lat) if lat else country_info[1],
-                            longitude=float(lon) if lon else country_info[2],
-                            country=ME_COUNTRY_NAMES.get(country_info[0], ""),
-                            country_code=country_info[0],
+                            latitude=float(lat) if lat else default_lat,
+                            longitude=float(lon) if lon else default_lon,
+                            country=ME_COUNTRY_NAMES.get(code, ""),
+                            country_code=code,
                             location_name=event_data.get("where_description", ""),
-                            event_date=_parse_date(event_data.get("date_start")),
+                            event_date=parse_ymd(event_data.get("date_start")),
                             extra_data=json.dumps({
                                 "deaths_total": total_deaths,
                                 "deaths_civilians": deaths_civilians,
@@ -120,9 +114,8 @@ async def collect_ucdp_events() -> int:
                                 "type_of_violence": event_data.get("type_of_violence", ""),
                             }),
                         )
-
-                        session.add(event)
-                        count += 1
+                        if inserted:
+                            count += 1
 
                     except Exception as e:
                         logger.error(f"خطأ في حدث UCDP: {e}")
@@ -135,12 +128,3 @@ async def collect_ucdp_events() -> int:
 
     logger.info(f"UCDP: تم جمع {count} حدث نزاع جديد")
     return count
-
-
-def _parse_date(date_str) -> datetime:
-    if date_str:
-        try:
-            return datetime.strptime(str(date_str)[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
-        except (ValueError, TypeError):
-            pass
-    return datetime.now(timezone.utc)

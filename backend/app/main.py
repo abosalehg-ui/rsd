@@ -10,7 +10,7 @@ import logging
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import __version__
@@ -19,6 +19,7 @@ from .api.flights import router as flights_router
 from .api.infrastructure import router as infrastructure_router
 from .api.iran import router as iran_router
 from .api.nuclear import router as nuclear_router
+from .auth import require_api_key
 from .collectors import (
     collect_gdelt_events,
     collect_iran_osint,
@@ -28,6 +29,7 @@ from .collectors import (
 )
 from .config import get_settings
 from .middleware.cache import ETagCacheMiddleware
+from .middleware.ratelimit import RateLimitMiddleware
 from .models.database import init_db
 from .scheduler import start_scheduler, stop_scheduler
 
@@ -102,6 +104,14 @@ app.add_middleware(
 # ETag + Cache-Control (v1.4) — يُسجَّل بعد CORS ليكون أعمق في السلسلة
 app.add_middleware(ETagCacheMiddleware)
 
+# حدّ معدل لكل IP — يُسجَّل أخيراً فيكون الأقرب للتطبيق، فلا نهدر عملاً على
+# طلبات مرفوضة (الترتيب في Starlette معكوس: آخر مُسجَّل = أعمق في السلسلة).
+app.add_middleware(
+    RateLimitMiddleware,
+    max_requests=_settings.rate_limit_requests,
+    window_seconds=_settings.rate_limit_window_seconds,
+)
+
 # تسجيل نقاط API
 app.include_router(events_router)
 app.include_router(flights_router)
@@ -125,9 +135,13 @@ _REFRESH_COOLDOWN_SECONDS = 120
 _last_manual_refresh: float = 0.0
 
 
-@app.post("/api/refresh")
+@app.post("/api/refresh", dependencies=[Depends(require_api_key)])
 async def manual_refresh():
-    """تحديث يدوي - جلب أخبار جديدة من جميع المصادر (بحدّ أدنى بين الطلبات)"""
+    """تحديث يدوي - جلب أخبار جديدة من جميع المصادر (بحدّ أدنى بين الطلبات).
+
+    محمي بـ X-API-Key عند ضبط `API_KEY` في الإعدادات، لأنه يُطلق خمسة جامعين
+    خارجيين لكل استدعاء.
+    """
     global _last_manual_refresh
     now = time.time()
     elapsed_since_last = now - _last_manual_refresh

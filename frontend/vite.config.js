@@ -91,8 +91,10 @@ export default defineConfig({
     port: 3000,
     host: '0.0.0.0',
     proxy: {
+      // داخل docker compose الخلفية في حاوية أخرى، فـ localhost يشير للواجهة
+      // نفسها ويفشل الوكيل. يضبط compose المتغيّر إلى http://backend:8000.
       '/api': {
-        target: 'http://localhost:8000',
+        target: process.env.VITE_PROXY_TARGET || 'http://localhost:8000',
         changeOrigin: true,
       },
     },
@@ -102,10 +104,11 @@ export default defineConfig({
     chunkSizeWarningLimit: 1500,
     rollupOptions: {
       output: {
+        // ملاحظة: react-leaflet و recharts أُزيلا — لم يكونا مستوردَين في أي
+        // مكان، وكان recharts يُنتج chunk فارغاً بحجم 0.06 kB.
         manualChunks: {
           three: ['three', 'globe.gl'],
-          leaflet: ['leaflet', 'react-leaflet'],
-          recharts: ['recharts'],
+          leaflet: ['leaflet'],
           i18n: ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
         },
       },

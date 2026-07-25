@@ -12,9 +12,12 @@ import webbrowser
 
 import uvicorn
 
-HOST = "127.0.0.1"
-PORT = 8000
-URL = f"http://{HOST}:{PORT}"
+from app.config import get_settings
+
+_settings = get_settings()
+HOST = _settings.backend_host
+PORT = _settings.backend_port
+URL = f"http://{'127.0.0.1' if HOST == '0.0.0.0' else HOST}:{PORT}"
 
 
 def _port_in_use(host: str, port: int) -> bool:

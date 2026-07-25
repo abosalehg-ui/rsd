@@ -17,7 +17,7 @@ cp .env.example .env      # ثم املأ مفاتيحك (راجع التعلي�
 
 ```bash
 cd backend
-pip install -r requirements.txt
+pip install -r requirements-dev.txt   # يشمل requirements.txt + أدوات الاختبار
 uvicorn app.main:app --reload --port 8000
 ```
 

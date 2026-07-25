@@ -10,7 +10,17 @@
     "refresh": "تحديث من المصادر",
     "refreshing": "جاري التحديث...",
     "breaking": "عاجل",
-    "connectionLost": "تعذّر الاتصال بالخادم — البيانات المعروضة قد تكون قديمة"
+    "connectionLost": "تعذّر الاتصال بالخادم — البيانات المعروضة قد تكون قديمة",
+    "refreshFailed": "فشل التحديث: {{message}}",
+    "refreshThrottled": "التحديث محدود — أعد المحاولة بعد {{seconds}} ثانية",
+    "refreshDone": "تم تحديث المصادر",
+    "dismiss": "إغلاق",
+    "collapsePanel": "طي اللوحة",
+    "expandPanel": "فتح اللوحة",
+    "loadingGlobe": "جاري تحميل الكرة الأرضية…",
+    "showMap": "الخريطة",
+    "showPanel": "البيانات",
+    "skipToPanel": "تخطَّ إلى المحتوى"
   },
   "tabs": {
     "news": "الأحداث",
@@ -22,12 +32,24 @@
     "title": "الأحداث",
     "noEvents": "لا توجد أحداث",
     "sourceLink": "المصدر الأصلي",
-    "all": "الكل"
+    "all": "الكل",
+    "toggleFilters": "إظهار/إخفاء الفلاتر",
+    "search": "بحث في الأحداث",
+    "searchPlaceholder": "ابحث في العنوان أو الوصف…",
+    "clearSearch": "مسح البحث",
+    "country": "الدولة",
+    "source": "المصدر",
+    "period": "الفترة",
+    "allCountries": "كل الدول",
+    "allSources": "كل المصادر",
+    "resetFilters": "إعادة ضبط الفلاتر",
+    "loadFailed": "تعذّر تحميل الأحداث — قد يكون الخادم غير متاح"
   },
   "timeline": {
     "title": "الخط الزمني",
     "noEvents": "لا توجد أحداث",
-    "all": "الكل"
+    "all": "الكل",
+    "window": "النافذة الزمنية"
   },
   "iranPanel": {
     "title": "متابعة إيران OSINT",
@@ -44,7 +66,10 @@
     "confAll": "الكل",
     "confHigh": "🟢 موثوق",
     "confMedium": "🟡 متوسط",
-    "confLow": "🔵 غير مؤكد"
+    "confLow": "🔵 غير مؤكد",
+    "reload": "إعادة تحميل بيانات إيران",
+    "loadFailed": "تعذّر تحميل بيانات إيران — قد يكون الخادم غير متاح",
+    "retry": "إعادة المحاولة"
   },
   "map": {
     "title": "خريطة",
@@ -59,7 +84,42 @@
     "view3d": "كرة 3D",
     "zoomIn": "تكبير",
     "zoomOut": "تصغير",
-    "recenter": "إعادة التمركز"
+    "recenter": "إعادة التمركز",
+    "legend": "دليل الألوان",
+    "clusterTitle": "{{count}} أحداث في هذه المنطقة",
+    "clusterMore": "+ {{count}} أحداث أخرى",
+    "sourceLink": "المصدر ←",
+    "military": "عسكري",
+    "altitude": "الارتفاع",
+    "speed": "السرعة",
+    "metersShort": "م",
+    "kmhShort": "كم/س",
+    "country": "الدولة",
+    "operator": "المُشغّل",
+    "type": "النوع",
+    "capacity": "السعة",
+    "firstGrid": "بدء التشغيل",
+    "length": "الطول",
+    "status": "الحالة",
+    "kmShort": "كم",
+    "mbpd": "مليون برميل/يوم",
+    "bcm": "BCM",
+    "osintVideo": "🎥 فيديو OSINT"
+  },
+  "nuclearTypes": {
+    "power": "محطة قوة",
+    "research": "أبحاث",
+    "enrichment": "تخصيب",
+    "conversion": "تحويل",
+    "heavy_water": "ماء ثقيل",
+    "fuel": "وقود"
+  },
+  "nuclearStatus": {
+    "operational": "عاملة",
+    "construction": "قيد الإنشاء",
+    "planned": "مخططة",
+    "shutdown": "متوقفة",
+    "modified": "معدّلة"
   },
   "alerts": {
     "title": "إعدادات التنبيهات",
@@ -82,20 +142,75 @@
     "recent": "آخر التنبيهات",
     "recentEmpty": "لا توجد تنبيهات حتى الآن",
     "clear": "مسح",
-    "settings": "إعدادات التنبيهات الصوتية"
+    "settings": "إعدادات التنبيهات الصوتية",
+    "close": "إغلاق الإعدادات",
+    "notificationTitle": "🚨 رصد — خبر هام",
+    "thresholdOptions": {
+      "low": "منخفض (أي حدث)",
+      "medium": "متوسط",
+      "high": "مرتفع (موصى به)",
+      "critical": "حرج فقط"
+    }
   },
   "severity": {
-    "low": "منخفض (أي حدث)",
+    "low": "منخفض",
     "medium": "متوسط",
-    "high": "مرتفع (موصى به)",
-    "critical": "حرج فقط"
+    "high": "مرتفع",
+    "critical": "حرج"
   },
   "categories": {
-    "military": "⚔️ عسكري",
-    "nuclear": "☢️ نووي",
-    "diplomatic": "🤝 دبلوماسي",
-    "humanitarian": "🆘 إنساني",
-    "economic": "💰 اقتصادي"
+    "military": "عسكري",
+    "nuclear": "نووي",
+    "diplomatic": "دبلوماسي",
+    "humanitarian": "إنساني",
+    "economic": "اقتصادي",
+    "general": "عام"
+  },
+  "iranEventTypes": {
+    "strike": "ضربة",
+    "launch": "إطلاق صاروخ",
+    "movement": "تحرك عسكري",
+    "nuclear": "نووي",
+    "diplomatic": "دبلوماسي"
+  },
+  "confidence": {
+    "HIGH": "موثوق",
+    "MEDIUM": "متوسط",
+    "LOW": "غير مؤكد"
+  },
+  "countries": {
+    "PS": "فلسطين",
+    "IL": "إسرائيل",
+    "YE": "اليمن",
+    "SY": "سوريا",
+    "LB": "لبنان",
+    "IR": "إيران",
+    "IQ": "العراق",
+    "SA": "السعودية",
+    "EG": "مصر",
+    "JO": "الأردن",
+    "TR": "تركيا",
+    "LY": "ليبيا",
+    "SD": "السودان"
+  },
+  "time": {
+    "now": "الآن",
+    "minutes_one": "منذ دقيقة",
+    "minutes_two": "منذ دقيقتين",
+    "minutes_few": "منذ {{count}} دقائق",
+    "minutes_many": "منذ {{count}} دقيقة",
+    "minutes_other": "منذ {{count}} دقيقة",
+    "hours_one": "منذ ساعة",
+    "hours_two": "منذ ساعتين",
+    "hours_few": "منذ {{count}} ساعات",
+    "hours_many": "منذ {{count}} ساعة",
+    "hours_other": "منذ {{count}} ساعة",
+    "days_one": "منذ يوم",
+    "days_two": "منذ يومين",
+    "days_few": "منذ {{count}} أيام",
+    "days_many": "منذ {{count}} يوماً",
+    "days_other": "منذ {{count}} يوم",
+    "hoursShort": "{{count}}س"
   },
   "stats": {
     "countryIndex": "مؤشر استخبارات الدول",
@@ -104,7 +219,25 @@
     "bySeverity": "حسب الخطورة",
     "byCountry": "حسب الدولة",
     "bySource": "حسب المصدر",
-    "noData": "لا توجد بيانات"
+    "noData": "لا توجد بيانات",
+    "escalationIndex": "مؤشر التصعيد",
+    "totalEvents": "إجمالي الأحداث",
+    "militaryEvents": "أحداث عسكرية"
+  },
+  "tv": {
+    "open": "البث المباشر",
+    "close": "إغلاق المشغّل",
+    "title": "البث المباشر",
+    "channels": {
+      "aljazeera": "الجزيرة",
+      "alarabiya": "العربية",
+      "bbc_arabic": "BBC عربي"
+    }
+  },
+  "error": {
+    "boundaryTitle": "تعذّر عرض هذا الجزء.",
+    "unexpected": "خطأ غير متوقّع",
+    "retry": "إعادة المحاولة"
   },
   "lang": {
     "switch": "تبديل اللغة",

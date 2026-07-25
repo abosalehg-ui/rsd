@@ -8,6 +8,7 @@
  * يخزّن التفضيلات في localStorage تحت المفتاح "rsd-alert-prefs".
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
+import i18n from '../i18n';
 
 const STORAGE_KEY = 'rsd-alert-prefs';
 const SEVERITY_RANK = { low: 1, medium: 2, high: 3, critical: 4 };
@@ -111,7 +112,8 @@ function playAlarmTone() {
   playBell(ctx, master, 1318.51, 0.34, 1.25, 0.55); // E6 — نوتة الحلّ، أطول رنيناً
 }
 
-function shouldAlert(event, prefs) {
+/** هل يستحق هذا الحدث تنبيهاً وفق التفضيلات؟ (مُصدَّر للاختبار) */
+export function shouldAlert(event, prefs) {
   if (!prefs.enabled) return false;
   const sev = (event.severity || 'low').toLowerCase();
   const rank = SEVERITY_RANK[sev] ?? 0;
@@ -121,11 +123,30 @@ function shouldAlert(event, prefs) {
   return true;
 }
 
+// سقف حجم مجموعة المعرّفات المرئية — الجلسات الطويلة كانت تُراكم كل معرّف
+// شوهد منذ الإقلاع بلا حدّ. عند التجاوز نُبقي الأحدث فقط.
+const MAX_SEEN_IDS = 2000;
+
+function rememberSeen(seen, ids) {
+  ids.forEach(id => seen.add(id));
+  if (seen.size > MAX_SEEN_IDS) {
+    // Set يحفظ ترتيب الإدراج — نُسقط الأقدم
+    const excess = seen.size - MAX_SEEN_IDS;
+    let dropped = 0;
+    for (const id of seen) {
+      if (dropped >= excess) break;
+      seen.delete(id);
+      dropped += 1;
+    }
+  }
+}
+
 /**
  * @param {Array} events - قائمة الأحداث الحالية من polling
+ * @param {Object} filters - الفلاتر الفعّالة؛ تغيّرها يعيد ضبط خط الأساس
  * @returns {{ prefs, setPrefs, lastAlertEvent, recentAlerts, mute, unmute, testSound }}
  */
-export function useAudioAlert(events) {
+export function useAudioAlert(events, filters) {
   const [prefs, setPrefsState] = useState(loadAlertPrefs);
   const [lastAlertEvent, setLastAlertEvent] = useState(null);
   const [recentAlerts, setRecentAlerts] = useState([]);   // آخر 5 تنبيهات
@@ -133,10 +154,18 @@ export function useAudioAlert(events) {
   const lastPlayedAt = useRef(0);
   const initialized = useRef(false);
 
-  // أول استدعاء — فقط امتلئ seenIds بالأحداث الحالية بدون تنبيه
+  // تغيير الفلاتر يجلب مجموعة أحداث مختلفة كلياً — أحداث قديمة لم تكن ضمن
+  // النتيجة السابقة تبدو "جديدة" فتُطلق إنذاراً كاذباً. نعيد ضبط خط الأساس.
+  // يُعلَن أولاً كي يعمل قبل تأثير خط الأساس أدناه (التأثيرات تُنفَّذ بالترتيب).
+  const filterKey = JSON.stringify(filters ?? {});
+  useEffect(() => {
+    initialized.current = false;
+  }, [filterKey]);
+
+  // أول استدعاء (أو بعد تغيير فلتر) — امتلئ seenIds بالحالي بدون تنبيه
   useEffect(() => {
     if (initialized.current || !Array.isArray(events) || events.length === 0) return;
-    events.forEach(e => e?.id != null && seenIds.current.add(e.id));
+    rememberSeen(seenIds.current, events.filter(e => e?.id != null).map(e => e.id));
     initialized.current = true;
   }, [events]);
 
@@ -145,7 +174,7 @@ export function useAudioAlert(events) {
     const fresh = events.filter(e => e?.id != null && !seenIds.current.has(e.id));
     if (fresh.length === 0) return;
 
-    fresh.forEach(e => seenIds.current.add(e.id));
+    rememberSeen(seenIds.current, fresh.map(e => e.id));
 
     const triggers = fresh.filter(e => shouldAlert(e, prefs));
     if (triggers.length === 0) return;
@@ -166,7 +195,7 @@ export function useAudioAlert(events) {
 
     if (prefs.desktopNotifications && 'Notification' in window && Notification.permission === 'granted') {
       try {
-        new Notification('🚨 رصد — خبر هام', {
+        new Notification(i18n.t('alerts.notificationTitle'), {
           body: top.title || '',
           icon: '/favicon.ico',
           tag: `rsd-${top.id}`,

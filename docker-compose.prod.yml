@@ -10,7 +10,9 @@ services:
       - "8000"
     volumes:
       - ./data:/app/data
-      - ./.env:/app/.env:ro
+    env_file:
+      - path: .env
+        required: false
     environment:
       - PYTHONDONTWRITEBYTECODE=1
       - PYTHONUNBUFFERED=1
@@ -28,7 +30,8 @@ services:
       dockerfile: Dockerfile.prod
     container_name: rasad-frontend
     ports:
-      - "3000:80"
+      # الحلقة المحلية افتراضاً — ضعه خلف وكيل عكسي بـ TLS قبل عرضه للشبكة
+      - "127.0.0.1:3000:8080"
     depends_on:
       backend:
         condition: service_healthy

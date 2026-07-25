@@ -4,14 +4,13 @@ GDELT يراقب الأخبار العالمية ويحولها لأحداث م�
 """
 import json
 import logging
-from datetime import datetime, timezone
-from typing import Optional
 
 import httpx
 
 from ..models.database import get_session_factory, insert_event_if_new
+from ..processors.dates import parse_compact
 from ..processors.text_analysis import ME_COUNTRY_NAMES as ME_COUNTRIES
-from ..processors.text_analysis import classify
+from ..processors.text_analysis import classify, country_code_from_text
 
 logger = logging.getLogger("rasad.gdelt")
 
@@ -76,7 +75,7 @@ async def collect_gdelt_events() -> int:
                             country=ME_COUNTRIES.get(country_code, ""),
                             country_code=country_code,
                             location_name=article.get("sourcelocation", ""),
-                            event_date=_parse_date(article.get("seendate")),
+                            event_date=parse_compact(article.get("seendate")),
                             extra_data=json.dumps({
                                 "domain": article.get("domain", ""),
                                 "language": article.get("language", ""),
@@ -100,36 +99,9 @@ async def collect_gdelt_events() -> int:
 
 
 def _extract_country(title: str, source_country: str) -> str:
-    """استخراج رمز الدولة"""
-    country_keywords = {
-        "gaza": "PS", "palestine": "PS", "فلسطين": "PS", "غزة": "PS",
-        "israel": "IL", "إسرائيل": "IL",
-        "yemen": "YE", "اليمن": "YE", "houthi": "YE", "حوثي": "YE",
-        "syria": "SY", "سوريا": "SY",
-        "lebanon": "LB", "لبنان": "LB", "hezbollah": "LB", "حزب الله": "LB",
-        "iran": "IR", "إيران": "IR",
-        "iraq": "IQ", "العراق": "IQ",
-        "saudi": "SA", "السعودية": "SA",
-        "egypt": "EG", "مصر": "EG",
-        "jordan": "JO", "الأردن": "JO",
-        "turkey": "TR", "تركيا": "TR",
-        "libya": "LY", "ليبيا": "LY",
-        "sudan": "SD", "السودان": "SD",
-    }
+    """رمز الدولة من العنوان، وإلا من بلد المصدر الذي يعطيه GDELT.
 
-    title_lower = title.lower()
-    for keyword, code in country_keywords.items():
-        if keyword in title_lower:
-            return code
-
-    return source_country[:2].upper() if source_country else ""
-
-
-def _parse_date(date_str: Optional[str]) -> datetime:
-    """تحويل تاريخ GDELT"""
-    if date_str:
-        try:
-            return datetime.strptime(date_str[:14], "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
-        except (ValueError, TypeError):
-            pass
-    return datetime.now(timezone.utc)
+    المطابقة عبر `country_code_from_text` المشترك — كانت نسخة ثانية من خريطة
+    الكلمات المفتاحية هنا وتتباعد عن الأصل مع كل تعديل.
+    """
+    return country_code_from_text(title) or (source_country[:2].upper() if source_country else "")

@@ -1,13 +1,16 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { fetchAPI, getCountryIndex, getMilitaryBases } from './api';
+import { fetchAPI, postAPI, getCountryIndex, getMilitaryBases, ApiError } from './api';
+
+const okResponse = () => ({
+  ok: true,
+  status: 200,
+  headers: new Headers(),
+  json: async () => ({ ok: true }),
+});
 
 describe('fetchAPI', () => {
   beforeEach(() => {
-    globalThis.fetch = vi.fn(() => Promise.resolve({
-      ok: true,
-      status: 200,
-      json: async () => ({ ok: true }),
-    }));
+    globalThis.fetch = vi.fn(() => Promise.resolve(okResponse()));
   });
 
   it('builds URL with query params', async () => {
@@ -27,30 +30,77 @@ describe('fetchAPI', () => {
     expect(url.searchParams.has('d')).toBe(false);
   });
 
-  it('throws on non-2xx', async () => {
-    globalThis.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 500 }));
-    await expect(fetchAPI('/x')).rejects.toThrow(/500/);
+  it('throws an ApiError carrying the status on non-2xx', async () => {
+    globalThis.fetch = vi.fn(() => Promise.resolve({
+      ok: false,
+      status: 500,
+      headers: new Headers(),
+      json: async () => { throw new Error('not json'); },
+    }));
+    await expect(fetchAPI('/x')).rejects.toBeInstanceOf(ApiError);
+    await expect(fetchAPI('/x')).rejects.toMatchObject({ status: 500 });
+  });
+
+  it('surfaces the server detail message when present', async () => {
+    globalThis.fetch = vi.fn(() => Promise.resolve({
+      ok: false,
+      status: 401,
+      headers: new Headers(),
+      json: async () => ({ detail: 'مفتاح API غير صالح' }),
+    }));
+    await expect(fetchAPI('/x')).rejects.toThrow('مفتاح API غير صالح');
+  });
+});
+
+describe('postAPI rate limiting', () => {
+  it('parses Retry-After from a 429 so the UI can show a countdown', async () => {
+    globalThis.fetch = vi.fn(() => Promise.resolve({
+      ok: false,
+      status: 429,
+      headers: new Headers({ 'Retry-After': '87' }),
+      json: async () => ({ detail: 'throttled' }),
+    }));
+
+    await expect(postAPI('/refresh')).rejects.toMatchObject({
+      status: 429,
+      retryAfter: 87,
+    });
+  });
+
+  it('leaves retryAfter undefined when the header is absent', async () => {
+    globalThis.fetch = vi.fn(() => Promise.resolve({
+      ok: false,
+      status: 429,
+      headers: new Headers(),
+      json: async () => ({}),
+    }));
+    await expect(postAPI('/refresh')).rejects.toMatchObject({ retryAfter: undefined });
+  });
+
+  it('sends POST for refresh', async () => {
+    globalThis.fetch = vi.fn(() => Promise.resolve(okResponse()));
+    await postAPI('/refresh');
+    expect(globalThis.fetch.mock.calls[0][1].method).toBe('POST');
   });
 });
 
 describe('helper endpoints', () => {
   beforeEach(() => {
-    globalThis.fetch = vi.fn(() => Promise.resolve({
-      ok: true,
-      status: 200,
-      json: async () => ({ ok: true }),
-    }));
+    globalThis.fetch = vi.fn(() => Promise.resolve(okResponse()));
   });
 
   it('getCountryIndex hits /events/country-index', async () => {
     await getCountryIndex({ hours: 24 });
-    const url = globalThis.fetch.mock.calls[0][0].toString();
-    expect(url).toContain('/events/country-index');
+    expect(globalThis.fetch.mock.calls[0][0].toString()).toContain('/events/country-index');
   });
 
   it('getMilitaryBases hits /infrastructure/bases', async () => {
     await getMilitaryBases();
-    const url = globalThis.fetch.mock.calls[0][0].toString();
-    expect(url).toContain('/infrastructure/bases');
+    expect(globalThis.fetch.mock.calls[0][0].toString()).toContain('/infrastructure/bases');
+  });
+
+  it('omits the API key header when none is configured', async () => {
+    await getMilitaryBases();
+    expect(globalThis.fetch.mock.calls[0][1].headers).toBeUndefined();
   });
 });
