@@ -11,8 +11,10 @@ from typing import Dict
 import feedparser
 import httpx
 
+from ..config import get_settings
 from ..models.database import get_session_factory, insert_event_if_new
-from ..processors.text_analysis import classify, geolocate, parse_entry_date
+from ..processors.dates import parse_entry_date
+from ..processors.text_analysis import classify, geolocate
 
 logger = logging.getLogger("rasad.rss")
 
@@ -111,22 +113,28 @@ RSS_FEEDS = {
             "category": "military",
         },
     ],
-    # 🔔 تنبيهات جوجل
-    "google_alerts": [
-        {"name": "GA - Middle East Airstrikes", "url": "https://www.google.com/alerts/feeds/03099333582095282205/11659520722795202396", "category": "military", "icon": "🔔"},
-        {"name": "GA - الشرق الأوسط قصف", "url": "https://www.google.com/alerts/feeds/03099333582095282205/5316973900883303604", "category": "military", "icon": "🔔"},
-        {"name": "GA - Gaza Yemen Syria", "url": "https://www.google.com/alerts/feeds/03099333582095282205/3704117853613500610", "category": "military", "icon": "🔔"},
-        {"name": "GA - Houthi حوثي", "url": "https://www.google.com/alerts/feeds/03099333582095282205/4862309048616988909", "category": "military", "icon": "🔔"},
-        {"name": "GA - Red Sea", "url": "https://www.google.com/alerts/feeds/03099333582095282205/17256916378475925143", "category": "military", "icon": "🔔"},
-        {"name": "GA - Iran Nuclear", "url": "https://www.google.com/alerts/feeds/03099333582095282205/3683748354562264", "category": "nuclear", "icon": "🔔☣️"},
-        {"name": "GA - تخصيب يورانيوم", "url": "https://www.google.com/alerts/feeds/03099333582095282205/11383354201955942199", "category": "nuclear", "icon": "🔔☣️"},
-        {"name": "GA - Ceasefire Peace", "url": "https://www.google.com/alerts/feeds/03099333582095282205/17652965731898852232", "category": "diplomatic", "icon": "🔔"},
-        {"name": "GA - هدنة مفاوضات", "url": "https://www.google.com/alerts/feeds/03099333582095282205/12614443505161566016", "category": "diplomatic", "icon": "🔔"},
-        {"name": "GA - Gulf Diplomatic", "url": "https://www.google.com/alerts/feeds/03099333582095282205/7725246414336098267", "category": "diplomatic", "icon": "🔔"},
-        {"name": "GA - Humanitarian Crisis", "url": "https://www.google.com/alerts/feeds/03099333582095282205/17364646303340517861", "category": "humanitarian", "icon": "🔔"},
-        {"name": "GA - أزمة إنسانية", "url": "https://www.google.com/alerts/feeds/03099333582095282205/8365977631792071341", "category": "humanitarian", "icon": "🔔"},
-    ],
+    # 🔔 تنبيهات جوجل — تُقرأ من GOOGLE_ALERT_FEEDS في .env وليس من المصدر.
+    # روابط Google Alerts تتضمّن معرّف حساب المستخدم وتُعامَل كأسرار شخصية،
+    # فلا يجوز تثبيتها في مستودع عام (راجع .env.example).
 }
+
+
+def _all_feeds() -> list[Dict]:
+    """كل الخلاصات: الثابتة في المصدر + خلاصات Google Alerts من الإعدادات."""
+    feeds: list[Dict] = []
+    for category_feeds in RSS_FEEDS.values():
+        feeds.extend(category_feeds)
+
+    settings = get_settings()
+    google_feeds = settings.google_alert_feeds_list
+    configured = len([e for e in settings.google_alert_feeds.split(",") if e.strip()])
+    if configured and len(google_feeds) < configured:
+        logger.warning(
+            f"GOOGLE_ALERT_FEEDS: تم تجاهل {configured - len(google_feeds)} مُدخلاً مشوّهاً "
+            '(الصيغة المتوقّعة: "الاسم|التصنيف|https://…")'
+        )
+    feeds.extend(google_feeds)
+    return feeds
 
 
 async def collect_rss_feeds() -> int:
@@ -136,9 +144,7 @@ async def collect_rss_feeds() -> int:
     if not session_factory:
         return 0
 
-    all_feeds = []
-    for category_feeds in RSS_FEEDS.values():
-        all_feeds.extend(category_feeds)
+    all_feeds = _all_feeds()
 
     async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
         for feed_config in all_feeds:

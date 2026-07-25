@@ -22,6 +22,7 @@ os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{_TMP_DB.name}"
 
 from app.api.events import router as events_router  # noqa: E402
 from app.api.infrastructure import router as infrastructure_router  # noqa: E402
+from app.api.iran import router as iran_router  # noqa: E402
 from app.api.nuclear import router as nuclear_router  # noqa: E402
 from app.models.database import Event, get_session_factory, init_db  # noqa: E402
 
@@ -51,6 +52,16 @@ def app() -> FastAPI:
 async def client(app: FastAPI):
     """عميل HTTP غير متزامن مُرتبط بـ ASGI مباشرة."""
     transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+
+@pytest_asyncio.fixture
+async def iran_client():
+    """عميل لمسارات /api/iran (يستورد جامعي إيران، فيُفصَل عن التطبيق الأساسي)."""
+    test_app = FastAPI(title="rsd-test-iran")
+    test_app.include_router(iran_router)
+    transport = ASGITransport(app=test_app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
 

@@ -10,7 +10,17 @@
     "refresh": "Refresh from sources",
     "refreshing": "Refreshing...",
     "breaking": "BREAKING",
-    "connectionLost": "Cannot reach the server — displayed data may be stale"
+    "connectionLost": "Cannot reach the server — displayed data may be stale",
+    "refreshFailed": "Refresh failed: {{message}}",
+    "refreshThrottled": "Refresh is rate limited — try again in {{seconds}}s",
+    "refreshDone": "Sources refreshed",
+    "dismiss": "Dismiss",
+    "collapsePanel": "Collapse panel",
+    "expandPanel": "Expand panel",
+    "loadingGlobe": "Loading globe…",
+    "showMap": "Map",
+    "showPanel": "Data",
+    "skipToPanel": "Skip to content"
   },
   "tabs": {
     "news": "Events",
@@ -22,12 +32,24 @@
     "title": "Events",
     "noEvents": "No events",
     "sourceLink": "Original source",
-    "all": "All"
+    "all": "All",
+    "toggleFilters": "Toggle filters",
+    "search": "Search events",
+    "searchPlaceholder": "Search title or description…",
+    "clearSearch": "Clear search",
+    "country": "Country",
+    "source": "Source",
+    "period": "Period",
+    "allCountries": "All countries",
+    "allSources": "All sources",
+    "resetFilters": "Reset filters",
+    "loadFailed": "Could not load events — the server may be unreachable"
   },
   "timeline": {
     "title": "Timeline",
     "noEvents": "No events",
-    "all": "All"
+    "all": "All",
+    "window": "Time window"
   },
   "iranPanel": {
     "title": "Iran OSINT Watch",
@@ -44,7 +66,10 @@
     "confAll": "All",
     "confHigh": "🟢 Trusted",
     "confMedium": "🟡 Medium",
-    "confLow": "🔵 Unverified"
+    "confLow": "🔵 Unverified",
+    "reload": "Reload Iran data",
+    "loadFailed": "Could not load Iran data — the server may be unreachable",
+    "retry": "Retry"
   },
   "map": {
     "title": "Map",
@@ -59,7 +84,42 @@
     "view3d": "3D globe",
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
-    "recenter": "Recenter"
+    "recenter": "Recenter",
+    "legend": "Legend",
+    "clusterTitle": "{{count}} events in this area",
+    "clusterMore": "+ {{count}} more events",
+    "sourceLink": "Source →",
+    "military": "Military",
+    "altitude": "Altitude",
+    "speed": "Speed",
+    "metersShort": "m",
+    "kmhShort": "km/h",
+    "country": "Country",
+    "operator": "Operator",
+    "type": "Type",
+    "capacity": "Capacity",
+    "firstGrid": "Grid connection",
+    "length": "Length",
+    "status": "Status",
+    "kmShort": "km",
+    "mbpd": "M bbl/day",
+    "bcm": "BCM",
+    "osintVideo": "🎥 OSINT video"
+  },
+  "nuclearTypes": {
+    "power": "Power plant",
+    "research": "Research",
+    "enrichment": "Enrichment",
+    "conversion": "Conversion",
+    "heavy_water": "Heavy water",
+    "fuel": "Fuel"
+  },
+  "nuclearStatus": {
+    "operational": "Operational",
+    "construction": "Under construction",
+    "planned": "Planned",
+    "shutdown": "Shut down",
+    "modified": "Modified"
   },
   "alerts": {
     "title": "Alert settings",
@@ -82,20 +142,66 @@
     "recent": "Recent alerts",
     "recentEmpty": "No alerts yet",
     "clear": "Clear",
-    "settings": "Audio alert settings"
+    "settings": "Audio alert settings",
+    "close": "Close settings",
+    "notificationTitle": "🚨 Rsd — important event",
+    "thresholdOptions": {
+      "low": "Low (any event)",
+      "medium": "Medium",
+      "high": "High (recommended)",
+      "critical": "Critical only"
+    }
   },
   "severity": {
-    "low": "Low (any event)",
+    "low": "Low",
     "medium": "Medium",
-    "high": "High (recommended)",
-    "critical": "Critical only"
+    "high": "High",
+    "critical": "Critical"
   },
   "categories": {
-    "military": "⚔️ Military",
-    "nuclear": "☢️ Nuclear",
-    "diplomatic": "🤝 Diplomatic",
-    "humanitarian": "🆘 Humanitarian",
-    "economic": "💰 Economic"
+    "military": "Military",
+    "nuclear": "Nuclear",
+    "diplomatic": "Diplomatic",
+    "humanitarian": "Humanitarian",
+    "economic": "Economic",
+    "general": "General"
+  },
+  "iranEventTypes": {
+    "strike": "Strike",
+    "launch": "Missile launch",
+    "movement": "Troop movement",
+    "nuclear": "Nuclear",
+    "diplomatic": "Diplomatic"
+  },
+  "confidence": {
+    "HIGH": "Trusted",
+    "MEDIUM": "Medium",
+    "LOW": "Unverified"
+  },
+  "countries": {
+    "PS": "Palestine",
+    "IL": "Israel",
+    "YE": "Yemen",
+    "SY": "Syria",
+    "LB": "Lebanon",
+    "IR": "Iran",
+    "IQ": "Iraq",
+    "SA": "Saudi Arabia",
+    "EG": "Egypt",
+    "JO": "Jordan",
+    "TR": "Turkey",
+    "LY": "Libya",
+    "SD": "Sudan"
+  },
+  "time": {
+    "now": "just now",
+    "minutes_one": "{{count}} minute ago",
+    "minutes_other": "{{count}} minutes ago",
+    "hours_one": "{{count}} hour ago",
+    "hours_other": "{{count}} hours ago",
+    "days_one": "{{count}} day ago",
+    "days_other": "{{count}} days ago",
+    "hoursShort": "{{count}}h"
   },
   "stats": {
     "countryIndex": "Country Intelligence Index",
@@ -104,7 +210,25 @@
     "bySeverity": "By severity",
     "byCountry": "By country",
     "bySource": "By source",
-    "noData": "No data"
+    "noData": "No data",
+    "escalationIndex": "Escalation index",
+    "totalEvents": "Total events",
+    "militaryEvents": "Military events"
+  },
+  "tv": {
+    "open": "Live TV",
+    "close": "Close player",
+    "title": "Live broadcast",
+    "channels": {
+      "aljazeera": "Al Jazeera",
+      "alarabiya": "Al Arabiya",
+      "bbc_arabic": "BBC Arabic"
+    }
+  },
+  "error": {
+    "boundaryTitle": "This section could not be displayed.",
+    "unexpected": "Unexpected error",
+    "retry": "Try again"
   },
   "lang": {
     "switch": "Switch language",

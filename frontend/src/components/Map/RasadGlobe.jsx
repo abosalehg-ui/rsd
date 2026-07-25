@@ -39,13 +39,18 @@ export default function RasadGlobe({
   bases = [],
   pipelines = [],
   onSelectEvent,
-  showEvents = true,
-  showIran = true,
-  showNuclear = true,
-  showBases = true,
-  showPipelines = true,
+  layers = {},
   selectedEvent,
 }) {
+  // الطبقات مشتركة مع الخريطة 2D عبر App — كانت هنا افتراضات مستقلة (كلها true)
+  // فتُعرض القواعد والأنابيب في وضع 3D بينما هي مُطفأة في 2D.
+  const {
+    events: showEvents = true,
+    iran: showIran = true,
+    nuclear: showNuclear = true,
+    bases: showBases = false,
+    pipelines: showPipelines = false,
+  } = layers;
   const containerRef = useRef(null);
   const globeRef = useRef(null);
 

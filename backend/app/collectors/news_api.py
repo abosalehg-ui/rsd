@@ -4,12 +4,12 @@
 import hashlib
 import json
 import logging
-from datetime import datetime, timezone
 
 import httpx
 
 from ..config import get_settings
 from ..models.database import get_session_factory, insert_event_if_new
+from ..processors.dates import parse_iso
 from ..processors.text_analysis import classify, geolocate
 
 logger = logging.getLogger("rasad.newsapi")
@@ -85,7 +85,7 @@ async def collect_news() -> int:
                                         country=country_name,
                                         country_code=country_code,
                                         location_name=article.get("source", {}).get("name", ""),
-                                        event_date=_parse_date(article.get("publishedAt")),
+                                        event_date=parse_iso(article.get("publishedAt")),
                                         extra_data=json.dumps({
                                             "author": article.get("author", ""),
                                             "source_name": article.get("source", {}).get("name", ""),
@@ -110,14 +110,3 @@ async def collect_news() -> int:
 
     logger.info(f"NewsAPI: تم جمع {count} خبر جديد")
     return count
-
-
-
-def _parse_date(date_str: str) -> datetime:
-    """تحويل تاريخ ISO"""
-    if date_str:
-        try:
-            return datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-        except (ValueError, TypeError):
-            pass
-    return datetime.now(timezone.utc)

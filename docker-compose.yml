@@ -3,11 +3,16 @@ services:
     build: ./backend
     container_name: rasad-backend
     ports:
-      - "8000:8000"
+      # مربوط بالحلقة المحلية فقط — الـ API بلا مصادقة، فلا نعرضه على الشبكة.
+      # لعرضه عمداً غيّرها إلى "8000:8000" بعد ضبط API_KEY ووكيل عكسي.
+      - "127.0.0.1:8000:8000"
     volumes:
       - ./backend:/app
       - ./data:/app/data
-      - ./.env:/app/.env
+    env_file:
+      # ربط ./.env كحجم يُنشئ مجلّداً بالاسم نفسه إن كان الملف مفقوداً
+      - path: .env
+        required: false
     environment:
       - PYTHONDONTWRITEBYTECODE=1
       - PYTHONUNBUFFERED=1
@@ -24,10 +29,13 @@ services:
     build: ./frontend
     container_name: rasad-frontend
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    environment:
+      # الخلفية في حاوية أخرى — بدون هذا يفشل وكيل /api في وضع compose
+      - VITE_PROXY_TARGET=http://backend:8000
     depends_on:
       - backend
     restart: unless-stopped

@@ -26,18 +26,24 @@ jobs:
         with:
           python-version: '3.11'
           cache: pip
-          cache-dependency-path: backend/requirements.txt
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
       - name: Lint (ruff)
         run: ruff check app tests
 
       - name: Tests (pytest)
         run: pytest --cov=app --cov-report=term-missing
+
+      - name: Audit dependencies (pip-audit)
+        # تبعيات التشغيل وحدها — أدوات التطوير لا تُشحن للمستخدم
+        run: pip-audit --requirement requirements.txt --strict
 
   frontend:
     name: Frontend (lint + tests + build)
@@ -57,6 +63,10 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Audit runtime dependencies (npm audit)
+        # ما يصل المستخدم فعلاً؛ سلسلة التطوير تتابعها Dependabot
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Lint (eslint)
         run: npm run lint

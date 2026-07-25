@@ -16,7 +16,64 @@
 
 body {
   background: #0a0e17;
+  /* الجذر يدير التمرير بنفسه (h-dvh + overflow-hidden على الحاوية)؛ منع
+     التمرير على body كان يقفل الصفحة تماماً على الجوال. */
+  overscroll-behavior: none;
+}
+
+/* ===== إمكانية الوصول ===== */
+
+/* حلقة تركيز واضحة لكل عنصر تفاعلي — لم يكن هناك أي نمط :focus مخصّص */
+.focus-ring:focus-visible,
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #67e8f9;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* نص مخفي بصرياً ومقروء لقارئات الشاشة */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
   overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* رابط تخطّي إلى المحتوى — يظهر عند التركيز بلوحة المفاتيح فقط */
+.skip-link {
+  position: absolute;
+  inset-inline-start: -9999px;
+  top: 0;
+  z-index: 10000;
+  padding: 0.5rem 1rem;
+  background: #111827;
+  color: #67e8f9;
+  border: 1px solid #22d3ee;
+  border-radius: 0 0 0.5rem 0.5rem;
+}
+.skip-link:focus {
+  inset-inline-start: 1rem;
+}
+
+/* احترام تفضيل تقليل الحركة — الواجهة مليئة بنبضات وحلقات رادار لا نهائية */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* خريطة مظلمة */
@@ -84,9 +141,13 @@ body {
 }
 .bell-alert { animation: bell-shake 0.6s ease-in-out 3; }
 
-/* شريط الأخبار */
-.news-ticker {
-  animation: ticker-scroll 30s linear infinite;
+/* شريط الأخبار العاجلة */
+.ticker {
+  animation: ticker-scroll 60s linear infinite;
+}
+.ticker:hover,
+.ticker:focus-within {
+  animation-play-state: paused;
 }
 
 @keyframes ticker-scroll {

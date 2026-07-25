@@ -4,10 +4,13 @@ export default {
   theme: {
     extend: {
       colors: {
+        // رموز الثيم — استخدمها بدل كتابة الـ hex حرفياً في المكوّنات
+        // (bg-rasad-bg / border-rasad-border / text-rasad-accent …)
         rasad: {
           bg: '#0a0e17',
           panel: '#111827',
           border: '#1e293b',
+          muted: '#94a3b8',
           accent: '#22d3ee',
           danger: '#ef4444',
           warning: '#f59e0b',

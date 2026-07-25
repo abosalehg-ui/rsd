@@ -1,146 +1,183 @@
 /**
  * رصد - نافذة البث المباشر العائمة
- * قابلة للسحب بالماوس من الشريط العلوي
+ *
+ * قابلة للسحب بالماوس **واللمس** (كانت mousemove فقط فتتعذّر على الجوال)،
+ * وتتحوّل على الشاشات الصغيرة إلى لوحة سفلية بعرض كامل بدل صندوق 360px
+ * مثبّت على إحداثيات تُحسب من عرض النافذة لحظة التركيب.
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Tv, X } from 'lucide-react';
 
 const CHANNELS = [
-  {
-    id: 'aljazeera',
-    name: 'الجزيرة',
-    icon: '\u{1F7E2}',
-    embedUrl: 'https://www.youtube-nocookie.com/embed/bNyUyrR0PHo',
-  },
-  {
-    id: 'alarabiya',
-    name: 'العربية',
-    icon: '\u{1F7E0}',
-    embedUrl: 'https://www.youtube-nocookie.com/embed/n7eQejkXbnM',
-  },
-  {
-    id: 'bbc_arabic',
-    name: 'BBC عربي',
-    icon: '\u{1F534}',
-    embedUrl: 'https://www.youtube-nocookie.com/embed/O1pGmVtj2Y8',
-  },
+  { id: 'aljazeera', icon: '\u{1F7E2}', embedUrl: 'https://www.youtube-nocookie.com/embed/bNyUyrR0PHo' },
+  { id: 'alarabiya', icon: '\u{1F7E0}', embedUrl: 'https://www.youtube-nocookie.com/embed/n7eQejkXbnM' },
+  { id: 'bbc_arabic', icon: '\u{1F534}', embedUrl: 'https://www.youtube-nocookie.com/embed/O1pGmVtj2Y8' },
 ];
 
+const PANEL_W = 360;
+const PANEL_H = 280;
+const MOBILE_QUERY = '(max-width: 767px)';
+
 export default function LiveTVDrawer() {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [activeChannel, setActiveChannel] = useState(CHANNELS[0]);
-  const [position, setPosition] = useState({ x: window.innerWidth - 380, y: window.innerHeight - 380 });
+  const [isMobile, setIsMobile] = useState(false);
+  // null = لم يُحسب بعد؛ يُحسب عند أول فتح فلا نقرأ innerWidth أثناء التركيب
+  const [position, setPosition] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-
-  const handleMouseDown = useCallback((e) => {
-    if (e.target.closest('.drag-handle')) {
-      setIsDragging(true);
-      setDragOffset({
-        x: e.clientX - position.x,
-        y: e.clientY - position.y,
-      });
-      e.preventDefault();
-    }
-  }, [position]);
+  const dragOffset = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
-    if (!isDragging) return;
-    const handleMove = (e) => {
-      setPosition({
-        x: Math.max(0, Math.min(window.innerWidth - 370, e.clientX - dragOffset.x)),
-        y: Math.max(0, Math.min(window.innerHeight - 280, e.clientY - dragOffset.y)),
-      });
+    const mq = window.matchMedia(MOBILE_QUERY);
+    const apply = () => setIsMobile(mq.matches);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
+
+  const clamp = useCallback((x, y) => ({
+    x: Math.max(0, Math.min(window.innerWidth - PANEL_W, x)),
+    y: Math.max(0, Math.min(window.innerHeight - PANEL_H, y)),
+  }), []);
+
+  const open = useCallback(() => {
+    setPosition(prev => prev || clamp(window.innerWidth - PANEL_W - 20, window.innerHeight - PANEL_H - 40));
+    setIsOpen(true);
+  }, [clamp]);
+
+  // نقطة الحدث من الماوس أو اللمس
+  const pointOf = (e) => (e.touches?.[0]
+    ? { x: e.touches[0].clientX, y: e.touches[0].clientY }
+    : { x: e.clientX, y: e.clientY });
+
+  const startDrag = useCallback((e) => {
+    if (isMobile || !e.target.closest('.drag-handle')) return;
+    const p = pointOf(e);
+    dragOffset.current = { x: p.x - (position?.x || 0), y: p.y - (position?.y || 0) };
+    setIsDragging(true);
+    if (e.cancelable) e.preventDefault();
+  }, [isMobile, position]);
+
+  useEffect(() => {
+    if (!isDragging) return undefined;
+    const move = (e) => {
+      const p = pointOf(e);
+      setPosition(clamp(p.x - dragOffset.current.x, p.y - dragOffset.current.y));
+      if (e.cancelable) e.preventDefault();
     };
-    const handleUp = () => setIsDragging(false);
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
+    const end = () => setIsDragging(false);
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', end);
+    window.addEventListener('touchmove', move, { passive: false });
+    window.addEventListener('touchend', end);
+    window.addEventListener('touchcancel', end);
     return () => {
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', end);
+      window.removeEventListener('touchmove', move);
+      window.removeEventListener('touchend', end);
+      window.removeEventListener('touchcancel', end);
     };
-  }, [isDragging, dragOffset]);
+  }, [isDragging, clamp]);
+
+  // يبقى ضمن الشاشة عند تغيّر حجم النافذة
+  useEffect(() => {
+    if (isMobile) return undefined;
+    const onResize = () => setPosition(prev => (prev ? clamp(prev.x, prev.y) : prev));
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [isMobile, clamp]);
+
+  const floatingStyle = isMobile || !position
+    ? undefined
+    : {
+      width: `${PANEL_W}px`,
+      insetInlineStart: `${position.x}px`,
+      top: `${position.y}px`,
+      cursor: isDragging ? 'grabbing' : 'default',
+    };
 
   return (
     <>
       {/* ===== زر فتح النافذة ===== */}
       {!isOpen && (
         <button
-          onClick={() => setIsOpen(true)}
-          className="fixed bottom-64 right-0 z-[9999] flex items-center gap-1 bg-red-600 hover:bg-red-500 text-white pl-2.5 pr-1.5 py-2 rounded-l-lg shadow-lg transition-all group"
-          title="البث المباشر"
+          onClick={open}
+          className="fixed bottom-24 md:bottom-64 end-0 z-[9999] flex items-center gap-1 bg-red-600 hover:bg-red-500 text-white ps-2.5 pe-1.5 py-2 rounded-s-lg shadow-lg transition-all group focus-ring"
+          title={t('tv.open')}
+          aria-label={t('tv.open')}
         >
-          <Tv className="w-4 h-4" />
-          <span className="text-[9px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">LIVE</span>
+          <Tv className="w-4 h-4" aria-hidden="true" />
+          <span className="text-[11px] font-bold opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity">LIVE</span>
         </button>
       )}
 
-      {/* ===== النافذة العائمة ===== */}
-      <div
-        className={`fixed z-[9999] transition-opacity duration-300 ${
-          isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
-        style={{
-          width: '360px',
-          left: `${position.x}px`,
-          top: `${position.y}px`,
-          cursor: isDragging ? 'grabbing' : 'default',
-        }}
-        onMouseDown={handleMouseDown}
-      >
-        <div className="bg-[#0d1117] border border-[#1e293b] rounded-xl shadow-2xl overflow-hidden">
-          {/* ===== الشريط العلوي — منطقة السحب ===== */}
-          <div className="drag-handle flex items-center justify-between px-3 py-1.5 bg-[#111827] border-b border-[#1e293b] cursor-grab active:cursor-grabbing select-none">
-            <div className="flex items-center gap-2">
-              <Tv className="w-3.5 h-3.5 text-red-400" />
-              <span className="text-xs font-bold text-white">{activeChannel.icon} {activeChannel.name}</span>
-              <span className="text-[8px] bg-red-500 text-white px-1.5 py-0.5 rounded font-bold animate-pulse">
-                LIVE
-              </span>
+      {/* ===== النافذة (عائمة على سطح المكتب، لوحة سفلية على الجوال) ===== */}
+      {isOpen && (
+        <div
+          className={isMobile ? 'fixed z-[9999] inset-x-0 bottom-0' : 'fixed z-[9999]'}
+          style={floatingStyle}
+          onMouseDown={startDrag}
+          onTouchStart={startDrag}
+          role="dialog"
+          aria-label={t('tv.title')}
+        >
+          <div className="bg-rasad-bg border border-rasad-border rounded-t-xl md:rounded-xl shadow-2xl overflow-hidden">
+            {/* الشريط العلوي — منطقة السحب على سطح المكتب */}
+            <div className={`drag-handle flex items-center justify-between px-3 py-1.5 bg-rasad-panel border-b border-rasad-border select-none ${isMobile ? '' : 'cursor-grab active:cursor-grabbing'}`}>
+              <div className="flex items-center gap-2">
+                <Tv className="w-3.5 h-3.5 text-red-300" aria-hidden="true" />
+                <span className="text-xs font-bold text-white">
+                  {activeChannel.icon} {t(`tv.channels.${activeChannel.id}`)}
+                </span>
+                <span className="text-[11px] bg-red-600 text-white px-1.5 py-0.5 rounded font-bold animate-pulse">LIVE</span>
+              </div>
+              <button
+                onClick={() => setIsOpen(false)}
+                aria-label={t('tv.close')}
+                className="p-1 rounded hover:bg-rasad-border text-slate-300 hover:text-white transition-colors focus-ring"
+              >
+                <X className="w-3.5 h-3.5" aria-hidden="true" />
+              </button>
             </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="p-0.5 rounded hover:bg-[#1e293b] text-slate-400 hover:text-white transition-colors"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
 
-          {/* ===== مشغل الفيديو — يُركَّب فقط عند الفتح كي لا يبقى البث يستهلك
-              الشبكة/المعالج في الخلفية عند الإغلاق (PERF-2) ===== */}
-          <div className="bg-black" style={{ height: '200px' }}>
-            {isOpen && (
+            {/* مشغل الفيديو — يُركَّب فقط عند الفتح كي لا يبقى البث يستهلك
+                الشبكة/المعالج في الخلفية عند الإغلاق (PERF-2).
+                mute=1 لأن المتصفحات تحجب التشغيل التلقائي بصوت. */}
+            <div className="bg-black h-[200px]">
               <iframe
                 key={activeChannel.id}
-                src={activeChannel.embedUrl + '?autoplay=1&mute=0'}
-                title={activeChannel.name}
+                src={`${activeChannel.embedUrl}?autoplay=1&mute=1`}
+                title={t(`tv.channels.${activeChannel.id}`)}
                 className="w-full h-full"
-                frameBorder="0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
               />
-            )}
-          </div>
+            </div>
 
-          {/* ===== أزرار القنوات ===== */}
-          <div className="flex gap-1 px-2 py-1.5 bg-[#111827] border-t border-[#1e293b]">
-            {CHANNELS.map((channel) => (
-              <button
-                key={channel.id}
-                onClick={() => setActiveChannel(channel)}
-                className={`flex-1 flex items-center justify-center gap-1 text-[10px] py-1 rounded transition-all ${
-                  activeChannel.id === channel.id
-                    ? 'bg-red-500/20 text-red-300 font-bold'
-                    : 'bg-[#1e293b] text-slate-400 hover:text-white'
-                }`}
-              >
-                <span>{channel.icon}</span>
-                {channel.name}
-              </button>
-            ))}
+            {/* أزرار القنوات */}
+            <div className="flex gap-1 px-2 py-1.5 bg-rasad-panel border-t border-rasad-border">
+              {CHANNELS.map((channel) => (
+                <button
+                  key={channel.id}
+                  onClick={() => setActiveChannel(channel)}
+                  aria-pressed={activeChannel.id === channel.id}
+                  className={`flex-1 flex items-center justify-center gap-1 text-xs py-1.5 rounded transition-all focus-ring ${
+                    activeChannel.id === channel.id
+                      ? 'bg-red-500/20 text-red-200 font-bold'
+                      : 'bg-rasad-border text-slate-300 hover:text-white'
+                  }`}
+                >
+                  <span aria-hidden="true">{channel.icon}</span>
+                  {t(`tv.channels.${channel.id}`)}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </>
   );
 }

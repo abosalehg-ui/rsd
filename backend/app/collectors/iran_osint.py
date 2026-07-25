@@ -6,13 +6,14 @@ import json
 import logging
 import re
 from datetime import datetime
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import feedparser
 import httpx
 
 from ..models.database import IranianLeaderNews, get_session_factory, insert_event_if_new
-from ..processors.text_analysis import parse_entry_date
+from ..processors.dates import parse_entry_date
+from ..processors.text_analysis import COUNTRY_COORDS, country_code_from_text
 
 logger = logging.getLogger("rasad.iran_osint")
 
@@ -263,8 +264,9 @@ async def _process_iran_feed(client: httpx.AsyncClient, feed_config: Dict) -> in
     return count
 
 
-def _classify_iran_event(text: str) -> Tuple[str, str]:
-    """تصنيف نوع الحدث الإيراني"""
+def _classify_iran_event(text: str) -> Tuple[Optional[str], Optional[str]]:
+    """تصنيف نوع الحدث الإيراني — (النوع الفرعي، التصنيف) أو (None, None)
+    إذا لم يطابق النص أي نوع معروف (فيُتجاهل الخبر)."""
     if any(kw in text for kw in STRIKE_KEYWORDS):
         return "strike", "military"
     if any(kw in text for kw in LAUNCH_KEYWORDS):
@@ -279,26 +281,21 @@ def _classify_iran_event(text: str) -> Tuple[str, str]:
     return None, None
 
 
-def _geolocate_iran(text: str) -> Tuple:
-    """تحديد الموقع الجغرافي للحدث الإيراني"""
+def _geolocate_iran(text: str) -> Tuple[float, float, str, str]:
+    """تحديد الموقع الجغرافي للحدث الإيراني (lat, lon, الاسم، رمز الدولة).
+
+    المواقع الإيرانية أدق من مستوى الدولة (نطنز/فردو/بوشهر…) فتُفحَص أولاً؛
+    ثم نقع على مطابقة الدول المشتركة في `text_analysis` بدل نسخة محلية ثانية.
+    الافتراضي طهران عند تعذّر كل ما سبق.
+    """
     for loc_key, (lat, lon, name_ar, code) in IRAN_LOCATIONS.items():
         if loc_key in text:
             return lat, lon, name_ar, code
 
-    # مواقع دول الشرق الأوسط
-    other_locations = {
-        "israel": (31.7683, 35.2137, "إسرائيل", "IL"),
-        "gaza": (31.5002, 34.4668, "غزة", "PS"),
-        "lebanon": (33.8886, 35.4955, "لبنان", "LB"),
-        "syria": (33.5138, 36.2765, "سوريا", "SY"),
-        "iraq": (33.3152, 44.3661, "العراق", "IQ"),
-        "yemen": (15.5527, 48.5164, "اليمن", "YE"),
-        "saudi": (24.7136, 46.6753, "السعودية", "SA"),
-        "red sea": (20.0000, 38.0000, "البحر الأحمر", "YE"),
-    }
-    for loc_key, (lat, lon, name_ar, code) in other_locations.items():
-        if loc_key in text:
-            return lat, lon, name_ar, code
+    code = country_code_from_text(text)
+    if code:
+        lat, lon, name_ar = COUNTRY_COORDS[code]
+        return lat, lon, name_ar, code
 
     return 35.6892, 51.3890, "إيران", "IR"
 
@@ -317,8 +314,8 @@ async def _check_leader_mentions(session, title: str, description: str, url: str
                     news_date=event_date,
                 )
                 session.add(news)
-            except Exception:
-                pass
+            except Exception as e:  # noqa: BLE001 - لا نُسقط الحدث بسبب خبر قائد
+                logger.warning(f"تعذّر ربط خبر بالقائد {leader['name_en']}: {e}")
 
 
 def get_leaders_list() -> List[Dict]:

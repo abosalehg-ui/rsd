@@ -3,7 +3,8 @@
  */
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bell, BellOff, Volume2, X, Check, Trash2 } from 'lucide-react';
+import { Bell, Volume2, X, Check, Trash2 } from 'lucide-react';
+import { timeAgo } from '../../utils/constants';
 
 const SEVERITY_VALUES = [
   { value: 'low',      color: '#64748b' },
@@ -13,14 +14,6 @@ const SEVERITY_VALUES = [
 ];
 
 const CATEGORY_VALUES = ['military', 'nuclear', 'diplomatic', 'humanitarian', 'economic'];
-
-function timeAgo(iso) {
-  if (!iso) return '';
-  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (diff < 60) return `قبل ${Math.floor(diff)} ث`;
-  if (diff < 3600) return `قبل ${Math.floor(diff / 60)} د`;
-  return `قبل ${Math.floor(diff / 3600)} س`;
-}
 
 export default function AlertSettings({
   isOpen,
@@ -59,16 +52,16 @@ export default function AlertSettings({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md mx-4 bg-[#0d1117] border border-[#1e293b] rounded-xl shadow-2xl text-slate-200 font-arabic"
+        className="w-full max-w-md mx-4 bg-rasad-bg border border-rasad-border rounded-xl shadow-2xl text-slate-200 font-arabic"
         dir={isAr ? 'rtl' : 'ltr'}
       >
         {/* الرأس */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[#1e293b]">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-rasad-border">
           <div className="flex items-center gap-2">
             <Bell className="w-5 h-5 text-cyan-400" />
             <h2 className="text-base font-bold text-cyan-400">{t('alerts.title')}</h2>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-[#1e293b] rounded text-slate-400 hover:text-white">
+          <button onClick={onClose} aria-label={t('alerts.close')} className="p-1 hover:bg-rasad-border rounded text-slate-300 hover:text-white focus-ring">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -78,7 +71,7 @@ export default function AlertSettings({
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm font-medium">{t('alerts.sound')}</div>
-              <div className="text-xs text-slate-500">{t('alerts.soundDesc')}</div>
+              <div className="text-xs text-slate-300">{t('alerts.soundDesc')}</div>
             </div>
             <button
               dir="ltr"
@@ -113,11 +106,11 @@ export default function AlertSettings({
                   className={`px-3 py-2 rounded-lg text-xs border transition-colors ${
                     prefs.threshold === opt.value
                       ? 'bg-cyan-500/10 border-cyan-500 text-white'
-                      : 'bg-[#111827] border-[#1e293b] text-slate-400 hover:border-slate-600'
+                      : 'bg-rasad-panel border-rasad-border text-slate-400 hover:border-slate-600'
                   }`}
                 >
                   <span className="inline-block w-2 h-2 rounded-full mx-2" style={{ background: opt.color }} />
-                  {t(`severity.${opt.value}`)}
+                  {t(`alerts.thresholdOptions.${opt.value}`)}
                 </button>
               ))}
             </div>
@@ -127,7 +120,7 @@ export default function AlertSettings({
           <div>
             <div className="text-sm font-medium mb-2">
               {t('alerts.categories')}
-              <span className="text-xs text-slate-500 mx-2">
+              <span className="text-xs text-slate-300 mx-2">
                 {prefs.categories.length === 0 ? t('alerts.categoriesAll') : t('alerts.categoriesSelected', { count: prefs.categories.length })}
               </span>
             </div>
@@ -141,7 +134,7 @@ export default function AlertSettings({
                     className={`px-3 py-2 rounded-lg text-xs border transition-colors flex items-center justify-between ${
                       selected
                         ? 'bg-cyan-500/10 border-cyan-500 text-white'
-                        : 'bg-[#111827] border-[#1e293b] text-slate-400 hover:border-slate-600'
+                        : 'bg-rasad-panel border-rasad-border text-slate-400 hover:border-slate-600'
                     }`}
                   >
                     <span>{t(`categories.${value}`)}</span>
@@ -153,7 +146,7 @@ export default function AlertSettings({
             {prefs.categories.length > 0 && (
               <button
                 onClick={() => setPrefs({ categories: [] })}
-                className="text-[10px] text-slate-500 hover:text-cyan-400 mt-2"
+                className="text-xs text-slate-300 hover:text-cyan-400 mt-2"
               >
                 {t('alerts.clearSelection')}
               </button>
@@ -175,25 +168,25 @@ export default function AlertSettings({
               onChange={(e) => setPrefs({ throttleSeconds: Number(e.target.value) })}
               className="w-full accent-cyan-500"
             />
-            <div className="text-[10px] text-slate-500 mt-1">{t('alerts.throttleDesc')}</div>
+            <div className="text-xs text-slate-300 mt-1">{t('alerts.throttleDesc')}</div>
           </div>
 
           {/* إشعارات سطح المكتب */}
           <div>
             <div className="flex items-center justify-between mb-1">
               <div className="text-sm font-medium">{t('alerts.desktop')}</div>
-              <span className={`text-[10px] px-2 py-0.5 rounded ${prefs.desktopNotifications ? 'bg-green-500/20 text-green-400' : 'bg-slate-700 text-slate-400'}`}>
+              <span className={`text-xs px-2 py-0.5 rounded ${prefs.desktopNotifications ? 'bg-green-500/20 text-green-400' : 'bg-slate-700 text-slate-400'}`}>
                 {prefs.desktopNotifications ? t('alerts.desktopEnabled') : t('alerts.desktopDisabled')}
               </span>
             </div>
             <button
               onClick={handleEnableDesktop}
-              className="w-full px-3 py-2 text-xs bg-[#111827] border border-[#1e293b] rounded-lg text-slate-300 hover:border-cyan-500 hover:text-cyan-400"
+              className="w-full px-3 py-2 text-xs bg-rasad-panel border border-rasad-border rounded-lg text-slate-300 hover:border-cyan-500 hover:text-cyan-400"
             >
               {prefs.desktopNotifications ? t('alerts.desktopReask') : t('alerts.desktopRequest')}
             </button>
             {permResult === 'denied' && (
-              <div className="text-[10px] text-red-400 mt-1">{t('alerts.desktopDenied')}</div>
+              <div className="text-xs text-red-400 mt-1">{t('alerts.desktopDenied')}</div>
             )}
           </div>
 
@@ -204,26 +197,26 @@ export default function AlertSettings({
               {recentAlerts.length > 0 && (
                 <button
                   onClick={clearRecent}
-                  className="text-[10px] text-slate-500 hover:text-red-400 flex items-center gap-1"
+                  className="text-xs text-slate-300 hover:text-red-400 flex items-center gap-1"
                 >
                   <Trash2 className="w-3 h-3" /> {t('alerts.clear')}
                 </button>
               )}
             </div>
             {recentAlerts.length === 0 ? (
-              <div className="text-xs text-slate-500 italic text-center py-3 bg-[#0a0e17] rounded">{t('alerts.recentEmpty')}</div>
+              <div className="text-xs text-slate-300 italic text-center py-3 bg-rasad-bg rounded">{t('alerts.recentEmpty')}</div>
             ) : (
               <div className="space-y-2">
                 {recentAlerts.map((a, i) => (
                   <button
                     key={i}
                     onClick={() => { onSelectAlert?.(a); onClose(); }}
-                    className="w-full text-right p-2 bg-[#0a0e17] hover:bg-[#111827] border border-[#1e293b] rounded text-xs"
+                    className="w-full text-start p-2 bg-rasad-bg hover:bg-rasad-panel border border-rasad-border rounded text-xs"
                   >
                     <div className="text-slate-200 line-clamp-2 leading-relaxed">{a.title}</div>
-                    <div className="flex justify-between mt-1 text-[10px] text-slate-500">
+                    <div className="flex justify-between mt-1 text-xs text-slate-300">
                       <span>{a.country || ''}</span>
-                      <span>{timeAgo(a._alertedAt)}</span>
+                      <span>{timeAgo(a._alertedAt, t)}</span>
                     </div>
                   </button>
                 ))}

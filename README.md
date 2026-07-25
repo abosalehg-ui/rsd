@@ -247,7 +247,7 @@ packaging\build_installer.bat
 | **GDELT** | أحداث عالمية من تحليل الأخبار | كل 15 دقيقة |
 | **NewsAPI** | أخبار من مصادر عالمية متعددة | كل 10 دقائق |
 | **RSS Feeds** | خلاصات عربية ودولية (25+ مصدر) | كل دقيقتين |
-| **Google Alerts** | تنبيهات مخصصة للمنطقة | كل دقيقتين |
+| **Google Alerts** | تنبيهات مخصصة (تُضاف من `.env`) | كل دقيقتين |
 | **UCDP** | بيانات النزاعات المسلحة (جامعة أوبسالا) | يومياً |
 | **ADS-B** | تتبع الطيران (adsb.lol) | كل 30 ثانية |
 | **Iran OSINT** | مصادر OSINT متخصصة بإيران والشرق الأوسط | كل 30 دقيقة |
@@ -258,7 +258,7 @@ packaging\build_installer.bat
 **أخبار عربية:** الجزيرة (عربي + English) · العربية · BBC Arabic/Middle East · France24 Arabic · Sky News Arabia · RT Arabic
 **تحليلات دولية:** Al-Monitor · Defense One · War on the Rocks · The Drive (War Zone) · Breaking Defense
 **أخبار نووية:** World Nuclear News · IAEA News · Arms Control Association
-**Google Alerts:** Middle East Airstrikes · Gaza/Yemen/Syria · Houthi/حوثي · Red Sea · Iran Nuclear/تخصيب يورانيوم · Ceasefire/هدنة · Humanitarian Crisis
+**Google Alerts:** تُضبَط عبر `GOOGLE_ALERT_FEEDS` في `.env` (روابط الخلاصات شخصية بحسابك ولا تُوضع في المستودع). أمثلة مقترحة: Middle East Airstrikes · Gaza/Yemen/Syria · Houthi/حوثي · Red Sea · Iran Nuclear/تخصيب يورانيوم · Ceasefire/هدنة · Humanitarian Crisis
 
 </details>
 
@@ -382,6 +382,10 @@ rsd/
 # مفاتيح API (اختيارية)
 NEWSAPI_KEY=your_newsapi_key_here
 
+# خلاصات Google Alerts — روابط شخصية بحسابك، تُعامَل كأسرار ولا تُوضع في المصدر.
+# الصيغة: "الاسم|التصنيف|الرابط" مفصولة بفواصل.
+GOOGLE_ALERT_FEEDS=
+
 # قاعدة البيانات (الافتراضي: ملف محلي ./rasad.db ؛ تطبيق سطح المكتب يستخدم %LOCALAPPDATA%\Rasad)
 DATABASE_URL=sqlite+aiosqlite:///./rasad.db
 
@@ -392,10 +396,25 @@ RSS_INTERVAL=120          # دقيقتان
 UCDP_INTERVAL=86400       # يوم
 ADSB_INTERVAL=30          # 30 ثانية
 
-# الخادم
-BACKEND_HOST=0.0.0.0
+# الخادم — الافتراضي محلي فقط
+BACKEND_HOST=127.0.0.1
 BACKEND_PORT=8000
+
+# أصول CORS المسموح لها (مفصولة بفواصل)
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+
+# مفتاح حماية /api/refresh — فارغ = معطّل (مناسب للتشغيل المحلي).
+# عند ضبطه أرسل الترويسة X-API-Key من العميل (VITE_API_KEY في الواجهة).
+API_KEY=
+
+# حدّ المعدل لكل IP على مسارات /api
+RATE_LIMIT_REQUESTS=120
+RATE_LIMIT_WINDOW_SECONDS=60
 ```
+
+> ⚠️ **قبل عرض الخادم على شبكة:** الـ API بلا حسابات مستخدمين. اضبط `API_KEY`،
+> وأبقِ `BACKEND_HOST=127.0.0.1` خلف وكيل عكسي يوفّر TLS. ملفّا compose يربطان
+> المنافذ على `127.0.0.1` افتراضياً لهذا السبب.
 
 ---
 
