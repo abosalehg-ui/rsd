@@ -46,13 +46,19 @@ echo.
 :: Install Frontend
 echo [4/5] Installing Frontend dependencies...
 cd /d "%~dp0frontend"
+:: NOTE: do not skip this when node_modules exists. Pulling an update that
+:: upgrades a dependency used to leave the old version installed, and the dev
+:: server then failed with a cryptic error. ensure-deps compares the installed
+:: versions against package-lock.json and reinstalls only when they differ.
 if not exist node_modules (
     call npm install --silent
-    if %errorlevel% neq 0 (
-        echo  [ERROR] Failed to install Node packages
-        pause
-        exit /b
-    )
+) else (
+    call node scripts\ensure-deps.mjs
+)
+if %errorlevel% neq 0 (
+    echo  [ERROR] Failed to install Node packages
+    pause
+    exit /b
 )
 echo  [OK] Frontend ready
 echo.
