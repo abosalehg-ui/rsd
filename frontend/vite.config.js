@@ -1,6 +1,25 @@
+import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+
+// globe.gl ≥2.46 يستورد Timer من three، وهو غير موجود قبل 0.178. مع dedupe
+// أدناه تُحلّ كل استيرادات three إلى نسخة الجذر، فنسخة قديمة عالقة في
+// node_modules تُسقط البناء برسالة غامضة عن "Timer". نفحص مبكراً ونشرح.
+const MIN_THREE_MINOR = 184
+try {
+  const version = JSON.parse(readFileSync('./node_modules/three/package.json', 'utf8')).version
+  const minor = Number(version.split('.')[1])
+  if (Number.isFinite(minor) && minor < MIN_THREE_MINOR) {
+    throw new Error(
+      `نسخة three المثبّتة (${version}) أقدم من المطلوب (0.${MIN_THREE_MINOR}). ` +
+      'التبعيات لم تُحدَّث بعد سحب المشروع — شغّل داخل مجلد frontend:  npm install'
+    )
+  }
+} catch (e) {
+  if (e instanceof SyntaxError || e.code === 'ENOENT') { /* لم تُثبَّت الحزم بعد — vite سيبلّغ */ }
+  else throw e
+}
 
 // النشر على GitHub Pages تحت /<repo>/ — يمكن تجاوزه عبر VITE_BASE
 const base = process.env.VITE_BASE || '/'
