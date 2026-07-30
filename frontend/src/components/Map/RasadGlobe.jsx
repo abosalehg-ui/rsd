@@ -4,7 +4,7 @@
  * تعرض نفس البيانات (أحداث / إيران / مفاعلات / قواعد / أنابيب) على كرة Three.js
  * عبر globe.gl. ليست بديلًا كاملاً عن خريطة Leaflet — وضع تكميلي.
  */
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Globe from 'globe.gl';
 import { CATEGORIES, CONFIDENCE } from '../../utils/constants';
@@ -12,6 +12,12 @@ import { esc } from '../../utils/security';
 
 const ME_LAT = 29.0;
 const ME_LNG = 42.0;
+
+// https صريح — الروابط النسبية للبروتوكول (//unpkg.com) تصير http عند التقديم
+// عبر http (نشر docker المحلي) فتحجبها CSP (img-src https://unpkg.com فقط)
+// وتبقى الكرة سوداء غير مرئية.
+const GLOBE_IMG = 'https://unpkg.com/three-globe/example/img/earth-night.jpg';
+const BUMP_IMG = 'https://unpkg.com/three-globe/example/img/earth-topology.png';
 
 // نصف قطر النقطة (بدرجات globe.gl) حسب الخطورة
 function pointRad(severity) {
@@ -31,6 +37,33 @@ function hexToRgba(hex, a) {
 function eventColor(ev) {
   const cat = CATEGORIES[ev.category] || CATEGORIES.general;
   return cat.color;
+}
+
+// حجم خلية التجميع (بالدرجات) حسب ارتفاع الكاميرا — كلما اقترب المستخدم صغُرت
+// الخلية فتنفكّ المجموعات، مع حدّ أدنى يُبقي الأحداث متطابقة الإحداثيات مجمّعة.
+function clusterGridDeg(altitude) {
+  return Math.max(0.08, Math.min(8, altitude * 3.2));
+}
+
+// تجميع الأحداث المتقاربة كي لا تتراكب النقاط فيتعذّر الضغط على حدث بعينه
+// (نفس مشكلة الخريطة 2D لكن على الكرة).
+function clusterGlobeEvents(events, gridDeg) {
+  const clusters = [];
+  events.forEach(ev => {
+    if (typeof ev.latitude !== 'number' || typeof ev.longitude !== 'number') return;
+    let c = clusters.find(k =>
+      Math.abs(k.lat / k.events.length - ev.latitude) < gridDeg &&
+      Math.abs(k.lng / k.events.length - ev.longitude) < gridDeg
+    );
+    if (!c) {
+      c = { lat: 0, lng: 0, events: [] };
+      clusters.push(c);
+    }
+    c.events.push(ev);
+    c.lat += ev.latitude;
+    c.lng += ev.longitude;
+  });
+  return clusters.map(c => ({ lat: c.lat / c.events.length, lng: c.lng / c.events.length, events: c.events }));
 }
 
 export default function RasadGlobe({
@@ -60,6 +93,9 @@ export default function RasadGlobe({
   } = layers;
   const containerRef = useRef(null);
   const globeRef = useRef(null);
+  // ارتفاع الكاميرا (مُقسّم إلى درجات متقطعة) — يعيد بناء التجميع عند تغيّر التقريب
+  const [altBucket, setAltBucket] = useState(2); // يقابل altitude≈1.6 عند البداية
+  const altRef = useRef(1.7);
 
   // إنشاء الكرة مرة واحدة
   useEffect(() => {
@@ -72,11 +108,22 @@ export default function RasadGlobe({
       .width(w)
       .height(h)
       .backgroundColor('#0a0e17')
-      .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
-      .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
+      .globeImageUrl(GLOBE_IMG)
+      .bumpImageUrl(BUMP_IMG)
       .atmosphereColor('#22d3ee')
       .atmosphereAltitude(0.18)
       .showGraticules(true);
+
+    // إن تعذّر تحميل النسيج (انقطاع/حجب CSP) نُظهر كرة صلبة مرئية بدل سواد تام
+    const probe = new Image();
+    probe.crossOrigin = 'anonymous';
+    probe.onerror = () => {
+      try {
+        g.globeImageUrl(null).bumpImageUrl(null);
+        g.globeMaterial().color.set('#16324f');
+      } catch { /* الكرة أُتلفت قبل اكتمال الفحص */ }
+    };
+    probe.src = GLOBE_IMG;
 
     g.pointOfView({ lat: ME_LAT, lng: ME_LNG, altitude: 1.7 }, 1500);
 
@@ -84,6 +131,14 @@ export default function RasadGlobe({
     g.controls().autoRotate = false;
     g.controls().enableDamping = true;
     g.controls().dampingFactor = 0.1;
+
+    // تتبّع الارتفاع بدرجات لوغاريتمية متقطعة كي لا نعيد بناء الطبقات مع كل إطار
+    g.onZoom(({ altitude }) => {
+      if (!altitude) return;
+      altRef.current = altitude;
+      const bucket = Math.round(Math.log2(altitude) * 3);
+      setAltBucket(prev => (prev === bucket ? prev : bucket));
+    });
 
     globeRef.current = g;
 
@@ -115,19 +170,55 @@ export default function RasadGlobe({
     const rings = [];
 
     if (showEvents) {
-      events.forEach(ev => {
-        if (typeof ev.latitude !== 'number' || typeof ev.longitude !== 'number') return;
+      const alt = Math.pow(2, altBucket / 3);
+      const gridDeg = clusterGridDeg(alt);
+      const eventPoint = (ev, lat, lng) => {
         const color = eventColor(ev);
-        points.push({
-          lat: ev.latitude, lng: ev.longitude, radius: pointRad(ev.severity), color,
+        return {
+          lat, lng, radius: pointRad(ev.severity), color,
           kind: 'event', data: ev,
           label: `<div style="direction:${dir};font-family:Tajawal,sans-serif;background:#111827;border:1px solid #1e293b;padding:6px 8px;border-radius:6px;max-width:280px">
             <div style="color:${color};font-size:11px;font-weight:700;margin-bottom:2px">${(CATEGORIES[ev.category]||CATEGORIES.general).icon} ${esc(ev.title)}</div>
             <div style="color:#94a3b8;font-size:10px">${esc(ev.country)}</div>
           </div>`,
-        });
-        if (ev.severity === 'critical' || ev.severity === 'high') {
-          rings.push({ lat: ev.latitude, lng: ev.longitude, color, maxR: ev.severity === 'critical' ? 5 : 3.4, speed: 2.2, period: ev.severity === 'critical' ? 900 : 1300 });
+        };
+      };
+
+      clusterGlobeEvents(events, gridDeg).forEach(cluster => {
+        const hasCritical = cluster.events.some(e => e.severity === 'critical' || e.severity === 'high');
+        if (cluster.events.length === 1) {
+          const ev = cluster.events[0];
+          points.push(eventPoint(ev, ev.latitude, ev.longitude));
+        } else if (alt <= 0.5) {
+          // قريب بما يكفي: ننشر النقاط المتطابقة على حلقة صغيرة (spiderfy)
+          // كي يمكن تمييز كل حدث والضغط عليه.
+          const spread = Math.max(0.04, gridDeg * 0.45);
+          cluster.events.forEach((ev, i) => {
+            const angle = (2 * Math.PI * i) / cluster.events.length;
+            points.push(eventPoint(ev,
+              cluster.lat + Math.sin(angle) * spread,
+              cluster.lng + Math.cos(angle) * spread / Math.max(0.2, Math.cos(cluster.lat * Math.PI / 180))));
+          });
+        } else {
+          // بعيد: نقطة تجميع واحدة بعدّاد — الضغط عليها يقرّب الكاميرا
+          const color = hasCritical ? '#ef4444' : '#22d3ee';
+          const titles = cluster.events.slice(0, 5)
+            .map(e => `<div style="color:#cbd5e1;font-size:10px;padding:1px 0">${(CATEGORIES[e.category]||CATEGORIES.general).icon} ${esc((e.title || '').substring(0, 60))}</div>`)
+            .join('');
+          points.push({
+            lat: cluster.lat, lng: cluster.lng,
+            radius: Math.min(0.45 + cluster.events.length * 0.06, 1.1), color,
+            kind: 'cluster', data: cluster,
+            label: `<div style="direction:${dir};font-family:Tajawal,sans-serif;background:#111827;border:1px solid ${color};padding:6px 8px;border-radius:6px;max-width:280px">
+              <div style="color:${color};font-size:11px;font-weight:700;margin-bottom:2px">${esc(t('map.clusterTitle', { count: cluster.events.length }))}</div>
+              ${titles}
+              <div style="color:#64748b;font-size:9px;margin-top:2px">${esc(t('globe.clusterZoomHint'))}</div>
+            </div>`,
+          });
+        }
+        const first = cluster.events.find(e => e.severity === 'critical') || cluster.events[0];
+        if (hasCritical) {
+          rings.push({ lat: cluster.lat, lng: cluster.lng, color: eventColor(first), maxR: first.severity === 'critical' ? 5 : 3.4, speed: 2.2, period: first.severity === 'critical' ? 900 : 1300 });
         }
       });
     }
@@ -198,7 +289,12 @@ export default function RasadGlobe({
       .pointColor('color')
       .pointLabel('label')
       .onPointClick(p => {
-        if (p?.kind === 'event' || p?.kind === 'iran') onSelectEvent?.(p.data);
+        if (p?.kind === 'event' || p?.kind === 'iran') {
+          onSelectEvent?.(p.data);
+        } else if (p?.kind === 'cluster') {
+          // تقريب الكاميرا نحو المجموعة حتى تنفكّ إلى نقاط فردية
+          g.pointOfView({ lat: p.lat, lng: p.lng, altitude: Math.max(0.35, altRef.current * 0.4) }, 800);
+        }
       });
 
     g
@@ -209,7 +305,7 @@ export default function RasadGlobe({
       .ringMaxRadius('maxR')
       .ringPropagationSpeed('speed')
       .ringRepeatPeriod('period');
-  }, [events, flights, iranStrikes, nuclearFacilities, bases, showEvents, showFlights, showIran, showNuclear, showBases, onSelectEvent, t, dir]);
+  }, [events, flights, iranStrikes, nuclearFacilities, bases, showEvents, showFlights, showIran, showNuclear, showBases, onSelectEvent, t, dir, altBucket]);
 
   // خطوط الأنابيب
   useEffect(() => {

@@ -11,7 +11,8 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { CATEGORIES, COUNTRIES, categoryOf, severityOf, CONFIDENCE, IRAN_EVENT_TYPES, timeAgo } from '../../utils/constants';
 import { esc, safeUrl } from '../../utils/security';
-import { Layers, ZoomIn, ZoomOut, Crosshair } from 'lucide-react';
+import { ZoomIn, ZoomOut, Crosshair } from 'lucide-react';
+import LayerToggles from './LayerToggles';
 
 const ME_CENTER = [29.0, 42.0];
 const ME_ZOOM = 5;
@@ -21,20 +22,36 @@ const CONTROL_BTN =
   'w-11 h-11 bg-rasad-panel border border-rasad-border rounded-lg flex items-center justify-center hover:bg-rasad-border text-cyan-300 focus-ring';
 
 // ===== تجميع النقاط القريبة =====
+// المسافة بالبكسل على الشاشة لا بالدرجات: التجميع بالدرجات كان يترك نقاطاً
+// متجاورة (أقل من درجتين) تتراكب بصرياً في كل مستويات التقريب فيتعذّر الضغط
+// على حدث بعينه. الإسقاط عبر EPSG3857 يجعل العتبة ثابتة بصرياً، وتنفكّ
+// المجموعات تلقائياً كلما كبّر المستخدم وتباعدت النقاط على الشاشة.
+const CLUSTER_PX = 42;
+
 function clusterEvents(events, zoom) {
-  const gridSize = Math.max(2, 30 / Math.pow(2, zoom - 3));
-  const clusters = {};
+  const clusters = [];
   events.forEach(ev => {
     if (!ev.latitude || !ev.longitude) return;
-    const key = `${Math.round(ev.latitude / gridSize * 100)}_${Math.round(ev.longitude / gridSize * 100)}`;
-    if (!clusters[key]) clusters[key] = { lat: 0, lng: 0, events: [] };
-    clusters[key].events.push(ev);
-    clusters[key].lat += ev.latitude;
-    clusters[key].lng += ev.longitude;
+    const p = L.CRS.EPSG3857.latLngToPoint(L.latLng(ev.latitude, ev.longitude), zoom);
+    let c = clusters.find(k => {
+      const n = k.events.length;
+      return Math.hypot(k.px / n - p.x, k.py / n - p.y) < CLUSTER_PX;
+    });
+    if (!c) {
+      c = { px: 0, py: 0, lat: 0, lng: 0, minPx: p, maxPx: p, events: [] };
+      clusters.push(c);
+    }
+    c.events.push(ev);
+    c.px += p.x; c.py += p.y;
+    c.lat += ev.latitude; c.lng += ev.longitude;
+    c.minPx = { x: Math.min(c.minPx.x, p.x), y: Math.min(c.minPx.y, p.y) };
+    c.maxPx = { x: Math.max(c.maxPx.x, p.x), y: Math.max(c.maxPx.y, p.y) };
   });
-  return Object.values(clusters).map(c => ({
+  return clusters.map(c => ({
     lat: c.lat / c.events.length,
     lng: c.lng / c.events.length,
+    // قطر المجموعة بالبكسل عند مستوى التقريب الحالي — للحكم هل يفيد التقريب في فكّها
+    spreadPx: Math.hypot(c.maxPx.x - c.minPx.x, c.maxPx.y - c.minPx.y),
     events: c.events,
   }));
 }
@@ -239,8 +256,11 @@ export default function RasadMap({
           });
         });
 
+        // نقرّب فقط إن كان التقريب سيفكّ المجموعة فعلاً (نقاط متباعدة)؛ الأحداث
+        // متطابقة الإحداثيات لا يفكّها أي تقريب فتبقى قائمتها المنبثقة هي الواجهة.
         m.on('click', () => {
-          if (mapInstance.current && zoomLevel < 8) {
+          const willSplit = cluster.spreadPx * 4 > CLUSTER_PX;
+          if (mapInstance.current && willSplit && zoomLevel < 17) {
             mapInstance.current.flyTo([cluster.lat, cluster.lng], zoomLevel + 2, { duration: 0.5 });
           }
         });
@@ -478,15 +498,6 @@ export default function RasadMap({
     }
   }, [selectedEvent]);
 
-  const layerToggles = [
-    ['events', t('map.events'), 'accent-cyan-400'],
-    ['flights', t('map.flights'), 'accent-purple-400'],
-    ['iran', '🇮🇷 ' + t('map.iran'), 'accent-red-400'],
-    ['nuclear', '☢️ ' + t('map.nuclear'), 'accent-yellow-400'],
-    ['bases', '⚔️ ' + t('map.bases'), 'accent-violet-400'],
-    ['pipelines', '🛢️ ' + t('map.pipelines'), 'accent-amber-400'],
-  ];
-
   return (
     <div className="relative w-full h-full">
       <div ref={mapRef} className="w-full h-full" />
@@ -503,25 +514,11 @@ export default function RasadMap({
         </button>
       </div>
 
-      <fieldset className="absolute bottom-3 start-3 z-[1000] bg-rasad-panel/95 border border-rasad-border rounded-lg p-3 text-sm max-w-[45vw]">
-        <legend className="sr-only">{t('map.layers')}</legend>
-        <div className="flex items-center gap-2 mb-2">
-          <Layers className="w-4 h-4 text-slate-300" aria-hidden="true" />
-          <span className="text-slate-200 font-medium">{t('map.layers')}</span>
-        </div>
-        {layerToggles.map(([key, label, accent]) => (
-          <label key={key} className="flex items-center gap-2 cursor-pointer mb-1">
-            {/* أسماء أصناف Tailwind كاملة صراحةً كي لا يحذفها فحص المحتوى الثابت */}
-            <input
-              type="checkbox"
-              checked={Boolean(layers[key])}
-              onChange={e => onLayerChange?.(key, e.target.checked)}
-              className={`w-4 h-4 ${accent} focus-ring`}
-            />
-            <span className="text-slate-200">{label}</span>
-          </label>
-        ))}
-      </fieldset>
+      <LayerToggles
+        layers={layers}
+        onLayerChange={onLayerChange}
+        className="absolute bottom-3 start-3 z-[1000] max-w-[45vw]"
+      />
 
       <div className="absolute bottom-3 end-3 z-[1000] bg-rasad-panel/95 border border-rasad-border rounded-lg p-3 hidden sm:block">
         <div className="grid grid-cols-2 gap-x-4 gap-y-1">

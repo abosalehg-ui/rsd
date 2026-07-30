@@ -107,7 +107,12 @@
     "kmShort": "كم",
     "mbpd": "مليون برميل/يوم",
     "bcm": "BCM",
-    "osintVideo": "🎥 فيديو OSINT"
+    "osintVideo": "🎥 فيديو OSINT",
+    "showLayers": "إظهار الطبقات",
+    "hideLayers": "إخفاء الطبقات"
+  },
+  "globe": {
+    "clusterZoomHint": "اضغط للتقريب وفكّ التجميع"
   },
   "nuclearTypes": {
     "power": "محطة قوة",
