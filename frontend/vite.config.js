@@ -87,6 +87,12 @@ export default defineConfig({
       },
     }),
   ],
+  // نسخة three واحدة للتطبيق و globe.gl معاً: العلامات ثلاثية الأبعاد المخصّصة
+  // (Sprite/Texture) تُنشأ بصنف three الذي نستورده ثم يعرضها عارض globe.gl —
+  // ونسختان مختلفتان تعنيان صنفين مختلفين ينهار عندهما فحص instanceof الداخلي.
+  resolve: {
+    dedupe: ['three'],
+  },
   server: {
     port: 3000,
     host: '0.0.0.0',
