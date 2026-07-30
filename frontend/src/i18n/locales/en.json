@@ -107,7 +107,12 @@
     "kmShort": "km",
     "mbpd": "M bbl/day",
     "bcm": "BCM",
-    "osintVideo": "🎥 OSINT video"
+    "osintVideo": "🎥 OSINT video",
+    "showLayers": "Show layers",
+    "hideLayers": "Hide layers"
+  },
+  "globe": {
+    "clusterZoomHint": "Click to zoom in and expand"
   },
   "nuclearTypes": {
     "power": "Power plant",

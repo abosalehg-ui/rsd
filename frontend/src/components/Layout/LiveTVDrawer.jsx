@@ -20,7 +20,7 @@ const PANEL_H = 280;
 const MOBILE_QUERY = '(max-width: 767px)';
 
 export default function LiveTVDrawer() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [activeChannel, setActiveChannel] = useState(CHANNELS[0]);
   const [isMobile, setIsMobile] = useState(false);
@@ -42,10 +42,13 @@ export default function LiveTVDrawer() {
     y: Math.max(0, Math.min(window.innerHeight - PANEL_H, y)),
   }), []);
 
+  // تُفتح النافذة على جهة الخريطة (يمين في RTL، يسار في LTR) كي لا تغطي
+  // حاوية الأحداث — كانت مثبّتة على اليمين فتحجب اللوحة في الوضع الإنجليزي.
   const open = useCallback(() => {
-    setPosition(prev => prev || clamp(window.innerWidth - PANEL_W - 20, window.innerHeight - PANEL_H - 40));
+    const mapSideX = i18n.dir() === 'rtl' ? window.innerWidth - PANEL_W - 20 : 20;
+    setPosition(clamp(mapSideX, window.innerHeight - PANEL_H - 40));
     setIsOpen(true);
-  }, [clamp]);
+  }, [clamp, i18n]);
 
   // نقطة الحدث من الماوس أو اللمس
   const pointOf = (e) => (e.touches?.[0]
@@ -111,11 +114,13 @@ export default function LiveTVDrawer() {
 
   return (
     <>
-      {/* ===== زر فتح النافذة ===== */}
+      {/* ===== زر فتح النافذة =====
+          start-0 = حافة الخريطة في الاتجاهين (يمين بالعربية، يسار بالإنجليزية)
+          — كان end-0 فيلتصق بحافة حاوية الأحداث ويغطي عناصرها في اللغتين. */}
       {!isOpen && (
         <button
           onClick={open}
-          className="fixed bottom-24 md:bottom-64 end-0 z-[9999] flex items-center gap-1 bg-red-600 hover:bg-red-500 text-white ps-2.5 pe-1.5 py-2 rounded-s-lg shadow-lg transition-all group focus-ring"
+          className="fixed bottom-24 md:bottom-64 start-0 z-[9999] flex items-center gap-1 bg-red-600 hover:bg-red-500 text-white ps-1.5 pe-2.5 py-2 rounded-e-lg shadow-lg transition-all group focus-ring"
           title={t('tv.open')}
           aria-label={t('tv.open')}
         >
