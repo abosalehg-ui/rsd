@@ -90,16 +90,20 @@ IRAN_OSINT_FEEDS = [
 ]
 
 # قائمة القادة الإيرانيين للمتابعة
+# مُحدَّثة حتى 2026-07: علي خامنئي اغتيل (شباط/فبراير 2026) وخلفه ابنه مجتبى؛
+# سلامي وباقري قُتلا في حرب الـ12 يوماً (حزيران/يونيو 2025) وخلفاهما باكبور
+# وعبد الرحيم موسوي قُتلا بدورهما في ضربات شباط/فبراير 2026 — القيادة الحالية
+# وحيدي (الحرس) وسياري (الأركان). حاجي زاده قُتل 2025 وخلفه ماجد موسوي.
 IRANIAN_LEADERS = [
-    {"id": 1, "name": "علي خامنئي", "name_en": "Ali Khamenei", "role": "المرشد الأعلى", "role_en": "Supreme Leader", "icon": "👤", "keywords": ["khamenei", "خامنئي"]},
+    {"id": 1, "name": "مجتبى خامنئي", "name_en": "Mojtaba Khamenei", "role": "المرشد الأعلى", "role_en": "Supreme Leader", "icon": "👤", "keywords": ["mojtaba", "khamenei", "خامنئي", "مجتبى"]},
     {"id": 2, "name": "مسعود بزشكيان", "name_en": "Masoud Pezeshkian", "role": "الرئيس", "role_en": "President", "icon": "👤", "keywords": ["pezeshkian", "بزشكيان"]},
-    {"id": 3, "name": "حسين سلامي", "name_en": "Hossein Salami", "role": "قائد الحرس الثوري", "role_en": "IRGC Commander", "icon": "⚔️", "keywords": ["salami", "سلامي", "irgc commander"]},
-    {"id": 4, "name": "محمد باقري", "name_en": "Mohammad Bagheri", "role": "رئيس الأركان", "role_en": "Chief of Staff", "icon": "⚔️", "keywords": ["bagheri", "باقري", "chief of staff iran"]},
-    {"id": 5, "name": "أمير علي حاجي زاده", "name_en": "Amir Ali Hajizadeh", "role": "قائد الفضاء IRGC", "role_en": "IRGC Aerospace", "icon": "🚀", "keywords": ["hajizadeh", "حاجي زاده", "irgc aerospace"]},
+    {"id": 3, "name": "أحمد وحيدي", "name_en": "Ahmad Vahidi", "role": "قائد الحرس الثوري", "role_en": "IRGC Commander", "icon": "⚔️", "keywords": ["vahidi", "وحيدي", "irgc commander"]},
+    {"id": 4, "name": "حبيب الله سياري", "name_en": "Habibollah Sayyari", "role": "رئيس الأركان", "role_en": "Chief of Staff", "icon": "⚔️", "keywords": ["sayyari", "سياري", "chief of staff iran"]},
+    {"id": 5, "name": "ماجد موسوي", "name_en": "Majid Mousavi", "role": "قائد الفضاء IRGC", "role_en": "IRGC Aerospace", "icon": "🚀", "keywords": ["majid mousavi", "ماجد موسوي", "irgc aerospace"]},
     {"id": 6, "name": "عباس عراقچي", "name_en": "Abbas Araghchi", "role": "وزير الخارجية", "role_en": "Foreign Minister", "icon": "🤝", "keywords": ["araghchi", "عراقچي", "iran foreign minister"]},
     {"id": 7, "name": "إسماعيل قاآني", "name_en": "Ismail Qaani", "role": "قائد قوة القدس", "role_en": "Quds Force Commander", "icon": "⚔️", "keywords": ["qaani", "قاآني", "quds force"]},
     {"id": 8, "name": "محمد إسلامي", "name_en": "Mohammad Eslami", "role": "رئيس منظمة الطاقة الذرية", "role_en": "AEOI Chief", "icon": "☢️", "keywords": ["eslami", "إسلامي", "atomic energy iran"]},
-    {"id": 9, "name": "عزيز نصيرزاده", "name_en": "Aziz Nasirzadeh", "role": "قائد سلاح الجو", "role_en": "Air Force Commander", "icon": "✈️", "keywords": ["nasirzadeh", "نصيرزاده", "iran air force"]},
+    {"id": 9, "name": "عزيز نصيرزاده", "name_en": "Aziz Nasirzadeh", "role": "وزير الدفاع", "role_en": "Defense Minister", "icon": "✈️", "keywords": ["nasirzadeh", "نصيرزاده", "iran defense minister"]},
     {"id": 10, "name": "علي شمخاني", "name_en": "Ali Shamkhani", "role": "مستشار المرشد", "role_en": "Supreme Leader Advisor", "icon": "👤", "keywords": ["shamkhani", "شمخاني"]},
 ]
 
