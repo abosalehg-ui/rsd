@@ -7,16 +7,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Activity } from 'lucide-react';
-import { COUNTRIES, CATEGORIES } from '../../utils/constants';
+import { COUNTRIES, CATEGORIES, scoreColor } from '../../utils/constants';
 
-function scoreColor(score) {
-  if (score >= 75) return '#ef4444';
-  if (score >= 50) return '#f59e0b';
-  if (score >= 25) return '#facc15';
-  return '#10b981';
-}
-
-export default function CountryIndex({ data }) {
+export default function CountryIndex({ data, loading = false }) {
   const { t } = useTranslation();
   const ranking = data?.ranking || [];
 
@@ -24,10 +17,16 @@ export default function CountryIndex({ data }) {
     return (
       <div className="bg-rasad-bg rounded-lg border border-rasad-border p-3">
         <div className="flex items-center gap-2 mb-2">
-          <Activity className="w-3.5 h-3.5 text-cyan-400" />
+          <Activity className="w-3.5 h-3.5 text-cyan-400" aria-hidden="true" />
           <span className="text-xs font-bold text-slate-300">{t('stats.countryIndex')}</span>
         </div>
-        <div className="text-[11px] text-slate-300 text-center py-3">{t('stats.noData')}</div>
+        {loading ? (
+          <div className="space-y-2 pt-1" aria-busy="true" aria-label={t('common.loading')}>
+            {[0, 1, 2].map(i => <div key={i} className="shimmer h-8 rounded" />)}
+          </div>
+        ) : (
+          <div className="text-[11px] text-slate-300 text-center py-3">{t('stats.noData')}</div>
+        )}
       </div>
     );
   }
@@ -58,10 +57,10 @@ export default function CountryIndex({ data }) {
               </div>
               <div className="flex items-center justify-between text-[11px] text-slate-300">
                 <span>
-                  {c.by_severity?.critical ? <span className="text-red-400 ml-1">{c.by_severity.critical}❗</span> : null}
-                  {c.by_severity?.high ? <span className="text-orange-400 ml-1">{c.by_severity.high}↑</span> : null}
-                  {c.by_severity?.medium ? <span className="text-yellow-400 ml-1">{c.by_severity.medium}•</span> : null}
-                  {c.by_severity?.low ? <span className="text-slate-300 ml-1">{c.by_severity.low}·</span> : null}
+                  {c.by_severity?.critical ? <span className="text-red-400 me-1">{c.by_severity.critical}❗</span> : null}
+                  {c.by_severity?.high ? <span className="text-orange-400 me-1">{c.by_severity.high}↑</span> : null}
+                  {c.by_severity?.medium ? <span className="text-yellow-400 me-1">{c.by_severity.medium}•</span> : null}
+                  {c.by_severity?.low ? <span className="text-slate-300 me-1">{c.by_severity.low}·</span> : null}
                 </span>
                 {topCatInfo && (
                   <span className="text-slate-300">

@@ -125,6 +125,7 @@ async def collect_ucdp_events() -> int:
 
     except Exception as e:
         logger.error(f"خطأ عام في UCDP: {e}")
+        raise  # إشارة فشل صادقة بدل 0 صامت
 
     logger.info(f"UCDP: تم جمع {count} حدث نزاع جديد")
     return count

@@ -63,6 +63,36 @@ export const IRAN_EVENT_TYPES = {
 // فلا يعرض الخط الزمني نافذة أوسع من البيانات المجلوبة فعلاً.
 export const TIME_WINDOWS = [6, 12, 24, 48, 72, 168];
 
+// ===== مقياس ألوان موحّد للدرجات =====
+// كان لكل من الهيدر والإحصائيات ومؤشر الدول مقياسه الخاص (عتبات وألوان مختلفة)
+// فيظهر المؤشر نفسه بلونين. نُوحّد المصدر هنا.
+
+// عتبات مؤشر التصعيد (نسبة مئوية 0-100)
+export const ESCALATION_THRESHOLDS = { high: 30, medium: 15 };
+
+// درجات لون متّسقة مع لوحة SEVERITIES (نفاذة التباين على الخلفية الداكنة)
+const _RED = '#f87171';
+const _ORANGE = '#fb923c';
+const _AMBER = '#facc15';
+const _GREEN = '#34d399';
+
+/** لون مؤشر التصعيد (نسبة 0-100). */
+export function escalationColor(pct) {
+  const v = pct || 0;
+  if (v > ESCALATION_THRESHOLDS.high) return _RED;
+  if (v > ESCALATION_THRESHOLDS.medium) return _AMBER;
+  return _GREEN;
+}
+
+/** لون درجة استخبارات الدولة (0-100، أربع مراتب). */
+export function scoreColor(score) {
+  const v = score || 0;
+  if (v >= 75) return _RED;
+  if (v >= 50) return _ORANGE;
+  if (v >= 25) return _AMBER;
+  return _GREEN;
+}
+
 // المصادر المتاحة للفلترة (تطابق قيم Event.source في الخلفية)
 export const SOURCES = ['gdelt', 'newsapi', 'rss', 'ucdp', 'iran_osint'];
 

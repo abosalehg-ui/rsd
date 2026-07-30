@@ -78,6 +78,10 @@ export default function RasadMap({
   const nuclearRef = useRef(null);
   const basesRef = useRef(null);
   const pipelinesRef = useRef(null);
+  // تواقيع محتوى الطبقات — نتخطّى إعادة البناء حين لا يتغيّر المحتوى فعلاً، كي
+  // لا تُدمَّر النوافذ المفتوحة عند كل استطلاع (كل 30 ثانية) بمصفوفة جديدة الهوية.
+  const eventsSigRef = useRef('');
+  const iranSigRef = useRef('');
   const [ready, setReady] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(ME_ZOOM);
 
@@ -101,11 +105,13 @@ export default function RasadMap({
   useEffect(() => {
     if (mapInstance.current || !mapRef.current) return undefined;
     const map = L.map(mapRef.current, {
-      center: ME_CENTER, zoom: ME_ZOOM, zoomControl: false, attributionControl: false,
+      // نُبقي عنصر الإسناد (تتطلّبه شروط OSM/CARTO) لكن مُصغّراً
+      center: ME_CENTER, zoom: ME_ZOOM, zoomControl: false,
     });
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
       subdomains: 'abcd',
       maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
     }).addTo(map);
     markersRef.current = L.layerGroup().addTo(map);
     flightsRef.current = L.layerGroup().addTo(map);
@@ -116,7 +122,19 @@ export default function RasadMap({
     mapInstance.current = map;
     setReady(true);
     map.on('zoomend', () => setZoomLevel(map.getZoom()));
-    return () => { map.remove(); mapInstance.current = null; };
+
+    // Leaflet لا يلاحظ تغيّر حجم حاويته (طيّ اللوحة/تبديل الجوال) فتبقى بلاطات
+    // رمادية ومركز منزاح حتى يتحرّك المستخدم. نراقب الحاوية ونُبطل الحجم.
+    let ro;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => map.invalidateSize());
+      ro.observe(mapRef.current);
+    }
+    return () => {
+      if (ro) ro.disconnect();
+      map.remove();
+      mapInstance.current = null;
+    };
   }, []);
 
   // معالجات أزرار التحكّم — داخل useCallback كي لا نقرأ الـ ref أثناء العرض
@@ -130,6 +148,13 @@ export default function RasadMap({
   // ===== طبقة الأحداث =====
   useEffect(() => {
     if (!ready || !markersRef.current) return;
+
+    // توقيع محتوى الطبقة — إن لم يتغيّر (استطلاع أعاد نفس البيانات) لا نعيد البناء
+    // فتبقى النافذة المفتوحة حيّة. التكبير يغيّر التجميع فهو جزء من التوقيع.
+    const sig = `${showEvents}#${zoomLevel}#${events.map(e => `${e.id}:${e.severity}`).join('|')}`;
+    if (sig === eventsSigRef.current) return;
+    eventsSigRef.current = sig;
+
     markersRef.current.clearLayers();
     if (!showEvents) return;
 
@@ -196,7 +221,8 @@ export default function RasadMap({
         // تتراكم عند كل فتح) — يُنظَّف تلقائياً مع إزالة الـ popup.
         m.on('popupopen', (e) => {
           const root = e.popup.getElement();
-          if (!root) return;
+          if (!root || root.dataset.rsdBound) return;  // لا نُكرّر الربط عند إعادة الفتح
+          root.dataset.rsdBound = '1';
           const activate = (target) => {
             const item = target.closest('.rasad-cluster-item');
             if (!item) return;
@@ -252,6 +278,11 @@ export default function RasadMap({
   // ===== طبقة أحداث إيران OSINT =====
   useEffect(() => {
     if (!ready || !iranRef.current) return;
+
+    const sig = `${showIran}#${iranStrikes.map(s => `${s.id}:${s.confidence}`).join('|')}`;
+    if (sig === iranSigRef.current) return;
+    iranSigRef.current = sig;
+
     iranRef.current.clearLayers();
     if (!showIran) return;
 

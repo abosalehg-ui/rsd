@@ -25,9 +25,9 @@ def _load_pipelines() -> dict:
 
 @router.get("/bases")
 async def list_bases(
-    country: Optional[str] = Query(default=None, description="ISO country code"),
-    operator: Optional[str] = Query(default=None, description="e.g. US, Russia, IRGC"),
-    base_type: Optional[str] = Query(default=None, description="air|naval|ground|joint"),
+    country: Optional[str] = Query(default=None, max_length=10, description="ISO country code"),
+    operator: Optional[str] = Query(default=None, max_length=50, description="e.g. US, Russia, IRGC"),
+    base_type: Optional[str] = Query(default=None, max_length=20, description="air|naval|ground|joint"),
 ):
     """قائمة القواعد العسكرية"""
     data = _load_bases()
@@ -44,8 +44,8 @@ async def list_bases(
 
 @router.get("/pipelines")
 async def list_pipelines(
-    pipeline_type: Optional[str] = Query(default=None, description="oil|gas"),
-    status: Optional[str] = Query(default=None),
+    pipeline_type: Optional[str] = Query(default=None, max_length=20, description="oil|gas"),
+    status: Optional[str] = Query(default=None, max_length=20),
 ):
     """قائمة خطوط الأنابيب (مع waypoints)"""
     data = _load_pipelines()

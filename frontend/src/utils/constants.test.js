@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   CATEGORIES, SEVERITIES, COUNTRIES, CONFIDENCE, IRAN_EVENT_TYPES,
   SOURCES, TIME_WINDOWS, categoryOf, severityOf, timeAgo, formatNumber,
+  escalationColor, scoreColor,
 } from './constants';
 
 // بديل بسيط لدالة الترجمة: يعيد المفتاح + العدد كي نتحقّق من اختيار المفتاح
@@ -88,5 +89,18 @@ describe('formatNumber', () => {
   });
   it('1000000+ → M', () => {
     expect(formatNumber(2_300_000)).toBe('2.3M');
+  });
+});
+
+describe('score color helpers', () => {
+  it('escalationColor thresholds (30/15)', () => {
+    expect(escalationColor(40)).toBe(escalationColor(31)); // فوق 30 = أحمر
+    expect(escalationColor(20)).not.toBe(escalationColor(40)); // متوسط ≠ عالٍ
+    expect(escalationColor(5)).not.toBe(escalationColor(20)); // منخفض ≠ متوسط
+    expect(escalationColor(0)).toBe(escalationColor(null)); // يعامل null كصفر
+  });
+  it('scoreColor four tiers (75/50/25)', () => {
+    const tiers = [scoreColor(80), scoreColor(60), scoreColor(30), scoreColor(10)];
+    expect(new Set(tiers).size).toBe(4); // أربع مراتب متمايزة
   });
 });

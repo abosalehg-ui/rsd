@@ -22,6 +22,9 @@
     "showPanel": "البيانات",
     "skipToPanel": "تخطَّ إلى المحتوى"
   },
+  "common": {
+    "loading": "جارٍ التحميل…"
+  },
   "tabs": {
     "news": "الأحداث",
     "timeline": "الخط الزمني",

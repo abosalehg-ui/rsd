@@ -155,11 +155,6 @@ select:focus-visible,
   100% { transform: translateX(-100%); }
 }
 
-/* علامة الطائرة */
-.flight-icon {
-  transition: transform 0.5s ease;
-}
-
 /* تأثيرات التحميل */
 .shimmer {
   background: linear-gradient(90deg, #111827 25%, #1e293b 50%, #111827 75%);
@@ -170,30 +165,4 @@ select:focus-visible,
 @keyframes shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
-}
-
-/* شبكة لوحة التحكم */
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: 1fr 380px;
-  grid-template-rows: auto 1fr auto;
-  height: 100vh;
-  gap: 1px;
-  background: #1e293b;
-}
-
-.panel {
-  background: #111827;
-  border: 1px solid #1e293b;
-}
-
-/* مؤشر التصعيد */
-.escalation-gauge {
-  background: conic-gradient(
-    from 180deg,
-    #10b981 0deg,
-    #f59e0b 120deg,
-    #ef4444 240deg,
-    #ef4444 360deg
-  );
 }

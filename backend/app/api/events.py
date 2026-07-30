@@ -13,10 +13,10 @@ router = APIRouter(prefix="/api/events", tags=["events"])
 
 @router.get("/")
 async def get_events(
-    category: Optional[str] = None,
-    severity: Optional[str] = None,
-    country_code: Optional[str] = None,
-    source: Optional[str] = None,
+    category: Optional[str] = Query(default=None, max_length=50),
+    severity: Optional[str] = Query(default=None, max_length=50),
+    country_code: Optional[str] = Query(default=None, max_length=10),
+    source: Optional[str] = Query(default=None, max_length=50),
     search: Optional[str] = Query(default=None, max_length=100),
     hours: int = Query(default=24, ge=1, le=720),
     limit: int = Query(default=100, ge=1, le=500),

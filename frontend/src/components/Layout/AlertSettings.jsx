@@ -1,7 +1,7 @@
 /**
  * رصد - قائمة إعدادات التنبيهات الصوتية + قائمة التنبيهات الأخيرة
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bell, Volume2, X, Check, Trash2 } from 'lucide-react';
 import { timeAgo } from '../../utils/constants';
@@ -29,6 +29,22 @@ export default function AlertSettings({
   const { t, i18n } = useTranslation();
   const [permResult, setPermResult] = useState(null);
   const isAr = i18n.language === 'ar';
+  const dialogRef = useRef(null);
+  const lastFocusedRef = useRef(null);
+
+  // إدارة تركيز النافذة: حفظ العنصر النشط، نقل التركيز للنافذة، Escape للإغلاق،
+  // واستعادة التركيز عند الإغلاق (كان لا شيء من ذلك، فيتسرّب Tab خلف الباكدروب).
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    lastFocusedRef.current = document.activeElement;
+    dialogRef.current?.focus();
+    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      if (lastFocusedRef.current instanceof HTMLElement) lastFocusedRef.current.focus();
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -51,18 +67,23 @@ export default function AlertSettings({
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="rsd-alerts-title"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md mx-4 bg-rasad-bg border border-rasad-border rounded-xl shadow-2xl text-slate-200 font-arabic"
+        className="w-full max-w-md mx-4 bg-rasad-bg border border-rasad-border rounded-xl shadow-2xl text-slate-200 font-arabic focus:outline-none"
         dir={isAr ? 'rtl' : 'ltr'}
       >
         {/* الرأس */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-rasad-border">
           <div className="flex items-center gap-2">
-            <Bell className="w-5 h-5 text-cyan-400" />
-            <h2 className="text-base font-bold text-cyan-400">{t('alerts.title')}</h2>
+            <Bell className="w-5 h-5 text-cyan-400" aria-hidden="true" />
+            <h2 id="rsd-alerts-title" className="text-base font-bold text-cyan-400">{t('alerts.title')}</h2>
           </div>
           <button onClick={onClose} aria-label={t('alerts.close')} className="p-1 hover:bg-rasad-border rounded text-slate-300 hover:text-white focus-ring">
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
@@ -76,8 +97,10 @@ export default function AlertSettings({
             <button
               dir="ltr"
               onClick={() => setPrefs({ enabled: !prefs.enabled })}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${prefs.enabled ? 'bg-cyan-500' : 'bg-slate-600'}`}
-              aria-pressed={prefs.enabled}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-ring ${prefs.enabled ? 'bg-cyan-500' : 'bg-slate-600'}`}
+              role="switch"
+              aria-checked={prefs.enabled}
+              aria-label={t('alerts.sound')}
             >
               <span
                 className="inline-block h-4 w-4 rounded-full bg-white transition-transform"
@@ -91,25 +114,27 @@ export default function AlertSettings({
             onClick={testSound}
             className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-cyan-400 hover:bg-cyan-500/20 text-sm"
           >
-            <Volume2 className="w-4 h-4" />
+            <Volume2 className="w-4 h-4" aria-hidden="true" />
             {t('alerts.testSound')}
           </button>
 
-          {/* عتبة الخطورة */}
+          {/* عتبة الخطورة — مجموعة راديو (اختيار حصري) */}
           <div>
-            <div className="text-sm font-medium mb-2">{t('alerts.threshold')}</div>
-            <div className="grid grid-cols-2 gap-2">
+            <div id="rsd-threshold-label" className="text-sm font-medium mb-2">{t('alerts.threshold')}</div>
+            <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-labelledby="rsd-threshold-label">
               {SEVERITY_VALUES.map(opt => (
                 <button
                   key={opt.value}
+                  role="radio"
+                  aria-checked={prefs.threshold === opt.value}
                   onClick={() => setPrefs({ threshold: opt.value })}
-                  className={`px-3 py-2 rounded-lg text-xs border transition-colors ${
+                  className={`px-3 py-2 rounded-lg text-xs border transition-colors focus-ring ${
                     prefs.threshold === opt.value
                       ? 'bg-cyan-500/10 border-cyan-500 text-white'
                       : 'bg-rasad-panel border-rasad-border text-slate-400 hover:border-slate-600'
                   }`}
                 >
-                  <span className="inline-block w-2 h-2 rounded-full mx-2" style={{ background: opt.color }} />
+                  <span className="inline-block w-2 h-2 rounded-full mx-2" style={{ background: opt.color }} aria-hidden="true" />
                   {t(`alerts.thresholdOptions.${opt.value}`)}
                 </button>
               ))}
@@ -131,14 +156,15 @@ export default function AlertSettings({
                   <button
                     key={value}
                     onClick={() => toggleCategory(value)}
-                    className={`px-3 py-2 rounded-lg text-xs border transition-colors flex items-center justify-between ${
+                    aria-pressed={selected}
+                    className={`px-3 py-2 rounded-lg text-xs border transition-colors flex items-center justify-between focus-ring ${
                       selected
                         ? 'bg-cyan-500/10 border-cyan-500 text-white'
                         : 'bg-rasad-panel border-rasad-border text-slate-400 hover:border-slate-600'
                     }`}
                   >
                     <span>{t(`categories.${value}`)}</span>
-                    {selected && <Check className="w-3 h-3 text-cyan-400" />}
+                    {selected && <Check className="w-3 h-3 text-cyan-400" aria-hidden="true" />}
                   </button>
                 );
               })}
@@ -156,7 +182,7 @@ export default function AlertSettings({
           {/* فاصل التكرار */}
           <div>
             <div className="text-sm font-medium mb-2 flex justify-between">
-              <span>{t('alerts.throttle')}</span>
+              <span id="rsd-throttle-label">{t('alerts.throttle')}</span>
               <span className="font-mono text-cyan-400">{prefs.throttleSeconds}s</span>
             </div>
             <input
@@ -166,7 +192,9 @@ export default function AlertSettings({
               step="5"
               value={prefs.throttleSeconds}
               onChange={(e) => setPrefs({ throttleSeconds: Number(e.target.value) })}
-              className="w-full accent-cyan-500"
+              className="w-full accent-cyan-500 focus-ring"
+              aria-labelledby="rsd-throttle-label"
+              aria-valuetext={`${prefs.throttleSeconds}s`}
             />
             <div className="text-xs text-slate-300 mt-1">{t('alerts.throttleDesc')}</div>
           </div>
@@ -199,7 +227,7 @@ export default function AlertSettings({
                   onClick={clearRecent}
                   className="text-xs text-slate-300 hover:text-red-400 flex items-center gap-1"
                 >
-                  <Trash2 className="w-3 h-3" /> {t('alerts.clear')}
+                  <Trash2 className="w-3 h-3" aria-hidden="true" /> {t('alerts.clear')}
                 </button>
               )}
             </div>
@@ -207,9 +235,9 @@ export default function AlertSettings({
               <div className="text-xs text-slate-300 italic text-center py-3 bg-rasad-bg rounded">{t('alerts.recentEmpty')}</div>
             ) : (
               <div className="space-y-2">
-                {recentAlerts.map((a, i) => (
+                {recentAlerts.map((a) => (
                   <button
-                    key={i}
+                    key={`${a.id}-${a._alertedAt}`}
                     onClick={() => { onSelectAlert?.(a); onClose(); }}
                     className="w-full text-start p-2 bg-rasad-bg hover:bg-rasad-panel border border-rasad-border rounded text-xs"
                   >

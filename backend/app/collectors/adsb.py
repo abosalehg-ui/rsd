@@ -32,7 +32,12 @@ MILITARY_CALLSIGN_PATTERNS = [
     "CASA", "IAF", "TUAF", "RSF", "IRAN", "FORTE", "JAKE", "HOMER",
 ]
 
-MILITARY_SQUAWKS = ["7700", "7600", "7500", "0021", "0022", "0023"]
+# نطاقات سكواك مخصّصة للطيران العسكري. لا نُدرج 7500/7600/7700 لأنها رموز
+# طوارئ عامة (اختطاف/فقد اتصال/طوارئ) تُخصَّص لأي طائرة مدنية غالباً، فكانت
+# تُصنّف رحلات مدنية معلنة للطوارئ كعسكرية (إيجابيات كاذبة).
+MILITARY_SQUAWKS = ["0021", "0022", "0023", "0024", "0025", "0026", "0027"]
+# رموز الطوارئ نرصدها كعلَم منفصل بدل خلطها بالكشف العسكري
+EMERGENCY_SQUAWKS = ["7500", "7600", "7700"]
 MILITARY_AIRCRAFT_TYPES = ["F16", "F15", "F35", "F18", "B52", "C130", "C17", "E3", "P8", "RC135", "U2"]
 
 # لقطة آخر جمع ناجح — تقرأها /flights/live بدل استدعاء المزوّد الخارجي والكتابة
@@ -74,6 +79,7 @@ async def collect_flights() -> Dict:
             flights_data["total"] = len(aircraft_list)
             now = datetime.now(timezone.utc)
             parsed = []
+            skipped = 0
 
             for ac in aircraft_list:
                 try:
@@ -82,8 +88,14 @@ async def collect_flights() -> Dict:
                         parsed.append(flight)
                         if flight["is_military"]:
                             flights_data["military"] += 1
-                except Exception:
+                except Exception as e:
+                    # لا نبتلع صامتاً: تغيّر مخطط المزوّد كان يُسقط كل الرحلات بلا أثر
+                    skipped += 1
+                    logger.debug("تخطّي طائرة %s: %s", ac.get("hex", "?"), e)
                     continue
+
+            if skipped:
+                logger.warning("ADS-B: تخطّي %s/%s طائرة لتعذّر التحليل", skipped, len(aircraft_list))
 
             flights_data["flights"] = parsed
 
@@ -191,16 +203,22 @@ def _parse_aircraft(ac: dict) -> Optional[Dict]:
     icao24 = ac.get("hex", "")
     callsign = (ac.get("flight") or "").strip()
     origin_country = ac.get("ownOp") or _country_from_icao(icao24)
-    altitude = ac.get("alt_baro") or ac.get("alt_geom")
-    if isinstance(altitude, (int, float)):
-        altitude = round(altitude * 0.3048)
-    velocity = ac.get("gs")
-    if isinstance(velocity, (int, float)):
-        velocity = round(velocity * 0.514444, 1)
-    heading = ac.get("track") or ac.get("true_heading") or 0
-    vertical_rate = ac.get("baro_rate") or ac.get("geom_rate")
-    squawk = ac.get("squawk") or ""
+
     on_ground = ac.get("alt_baro") == "ground"
+    # adsb.lol يرمز الطائرة الواقفة بـ alt_baro="ground" (نص) — نحوّله إلى 0
+    # قبل أي حساب كي لا تدخل السلسلة عمود Float وتُعاد نصّاً في JSON.
+    raw_alt = ac.get("alt_geom") if on_ground else _first_number(ac.get("alt_baro"), ac.get("alt_geom"))
+    altitude = round(raw_alt * 0.3048) if isinstance(raw_alt, (int, float)) else (0 if on_ground else None)
+
+    velocity = ac.get("gs")
+    velocity = round(velocity * 0.514444, 1) if isinstance(velocity, (int, float)) else None
+
+    # `is None` وليس `or`: طائرة تتجه شمالاً (0.0) قيمة صحيحة لا تُتخطّى
+    heading = _first_number(ac.get("track"), ac.get("true_heading"))
+    if heading is None:
+        heading = 0
+    vertical_rate = _first_number(ac.get("baro_rate"), ac.get("geom_rate"))
+    squawk = ac.get("squawk") or ""
     aircraft_type = ac.get("t", "")
 
     is_military = False
@@ -238,10 +256,19 @@ def _parse_aircraft(ac: dict) -> Optional[Dict]:
         "heading": heading,
         "vertical_rate": vertical_rate,
         "squawk": squawk,
+        "is_emergency": squawk in EMERGENCY_SQUAWKS,
         "is_military": is_military,
         "military_type": military_type,
         "aircraft_type": aircraft_type,
     }
+
+
+def _first_number(*values):
+    """أول قيمة عددية فعلية (يميّز 0.0 عن None/نص مثل "ground")."""
+    for v in values:
+        if isinstance(v, (int, float)):
+            return v
+    return None
 
 
 def _country_from_icao(icao24: str) -> str:

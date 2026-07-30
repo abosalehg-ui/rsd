@@ -2,21 +2,22 @@
 يجمع الأخبار من مصادر RSS عربية ودولية
 مع دعم خاص لأخبار النووي ☣️
 """
-import hashlib
 import json
 import logging
-import re
 from typing import Dict
 
-import feedparser
 import httpx
 
 from ..config import get_settings
 from ..models.database import get_session_factory, insert_event_if_new
 from ..processors.dates import parse_entry_date
 from ..processors.text_analysis import classify, geolocate
+from ._feed_base import clean_html, make_source_id, parse_feed_async, process_feeds
 
 logger = logging.getLogger("rasad.rss")
+
+_ENTRY_CAP = 20        # أحدث 20 مقالاً لكل خلاصة
+_DESC_CAP = 500
 
 # ===== خلاصات RSS =====
 
@@ -138,8 +139,7 @@ def _all_feeds() -> list[Dict]:
 
 
 async def collect_rss_feeds() -> int:
-    """جمع الأخبار من جميع خلاصات RSS"""
-    count = 0
+    """جمع الأخبار من جميع خلاصات RSS (بتزامن محدود؛ يرفع إن فشلت كلها)."""
     session_factory = get_session_factory()
     if not session_factory:
         return 0
@@ -147,93 +147,80 @@ async def collect_rss_feeds() -> int:
     all_feeds = _all_feeds()
 
     async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
-        for feed_config in all_feeds:
-            try:
-                feed_count = await _process_feed(client, feed_config)
-                count += feed_count
-            except Exception as e:
-                logger.error(f"خطأ في خلاصة {feed_config['name']}: {e}")
-                continue
+        count = await process_feeds(client, all_feeds, _process_feed, label="RSS")
 
     logger.info(f"RSS: تم جمع {count} خبر جديد من {len(all_feeds)} خلاصة")
     return count
 
 
-async def _process_feed(client: httpx.AsyncClient, feed_config: Dict) -> int:  # noqa: C901
-    """معالجة خلاصة RSS واحدة"""
+async def _process_feed(client: httpx.AsyncClient, feed_config: Dict) -> int:
+    """معالجة خلاصة RSS واحدة. أخطاء الجلب/التحليل تُرفَع (يلتقطها process_feeds)؛
+    أخطاء المقال الواحد تُبتلَع فلا تُسقط بقية الخلاصة."""
     count = 0
     session_factory = get_session_factory()
 
-    try:
-        response = await client.get(feed_config["url"])
-        if response.status_code != 200:
-            logger.warning(f"RSS {feed_config['name']}: HTTP {response.status_code}")
-            return 0
+    response = await client.get(feed_config["url"])
+    if response.status_code != 200:
+        logger.warning(f"RSS {feed_config['name']}: HTTP {response.status_code}")
+        return 0
 
-        feed = feedparser.parse(response.text)
+    feed = await parse_feed_async(response.text)
 
-        async with session_factory() as session:
-            for entry in feed.entries[:20]:  # أحدث 20 مقال
-                try:
-                    title = entry.get("title", "").strip()
-                    if not title:
-                        continue
-
-                    link = entry.get("link", "")
-                    source_id = f"rss_{hashlib.md5(link.encode()).hexdigest()}"
-
-                    description = entry.get("summary", entry.get("description", ""))
-                    description = re.sub(r'<[^>]+>', '', description)[:500]
-
-                    base_category = feed_config.get("category", "general")
-                    category, severity = classify(title, description, base_category)
-                    country_code, country_name, lat, lon = geolocate(title, description)
-
-                    # الصورة
-                    image_url = ""
-                    if hasattr(entry, "media_content") and entry.media_content:
-                        image_url = entry.media_content[0].get("url", "")
-                    elif hasattr(entry, "enclosures") and entry.enclosures:
-                        image_url = entry.enclosures[0].get("href", "")
-
-                    event_date = parse_entry_date(entry)
-
-                    icon = feed_config.get("icon", "")
-                    display_title = f"{icon} {title}" if icon else title
-
-                    inserted = await insert_event_if_new(
-                        session,
-                        source="rss",
-                        source_id=source_id,
-                        title=display_title,
-                        description=description,
-                        url=link,
-                        image_url=image_url,
-                        category=category,
-                        severity=severity,
-                        latitude=lat,
-                        longitude=lon,
-                        country=country_name,
-                        country_code=country_code,
-                        location_name=feed_config["name"],
-                        event_date=event_date,
-                        extra_data=json.dumps({
-                            "feed_name": feed_config["name"],
-                            "feed_category": base_category,
-                            "is_nuclear": category == "nuclear",
-                        }),
-                    )
-                    if inserted:
-                        count += 1
-
-                except Exception as e:
-                    logger.error(f"خطأ في مقال RSS: {e}")
-                    continue
-
-            await session.commit()
-
-    except Exception as e:
-        logger.error(f"خطأ في جلب {feed_config['name']}: {e}")
+    async with session_factory() as session:
+        for entry in feed.entries[:_ENTRY_CAP]:
+            try:
+                if await _store_entry(session, entry, feed_config):
+                    count += 1
+            except Exception as e:
+                logger.error(f"خطأ في مقال RSS: {e}")
+                continue
+        await session.commit()
 
     return count
+
+
+async def _store_entry(session, entry, feed_config: Dict) -> bool:
+    """يحوّل إدخال خلاصة إلى حدث ويُدرجه ذرّياً؛ يعيد True إن أُدرِج فعلاً."""
+    title = entry.get("title", "").strip()
+    if not title:
+        return False
+
+    link = entry.get("link", "")
+    description = clean_html(entry.get("summary", entry.get("description", "")), _DESC_CAP)
+
+    base_category = feed_config.get("category", "general")
+    category, severity = classify(title, description, base_category)
+    country_code, country_name, lat, lon = geolocate(title, description)
+
+    image_url = ""
+    if hasattr(entry, "media_content") and entry.media_content:
+        image_url = entry.media_content[0].get("url", "")
+    elif hasattr(entry, "enclosures") and entry.enclosures:
+        image_url = entry.enclosures[0].get("href", "")
+
+    icon = feed_config.get("icon", "")
+    display_title = f"{icon} {title}" if icon else title
+
+    return await insert_event_if_new(
+        session,
+        source="rss",
+        source_id=make_source_id("rss", link),
+        title=display_title,
+        description=description,
+        url=link,
+        image_url=image_url,
+        category=category,
+        severity=severity,
+        latitude=lat,
+        longitude=lon,
+        country=country_name,
+        country_code=country_code,
+        location_name=feed_config["name"],
+        event_date=parse_entry_date(entry),
+        extra_data=json.dumps({
+            "feed_name": feed_config["name"],
+            "feed_category": base_category,
+            "is_nuclear": category == "nuclear",
+        }),
+    )
 

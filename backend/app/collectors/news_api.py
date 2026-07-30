@@ -39,10 +39,13 @@ async def collect_news() -> int:
     if not session_factory:
         return 0
 
+    attempts = 0
+    request_errors = 0
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             for query in SEARCH_QUERIES:
                 for lang in ["en", "ar"]:
+                    attempts += 1
                     try:
                         params = {
                             "q": query,
@@ -54,6 +57,13 @@ async def collect_news() -> int:
 
                         response = await client.get(NEWSAPI_URL, params=params)
                         if response.status_code != 200:
+                            # 429 = تجاوز الحصة (المستوى المجاني 100/يوم) — كان
+                            # يُبتلَع صامتاً فيبدو الجامع هادئاً. نُسجّله.
+                            request_errors += 1
+                            logger.warning(
+                                "NewsAPI '%s' (%s): HTTP %s",
+                                query[:30], lang, response.status_code,
+                            )
                             continue
 
                         data = response.json()
@@ -102,11 +112,17 @@ async def collect_news() -> int:
                             await session.commit()
 
                     except Exception as e:
+                        request_errors += 1
                         logger.error(f"خطأ في استعلام '{query[:30]}' ({lang}): {e}")
                         continue
 
     except Exception as e:
         logger.error(f"خطأ عام في NewsAPI: {e}")
+        raise  # فشل كارثي (إنشاء العميل مثلاً) — إشارة صادقة بدل 0
+
+    # فشلت كل الطلبات (حصة مستنزَفة/شبكة) → إشارة فشل بدل "لا جديد" صامت
+    if attempts and request_errors == attempts:
+        raise RuntimeError(f"NewsAPI: فشلت كل الطلبات ({request_errors}/{attempts})")
 
     logger.info(f"NewsAPI: تم جمع {count} خبر جديد")
     return count

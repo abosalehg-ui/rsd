@@ -20,8 +20,8 @@ _LEADER_NEWS_FETCH_CAP = 500
 @router.get("/strikes")
 async def get_iran_strikes(
     hours: int = Query(default=72, ge=1, le=720),
-    confidence: Optional[str] = None,
-    event_type: Optional[str] = None,
+    confidence: Optional[str] = Query(default=None, max_length=10),
+    event_type: Optional[str] = Query(default=None, max_length=50),
     limit: int = Query(default=100, ge=1, le=500),
 ):
     """الضربات والأحداث الإيرانية مع تصنيف الثقة"""

@@ -3,6 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- سياسة أمان محتوى احتياطية تسافر مع البناء نفسه — نشر GitHub Pages لا
+       يستخدم nginx.conf فتظلّ الترويسات غائبة بدونها. (frame-ancestors وX-Frame
+       يُتجاهلان في meta فيبقيان في nginx.) -->
+  <!-- connect-src يسمح بـ https: لأن نشر Pages يتصل بخلفية على نطاق خارجي
+       قابل للضبط (VITE_API_BASE)؛ نشر Docker يضيّقه أكثر عبر nginx (تقاطع). -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://unpkg.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https:; frame-src https://www.youtube-nocookie.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'" />
   <title>رصد | Rasad - OSINT Dashboard</title>
   <meta name="description" content="منصة استخبارات المصادر المفتوحة للشرق الأوسط — OSINT Dashboard for the Middle East" />
 

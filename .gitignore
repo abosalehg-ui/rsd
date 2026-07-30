@@ -22,9 +22,11 @@ yarn-debug.log*
 yarn-error.log*
 
 # ===== Environment =====
+# نتجاهل كل ملفات .env عدا القالب (.env.example) — يمنع رفع .env.production
+# ونحوها بالخطأ.
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
 # ===== Data / Databases =====
 *.db
