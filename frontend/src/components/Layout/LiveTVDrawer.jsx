@@ -90,11 +90,21 @@ export default function LiveTVDrawer() {
     return () => window.removeEventListener('resize', onResize);
   }, [isMobile, clamp]);
 
+  // إغلاق بمفتاح Escape
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setIsOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isOpen]);
+
   const floatingStyle = isMobile || !position
     ? undefined
     : {
       width: `${PANEL_W}px`,
-      insetInlineStart: `${position.x}px`,
+      // `left` فيزيائي (لا insetInlineStart المنطقي): العنصر يُسحب بإحداثيات
+      // مؤشر فيزيائية أصلها اليسار، فالخلط مع خاصية منطقية كان يعكس السحب في RTL.
+      left: `${position.x}px`,
       top: `${position.y}px`,
       cursor: isDragging ? 'grabbing' : 'default',
     };
@@ -110,14 +120,14 @@ export default function LiveTVDrawer() {
           aria-label={t('tv.open')}
         >
           <Tv className="w-4 h-4" aria-hidden="true" />
-          <span className="text-[11px] font-bold opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity">LIVE</span>
+          <span className="text-[11px] font-bold">LIVE</span>
         </button>
       )}
 
       {/* ===== النافذة (عائمة على سطح المكتب، لوحة سفلية على الجوال) ===== */}
       {isOpen && (
         <div
-          className={isMobile ? 'fixed z-[9999] inset-x-0 bottom-0' : 'fixed z-[9999]'}
+          className={isMobile ? 'fixed z-[9999] inset-x-0 bottom-0 pb-[env(safe-area-inset-bottom)]' : 'fixed z-[9999]'}
           style={floatingStyle}
           onMouseDown={startDrag}
           onTouchStart={startDrag}

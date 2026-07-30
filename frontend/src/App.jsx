@@ -7,6 +7,7 @@ import Header from './components/Layout/Header';
 import LiveTVDrawer from './components/Layout/LiveTVDrawer';
 import AlertSettings from './components/Layout/AlertSettings';
 import RasadMap from './components/Map/RasadMap';
+import LayerToggles from './components/Map/LayerToggles';
 import NewsFeed from './components/NewsFeed/NewsFeed';
 import Timeline from './components/Timeline/Timeline';
 import StatsPanel from './components/Stats/StatsPanel';
@@ -178,6 +179,7 @@ export default function App() {
       <Suspense fallback={<div className="flex items-center justify-center h-full text-cyan-300 text-sm">🌍 {t('app.loadingGlobe')}</div>}>
         <RasadGlobe
           events={mapEvts}
+          flights={flights}
           iranStrikes={iranStrikes}
           nuclearFacilities={nuclearFacilities}
           bases={militaryBases}
@@ -187,6 +189,12 @@ export default function App() {
           onSelectEvent={setSelectedEvent}
         />
       </Suspense>
+      {/* تحكمات الطبقات فوق الكرة — الكرة نفسها بلا chrome داخلي */}
+      <LayerToggles
+        layers={layers}
+        onLayerChange={setLayer}
+        className="absolute bottom-3 start-3 z-[1000] max-w-[45vw]"
+      />
     </ErrorBoundary>
   ) : (
     <ErrorBoundary>
@@ -371,26 +379,30 @@ export default function App() {
         >
           <div className="absolute inset-0">{mapNode}</div>
 
-          {/* زر طي/فتح اللوحة — سطح المكتب فقط (على الجوال يوجد المبدّل) */}
+          {/* زر طي/فتح اللوحة — سطح المكتب فقط (على الجوال يوجد المبدّل).
+              خصائص منطقية (end/border-e/rounded-s) كي لا ينفصل التبويب على
+              الجانب الخطأ في الوضع الإنجليزي؛ والأيقونة تدلّ على الإجراء لا الحالة. */}
           <button
             onClick={() => setPanelOpen(!panelOpen)}
             aria-label={panelOpen ? t('app.collapsePanel') : t('app.expandPanel')}
             title={panelOpen ? t('app.collapsePanel') : t('app.expandPanel')}
-            className="hidden md:flex absolute top-1/2 left-0 z-[1000] -translate-y-1/2 w-6 h-16 bg-rasad-panel border border-rasad-border border-l-0 rounded-r-lg items-center justify-center text-cyan-300 hover:bg-rasad-border focus-ring"
+            className="hidden md:flex absolute top-1/2 end-0 z-[1000] -translate-y-1/2 w-6 h-16 bg-rasad-panel border border-rasad-border border-e-0 rounded-s-lg items-center justify-center text-cyan-300 hover:bg-rasad-border focus-ring"
           >
-            {panelOpen ? <PanelLeftOpen className="w-4 h-4" aria-hidden="true" /> : <PanelLeftClose className="w-4 h-4" aria-hidden="true" />}
+            {panelOpen ? <PanelLeftClose className="w-4 h-4" aria-hidden="true" /> : <PanelLeftOpen className="w-4 h-4" aria-hidden="true" />}
           </button>
         </div>
 
-        {/* اللوحة الجانبية */}
-        <div
+        {/* اللوحة الجانبية — main + tabIndex كي ينقل رابط التخطّي التركيز فعلاً
+            (كان div غير قابل للتركيز فيفشل التخطّي في Safari/Firefox) */}
+        <main
           id="rsd-panel"
+          tabIndex={-1}
           className={`${mobileView === 'panel' ? 'flex' : 'hidden'} ${
             panelOpen ? 'md:flex' : 'md:hidden'
-          } flex-1 md:flex-none w-full md:w-[360px] lg:w-[420px] xl:w-[500px] min-h-0 flex-col border-t md:border-t-0 md:border-r border-rasad-border bg-rasad-panel`}
+          } flex-1 md:flex-none w-full md:w-[360px] lg:w-[420px] xl:w-[500px] min-h-0 flex-col border-t md:border-t-0 md:border-s border-rasad-border bg-rasad-panel focus:outline-none`}
         >
           {panelNode}
-        </div>
+        </main>
       </div>
 
       <LiveTVDrawer />

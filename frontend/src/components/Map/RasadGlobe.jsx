@@ -5,6 +5,7 @@
  * عبر globe.gl. ليست بديلًا كاملاً عن خريطة Leaflet — وضع تكميلي.
  */
 import React, { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import Globe from 'globe.gl';
 import { CATEGORIES, CONFIDENCE } from '../../utils/constants';
 import { esc } from '../../utils/security';
@@ -34,6 +35,7 @@ function eventColor(ev) {
 
 export default function RasadGlobe({
   events = [],
+  flights = null,
   iranStrikes = [],
   nuclearFacilities = [],
   bases = [],
@@ -42,10 +44,15 @@ export default function RasadGlobe({
   layers = {},
   selectedEvent,
 }) {
+  // النصوص من i18n والاتجاه من لغة الواجهة — كان direction:rtl مثبّتاً وtooltip
+  // الثقة يطبع undefined (CONFIDENCE بلا label، نُقلت للترجمة).
+  const { t, i18n } = useTranslation();
+  const dir = i18n.dir();
   // الطبقات مشتركة مع الخريطة 2D عبر App — كانت هنا افتراضات مستقلة (كلها true)
   // فتُعرض القواعد والأنابيب في وضع 3D بينما هي مُطفأة في 2D.
   const {
     events: showEvents = true,
+    flights: showFlights = true,
     iran: showIran = true,
     nuclear: showNuclear = true,
     bases: showBases = false,
@@ -114,7 +121,7 @@ export default function RasadGlobe({
         points.push({
           lat: ev.latitude, lng: ev.longitude, radius: pointRad(ev.severity), color,
           kind: 'event', data: ev,
-          label: `<div style="direction:rtl;font-family:Tajawal,sans-serif;background:#111827;border:1px solid #1e293b;padding:6px 8px;border-radius:6px;max-width:280px">
+          label: `<div style="direction:${dir};font-family:Tajawal,sans-serif;background:#111827;border:1px solid #1e293b;padding:6px 8px;border-radius:6px;max-width:280px">
             <div style="color:${color};font-size:11px;font-weight:700;margin-bottom:2px">${(CATEGORIES[ev.category]||CATEGORIES.general).icon} ${esc(ev.title)}</div>
             <div style="color:#94a3b8;font-size:10px">${esc(ev.country)}</div>
           </div>`,
@@ -131,8 +138,8 @@ export default function RasadGlobe({
         points.push({
           lat: s.latitude, lng: s.longitude, radius: 0.42, color: conf.color,
           kind: 'iran', data: s,
-          label: `<div style="direction:rtl;font-family:Tajawal,sans-serif;background:#111827;border:1px solid ${conf.color};padding:6px 8px;border-radius:6px;max-width:280px">
-            <div style="color:${conf.color};font-size:10px;margin-bottom:2px">${conf.icon} ${conf.label}</div>
+          label: `<div style="direction:${dir};font-family:Tajawal,sans-serif;background:#111827;border:1px solid ${conf.color};padding:6px 8px;border-radius:6px;max-width:280px">
+            <div style="color:${conf.color};font-size:10px;margin-bottom:2px">${conf.icon} ${esc(t('confidence.' + s.confidence, { defaultValue: t('confidence.LOW') }))}</div>
             <div style="color:#fff;font-size:11px;font-weight:700">${esc(s.title)}</div>
           </div>`,
         });
@@ -141,13 +148,27 @@ export default function RasadGlobe({
         }
       });
     }
+    if (showFlights && flights?.flights) {
+      flights.flights.forEach(f => {
+        if (typeof f.latitude !== 'number' || typeof f.longitude !== 'number') return;
+        const isMil = f.is_military;
+        points.push({
+          lat: f.latitude, lng: f.longitude, radius: isMil ? 0.3 : 0.18,
+          color: isMil ? '#a855f7' : '#64748b', kind: 'flight', data: f,
+          label: `<div style="direction:${dir};font-family:monospace;background:#0d1117;border:1px solid ${isMil ? '#a855f7' : '#475569'};padding:5px 7px;border-radius:6px">
+            <div style="color:${isMil ? '#c4b5fd' : '#cbd5e1'};font-size:11px;font-weight:700">${isMil ? '⚔️ ' : '✈️ '}${esc(f.callsign || f.icao24 || '')}</div>
+            <div style="color:#94a3b8;font-size:9px">${esc(f.origin_country || '')}</div>
+          </div>`,
+        });
+      });
+    }
     if (showNuclear) {
       nuclearFacilities.forEach(f => {
         if (typeof f.latitude !== 'number' || typeof f.longitude !== 'number') return;
         points.push({
           lat: f.latitude, lng: f.longitude, radius: f.type === 'power' ? 0.46 : 0.36, color: '#facc15',
           kind: 'nuclear', data: f,
-          label: `<div style="direction:rtl;font-family:Tajawal,sans-serif;background:#0d1117;border:1px solid #facc15;padding:6px 8px;border-radius:6px;max-width:260px">
+          label: `<div style="direction:${dir};font-family:Tajawal,sans-serif;background:#0d1117;border:1px solid #facc15;padding:6px 8px;border-radius:6px;max-width:260px">
             <div style="color:#facc15;font-size:11px;font-weight:700">☢️ ${esc(f.name_ar || f.name_en)}</div>
             <div style="color:#94a3b8;font-size:9px">${esc(f.country || '')} • ${f.capacity_mw ? esc(f.capacity_mw) + ' MW' : esc(f.type)}</div>
           </div>`,
@@ -160,7 +181,7 @@ export default function RasadGlobe({
         points.push({
           lat: b.latitude, lng: b.longitude, radius: 0.28, color: '#a78bfa',
           kind: 'base', data: b,
-          label: `<div style="direction:rtl;font-family:Tajawal,sans-serif;background:#0d1117;border:1px solid #a78bfa;padding:6px 8px;border-radius:6px;max-width:260px">
+          label: `<div style="direction:${dir};font-family:Tajawal,sans-serif;background:#0d1117;border:1px solid #a78bfa;padding:6px 8px;border-radius:6px;max-width:260px">
             <div style="color:#a78bfa;font-size:11px;font-weight:700">⚔️ ${esc(b.name_ar || b.name_en)}</div>
             <div style="color:#94a3b8;font-size:9px">${esc(b.country || '')} • ${esc(b.operator || '')}</div>
           </div>`,
@@ -188,7 +209,7 @@ export default function RasadGlobe({
       .ringMaxRadius('maxR')
       .ringPropagationSpeed('speed')
       .ringRepeatPeriod('period');
-  }, [events, iranStrikes, nuclearFacilities, bases, showEvents, showIran, showNuclear, showBases, onSelectEvent]);
+  }, [events, flights, iranStrikes, nuclearFacilities, bases, showEvents, showFlights, showIran, showNuclear, showBases, onSelectEvent, t, dir]);
 
   // خطوط الأنابيب
   useEffect(() => {
