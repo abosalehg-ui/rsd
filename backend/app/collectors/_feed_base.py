@@ -17,7 +17,7 @@ import asyncio
 import hashlib
 import logging
 import re
-from typing import Awaitable, Callable, Optional
+from typing import Awaitable, Callable
 
 import feedparser
 import httpx
@@ -86,8 +86,3 @@ async def process_feeds(
     if errors == len(feeds):
         raise RuntimeError(f"{label}: فشلت كل الخلاصات ({errors}/{len(feeds)})")
     return total
-
-
-def _mapper_result(fields: Optional[dict]) -> Optional[dict]:
-    """تحقّق دفاعي: mapper يعيد dict أو None."""
-    return fields if isinstance(fields, dict) else None

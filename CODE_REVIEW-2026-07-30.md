@@ -277,4 +277,39 @@ toast ممتاز (`role=status` + إخفاء تلقائي + زر إغلاق)، �
 
 ---
 
+## 7. حالة التنفيذ (نُفِّذت خطة الإصلاح في هذا الـ PR)
+
+نُفِّذت بنود الخطة أعلاه على هذا الفرع. جميع اختبارات الباك إند (pytest) والواجهة
+(vitest) وruff وESLint والبناء الإنتاجي تمرّ خضراء.
+
+| # | البند | الحالة |
+|---|------|--------|
+| 1 | أسرار في تاريخ Git | ⚠️ **يدوي** — التدوير يتطلّب لوحات المزوّدين وتنظيف التاريخ force-push مدمّر (موثّق في `SECURITY.md`). صُلِّب `.gitignore` (`.env.*`) ووُثِّق خطر `VITE_API_KEY`. |
+| 2 | الهيدر مستجيب | ✅ `flex-wrap` + إظهار تدريجي |
+| 3 | ترتيب CORS/429 | ✅ CORS الأبعد + اختبار تراجع |
+| 4 | X-Forwarded-For | ✅ `trust_proxy_headers` (off) + nginx `$remote_addr` |
+| 5 | فشل الجامعين | ✅ يرفعون الفشل + `_feed_base` |
+| 6 | feedparser غير حاجب | ✅ `asyncio.to_thread` + `Semaphore` |
+| 7 | migrations | ✅ `ALTER TABLE` في `init_db` |
+| 8 | ar-SA ميلادي | ✅ `-u-ca-gregory-nu-latn` |
+| 9 | تحكمات 3D | ✅ `LayerToggles` مشترك + طبقة طيران للكرة |
+| 10 | حالات loading | ✅ تمرير `loading` + skeletons |
+| 11 | تصالح العلامات | ✅ حارس توقيع يمنع تدمير النوافذ |
+| 12 | invalidateSize | ✅ `ResizeObserver` |
+| 13 | CSP/ترويسات nginx | ✅ meta احتياطي + إكمال ترويسات location |
+| 14 | باگّا adsb | ✅ `"ground"`→0 + رموز الطوارئ علَم منفصل + اختبارات |
+| 15 | DateTime tz | ✅ `DateTime(timezone=True)` + فهارس |
+| 16 | test_main حي | ✅ `monkeypatch` الجامعين |
+| 17 | dialog a11y | ✅ role/aria-modal/Escape/تركيز + `<main>` landmark |
+| 18 | تكرار الخلاصات | ✅ استُخرج `_feed_base` |
+| 19 | رموز ثيم/scoreColor | ✅ توحيد + حذف الميت |
+| 20 | RTL فيزيائي/globe/TV | ✅ خصائص منطقية + globe مترجَم + سحب TV مُصلَح |
+| 21 | إسناد الخريطة | ✅ إسناد CARTO/OSM (قوام CDN مؤجّل — 🟡) |
+| 22 | تلميح نوعي/تعليقات | ◑ جزئي: `.is_(True)` + تصحيح تعليقات + توحيد `source_id`؛ response models مؤجّلة (🟡) |
+
+**مؤجَّل عمداً (تحسينات 🟡 خارج نطاق هذا الـ PR):** استضافة قوام الكرة محلياً،
+Pydantic response models الكاملة، وترحيل تلميحات النوع القديمة (`Optional`→`|`).
+
+---
+
 *تقرير مُولَّد آلياً بمراجعة كاملة للمستودع بتاريخ 2026-07-30. كل ملاحظة مرتبطة بموضع محدد (file:line) قابل للتحقق.*
