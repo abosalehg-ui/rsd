@@ -13,5 +13,4 @@ ignore = [
 "app/models/__init__.py" = ["F401"]
 "app/collectors/__init__.py" = ["F401"]
 "app/api/__init__.py" = ["F401"]
-"app/api/flights.py" = ["E712"]  # is_military == True مطلوب لـ SQLAlchemy expression
 "tests/*" = ["F401", "E712"]

@@ -62,11 +62,22 @@ class Settings(BaseSettings):
     rss_interval: int = 120
     ucdp_interval: int = 86400
     adsb_interval: int = 10
+    iran_osint_interval: int = 1800  # مصدر واحد للفاصل بدل تكراره في scheduler/main
+
+    @property
+    def effective_adsb_interval(self) -> int:
+        """فاصل ADS-B مع حدّ أدنى 30 ثانية (حماية حصة adsb.lol)."""
+        return max(self.adsb_interval, 30)
 
     # Server — الافتراضي محلي فقط. لا تفتحه على 0.0.0.0 إلا خلف وكيل عكسي
     # ومصادقة، فالـ API بلا حسابات مستخدمين.
     backend_host: str = "127.0.0.1"
     backend_port: int = 8000
+
+    # ثقة ترويسات الوكيل (X-Forwarded-For). افتراضياً False: لا نثق بها فلا
+    # يستطيع عميل مباشر انتحال IP لتجاوز حدّ المعدل. فعّلها (True) فقط حين يكون
+    # الخادم حصراً خلف وكيل عكسي موثوق يضبط الترويسة بنفسه.
+    trust_proxy_headers: bool = False
 
     # أمن الشبكة — أصول CORS المسموح بها (سلسلة مفصولة بفواصل)
     cors_origins: str = (

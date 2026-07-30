@@ -1,6 +1,7 @@
 """رصد - اختبارات الضوابط الأمنية: مفتاح API وحدّ المعدل وإعدادات الأسرار."""
 import pytest
 from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from httpx import ASGITransport, AsyncClient
 
 from app.auth import require_api_key
@@ -108,6 +109,55 @@ class TestRateLimit:
         async with await _client(a) as c:
             for _ in range(4):
                 assert (await c.get("/static-ish")).status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_forwarded_for_ignored_by_default(self):
+        """انتحال X-Forwarded-For لا يتجاوز الحدّ ما لم نُفعّل الثقة صراحةً."""
+        async with await _client(self._app(max_requests=2)) as c:
+            await c.get("/api/thing", headers={"X-Forwarded-For": "1.1.1.1"})
+            await c.get("/api/thing", headers={"X-Forwarded-For": "2.2.2.2"})
+            r = await c.get("/api/thing", headers={"X-Forwarded-For": "3.3.3.3"})
+        assert r.status_code == 429  # كلها تُنسب للعميل الحقيقي نفسه
+
+    @pytest.mark.asyncio
+    async def test_forwarded_for_trusted_when_enabled(self):
+        a = FastAPI()
+        a.add_middleware(
+            RateLimitMiddleware, max_requests=2, window_seconds=60, trust_proxy_headers=True
+        )
+
+        @a.get("/api/thing")
+        async def thing():
+            return {"ok": True}
+
+        async with await _client(a) as c:
+            # كل XFF مختلف = مفتاح مختلف، فلا يُحدّ أيٌّ منها
+            for ip in ("1.1.1.1", "2.2.2.2", "3.3.3.3"):
+                r = await c.get("/api/thing", headers={"X-Forwarded-For": ip})
+                assert r.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_429_carries_cors_headers(self):
+        """انحدار: كان RateLimit أبعد من CORS فتخرج 429 بلا Access-Control-Allow-Origin،
+        فلا يقرأ المتصفح Retry-After. الآن CORS الأبعد فيلفّ 429."""
+        a = FastAPI()
+        # الترتيب كما في main: RateLimit أولاً (داخلي)، CORS آخراً (خارجي)
+        a.add_middleware(RateLimitMiddleware, max_requests=1, window_seconds=60)
+        a.add_middleware(
+            CORSMiddleware,
+            allow_origins=["http://allowed.test"],
+            allow_methods=["GET"],
+        )
+
+        @a.get("/api/thing")
+        async def thing():
+            return {"ok": True}
+
+        async with await _client(a) as c:
+            await c.get("/api/thing", headers={"Origin": "http://allowed.test"})
+            r = await c.get("/api/thing", headers={"Origin": "http://allowed.test"})
+        assert r.status_code == 429
+        assert r.headers.get("access-control-allow-origin") == "http://allowed.test"
 
 
 class TestSettings:

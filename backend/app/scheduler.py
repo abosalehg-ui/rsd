@@ -1,6 +1,6 @@
 """رصد - جدولة جمع البيانات"""
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -24,7 +24,8 @@ def start_scheduler():
     """بدء جدولة جمع البيانات"""
     settings = get_settings()
 
-    # GDELT - كل 15 دقيقة
+    # الفواصل كلها من الإعدادات (قابلة للضبط عبر .env) — لا نُعلّق قيماً حرفية
+    # هنا كي لا تنحرف التعليقات عن القيم الفعلية.
     scheduler.add_job(
         collect_gdelt_events,
         "interval",
@@ -34,7 +35,6 @@ def start_scheduler():
         max_instances=1,
     )
 
-    # NewsAPI - كل 10 دقائق
     scheduler.add_job(
         collect_news,
         "interval",
@@ -44,7 +44,6 @@ def start_scheduler():
         max_instances=1,
     )
 
-    # RSS - كل 5 دقائق
     scheduler.add_job(
         collect_rss_feeds,
         "interval",
@@ -54,7 +53,6 @@ def start_scheduler():
         max_instances=1,
     )
 
-    # UCDP - كل يوم
     scheduler.add_job(
         collect_ucdp_events,
         "interval",
@@ -64,25 +62,24 @@ def start_scheduler():
         max_instances=1,
     )
 
-    # الطيران - كل 30 ثانية (مخفف عن 10 ثوان لحماية الحصة)
+    # الطيران — بحدّ أدنى 30 ثانية (حماية حصة adsb.lol).
     # ملاحظة: بقيّة المجمّعات تُجمَع مرة عند الإقلاع في lifespan، لذا لا نمرّر لها
     # next_run_time تجنّبًا لتشغيل متزامن مزدوج يُسبّب تعارض المفتاح الفريد.
     # الطيران وحده غير مشمول في جمع الإقلاع (ولا يعتمد source_id فريد)، فنُبقيه فوريًا.
     scheduler.add_job(
         collect_flights,
         "interval",
-        seconds=max(settings.adsb_interval, 30),
+        seconds=settings.effective_adsb_interval,
         id="adsb_collector",
         name="متتبع الطيران",
         max_instances=1,
-        next_run_time=datetime.now(),
+        next_run_time=datetime.now(timezone.utc),
     )
 
-    # Iran OSINT - كل 30 دقيقة (مثل iranstrikemap)
     scheduler.add_job(
         collect_iran_osint,
         "interval",
-        seconds=1800,
+        seconds=settings.iran_osint_interval,
         id="iran_osint_collector",
         name="جامع إيران OSINT",
         max_instances=1,

@@ -27,24 +27,41 @@ _MAX_TRACKED_CLIENTS = 4096
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """يرفض ما يتجاوز `max_requests` طلباً خلال `window_seconds` بـ 429."""
 
-    def __init__(self, app, max_requests: int = 120, window_seconds: int = 60):
+    def __init__(
+        self,
+        app,
+        max_requests: int = 120,
+        window_seconds: int = 60,
+        trust_proxy_headers: bool = False,
+    ):
         super().__init__(app)
         self.max_requests = max_requests
         self.window_seconds = window_seconds
+        self.trust_proxy_headers = trust_proxy_headers
         self._hits: dict[str, deque[float]] = defaultdict(deque)
 
     def _client_key(self, request: Request) -> str:
-        # X-Forwarded-For يُقدَّم فقط حين نكون خلف وكيل نثق به (nginx في compose)
-        forwarded = request.headers.get("x-forwarded-for")
-        if forwarded:
-            return forwarded.split(",")[0].strip()
+        # X-Forwarded-For مُتحكَّم به من العميل ما لم نكن خلف وكيل موثوق يضبطه.
+        # لا نقرأه إلا عند تفعيل trust_proxy_headers صراحةً، وإلا يستطيع عميل
+        # مباشر انتحال IP مختلف لكل طلب فيتجاوز الحدّ ويُضخّم جدول التتبّع.
+        if self.trust_proxy_headers:
+            forwarded = request.headers.get("x-forwarded-for")
+            if forwarded:
+                # آخر إدخال يضيفه وكيلنا الموثوق هو IP النظير الفعلي
+                return forwarded.split(",")[-1].strip()
         return request.client.host if request.client else "unknown"
 
     def _prune_tracked(self, now: float) -> None:
-        """أسقط العناوين الخاملة عند تجاوز السقف (حماية من نمو الذاكرة)."""
+        """أسقط العناوين الخاملة، ثم أقدمها إن بقينا فوق السقف (حماية الذاكرة)."""
         stale = [ip for ip, hits in self._hits.items() if not hits or now - hits[-1] > self.window_seconds]
         for ip in stale:
             del self._hits[ip]
+        # إن بقينا فوق السقف رغم إسقاط الخاملة (عناوين نشطة كثيرة)، أسقط الأقدم
+        # نشاطاً حتى نعود للسقف — يضمن حدّاً فعلياً للذاكرة تحت هجوم موزّع.
+        if len(self._hits) > _MAX_TRACKED_CLIENTS:
+            oldest = sorted(self._hits.items(), key=lambda kv: kv[1][-1] if kv[1] else 0.0)
+            for ip, _ in oldest[: len(self._hits) - _MAX_TRACKED_CLIENTS]:
+                del self._hits[ip]
 
     async def dispatch(self, request: Request, call_next):
         path = request.url.path

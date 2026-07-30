@@ -1,21 +1,22 @@
 """رصد - جامع أحداث إيران OSINT
 يجمع الضربات والإطلاقات والتحركات العسكرية مع تصنيف الثقة HIGH/MEDIUM/LOW
 """
-import hashlib
 import json
 import logging
-import re
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
-import feedparser
 import httpx
 
 from ..models.database import IranianLeaderNews, get_session_factory, insert_event_if_new
 from ..processors.dates import parse_entry_date
 from ..processors.text_analysis import COUNTRY_COORDS, country_code_from_text
+from ._feed_base import clean_html, make_source_id, parse_feed_async, process_feeds
 
 logger = logging.getLogger("rasad.iran_osint")
+
+_ENTRY_CAP = 15
+_DESC_CAP = 600
 
 # ===== تصنيف الثقة بالمصادر =====
 # HIGH = مصادر موثوقة ومتخصصة
@@ -138,130 +139,116 @@ IRAN_LOCATIONS = {
 
 
 async def collect_iran_osint() -> int:
-    """جمع أحداث إيران OSINT من المصادر المتخصصة"""
-    count = 0
+    """جمع أحداث إيران OSINT (بتزامن محدود؛ يرفع إن فشلت كل الخلاصات)."""
     session_factory = get_session_factory()
     if not session_factory:
         return 0
 
     async with httpx.AsyncClient(timeout=25.0, follow_redirects=True) as client:
-        for feed_config in IRAN_OSINT_FEEDS:
-            try:
-                feed_count = await _process_iran_feed(client, feed_config)
-                count += feed_count
-            except Exception as e:
-                logger.error(f"خطأ في {feed_config['name']}: {e}")
-                continue
+        count = await process_feeds(client, IRAN_OSINT_FEEDS, _process_iran_feed, label="Iran OSINT")
 
     logger.info(f"Iran OSINT: تم جمع {count} حدث جديد")
     return count
 
 
 async def _process_iran_feed(client: httpx.AsyncClient, feed_config: Dict) -> int:
+    """معالجة خلاصة إيران واحدة. أخطاء الجلب/التحليل تُرفَع؛ أخطاء المقال تُبتلَع."""
     count = 0
     session_factory = get_session_factory()
 
-    try:
-        response = await client.get(feed_config["url"])
-        if response.status_code != 200:
-            return 0
+    response = await client.get(feed_config["url"])
+    if response.status_code != 200:
+        return 0
 
-        feed = feedparser.parse(response.text)
+    feed = await parse_feed_async(response.text)
 
-        async with session_factory() as session:
-            for entry in feed.entries[:15]:
-                try:
-                    title = entry.get("title", "").strip()
-                    if not title:
-                        continue
-
-                    description = entry.get("summary", entry.get("description", ""))
-                    description = re.sub(r'<[^>]+>', '', description)[:600]
-                    text = f"{title} {description}".lower()
-
-                    # تصفية: فقط الأحداث المتعلقة بإيران أو الشرق الأوسط
-                    iran_related = any(kw in text for kw in [
-                        "iran", "irgc", "tehran", "إيران", "حرس ثوري",
-                        "middle east", "israel", "gaza", "yemen", "houthi",
-                        "hezbollah", "syria", "iraq", "saudi", "hormuz",
-                    ])
-                    if not iran_related:
-                        continue
-
-                    # تحديد نوع الحدث
-                    event_subtype, category = _classify_iran_event(text)
-                    if not event_subtype:
-                        continue
-
-                    link = entry.get("link", "")
-                    source_id = f"iran_{hashlib.md5(link.encode()).hexdigest()}"
-
-                    # الموقع
-                    lat, lon, location_name, country_code = _geolocate_iran(text)
-
-                    # التاريخ
-                    event_date = parse_entry_date(entry)
-
-                    # رابط الفيديو (إذا وجد)
-                    video_url = ""
-                    if hasattr(entry, "media_content"):
-                        for m in entry.get("media_content", []):
-                            if "video" in m.get("type", ""):
-                                video_url = m.get("url", "")
-                                break
-
-                    # حدة الخطورة بناءً على نوع الحدث
-                    severity = "high" if event_subtype in ["strike", "launch"] else "medium"
-                    if feed_config["confidence"] == "HIGH":
-                        severity = "critical" if event_subtype == "strike" else severity
-
-                    icon = feed_config.get("icon", "📡")
-                    conf = feed_config["confidence"]
-                    conf_icon = "🟢" if conf == "HIGH" else "🟡" if conf == "MEDIUM" else "🔵"
-
-                    inserted = await insert_event_if_new(
-                        session,
-                        source="iran_osint",
-                        source_id=source_id,
-                        title=f"{icon} {title}",
-                        description=description,
-                        url=link,
-                        video_url=video_url,
-                        category=category,
-                        severity=severity,
-                        confidence=conf,
-                        event_type=event_subtype,
-                        latitude=lat,
-                        longitude=lon,
-                        country=location_name or "إيران / الشرق الأوسط",
-                        country_code=country_code or "IR",
-                        location_name=location_name,
-                        event_date=event_date,
-                        extra_data=json.dumps({
-                            "feed_name": feed_config["name"],
-                            "confidence": conf,
-                            "confidence_icon": conf_icon,
-                            "event_subtype": event_subtype,
-                            "is_iran_osint": True,
-                        }),
-                    )
-                    if not inserted:
-                        continue
+    async with session_factory() as session:
+        for entry in feed.entries[:_ENTRY_CAP]:
+            try:
+                if await _store_iran_entry(session, entry, feed_config):
                     count += 1
-
-                    # تحقق من ذكر القادة (للأحداث الجديدة فقط)
-                    await _check_leader_mentions(session, title, description, link, event_date)
-
-                except Exception as e:
-                    logger.error(f"خطأ في مقال: {e}")
-                    continue
-
-            await session.commit()
-
-    except Exception as e:
-        logger.error(f"خطأ في جلب {feed_config['name']}: {e}")
+            except Exception as e:
+                logger.error(f"خطأ في مقال: {e}")
+                continue
+        await session.commit()
 
     return count
+
+
+async def _store_iran_entry(session, entry, feed_config: Dict) -> bool:
+    """يحوّل إدخال خلاصة إيران إلى حدث ويُدرجه؛ يعيد True إن أُدرِج فعلاً."""
+    title = entry.get("title", "").strip()
+    if not title:
+        return False
+
+    description = clean_html(entry.get("summary", entry.get("description", "")), _DESC_CAP)
+    text = f"{title} {description}".lower()
+
+    # تصفية: فقط الأحداث المتعلقة بإيران أو الشرق الأوسط
+    iran_related = any(kw in text for kw in [
+        "iran", "irgc", "tehran", "إيران", "حرس ثوري",
+        "middle east", "israel", "gaza", "yemen", "houthi",
+        "hezbollah", "syria", "iraq", "saudi", "hormuz",
+    ])
+    if not iran_related:
+        return False
+
+    event_subtype, category = _classify_iran_event(text)
+    if not event_subtype:
+        return False
+
+    link = entry.get("link", "")
+    lat, lon, location_name, country_code = _geolocate_iran(text)
+    event_date = parse_entry_date(entry)
+
+    video_url = ""
+    if hasattr(entry, "media_content"):
+        for m in entry.get("media_content", []):
+            if "video" in m.get("type", ""):
+                video_url = m.get("url", "")
+                break
+
+    severity = "high" if event_subtype in ["strike", "launch"] else "medium"
+    if feed_config["confidence"] == "HIGH":
+        severity = "critical" if event_subtype == "strike" else severity
+
+    icon = feed_config.get("icon", "📡")
+    conf = feed_config["confidence"]
+    conf_icon = "🟢" if conf == "HIGH" else "🟡" if conf == "MEDIUM" else "🔵"
+
+    inserted = await insert_event_if_new(
+        session,
+        source="iran_osint",
+        source_id=make_source_id("iran", link),
+        title=f"{icon} {title}",
+        description=description,
+        url=link,
+        video_url=video_url,
+        category=category,
+        severity=severity,
+        confidence=conf,
+        event_type=event_subtype,
+        latitude=lat,
+        longitude=lon,
+        country=location_name or "إيران / الشرق الأوسط",
+        country_code=country_code or "IR",
+        location_name=location_name,
+        event_date=event_date,
+        extra_data=json.dumps({
+            "feed_name": feed_config["name"],
+            "confidence": conf,
+            "confidence_icon": conf_icon,
+            "event_subtype": event_subtype,
+            "is_iran_osint": True,
+        }),
+    )
+    if not inserted:
+        return False
+
+    # تحقق من ذكر القادة (للأحداث الجديدة فقط) داخل savepoint كي لا يُفسد فشلُ
+    # خبرِ قائدٍ إدراجَ الحدث نفسه.
+    await _check_leader_mentions(session, title, description, link, event_date)
+    return True
 
 
 def _classify_iran_event(text: str) -> Tuple[Optional[str], Optional[str]]:
@@ -301,19 +288,23 @@ def _geolocate_iran(text: str) -> Tuple[float, float, str, str]:
 
 
 async def _check_leader_mentions(session, title: str, description: str, url: str, event_date: datetime):
-    """تحقق من ذكر القادة الإيرانيين في الخبر"""
+    """تحقق من ذكر القادة الإيرانيين في الخبر.
+
+    نُدرج داخل savepoint (`begin_nested`) — session.add لا يرفع شيئاً، والفشل
+    الفعلي يقع عند التنفيذ/commit؛ فالـsavepoint هو ما يحمي الحدث الأصلي من
+    السقوط بسبب خبر قائد معطوب (بدل try حول add الذي لا يلتقط شيئاً)."""
     text = f"{title} {description}".lower()
     for leader in IRANIAN_LEADERS:
         if any(kw in text for kw in leader["keywords"]):
             try:
-                news = IranianLeaderNews(
-                    leader_id=leader["id"],
-                    leader_name=leader["name_en"],
-                    title=title[:300],
-                    url=url,
-                    news_date=event_date,
-                )
-                session.add(news)
+                async with session.begin_nested():
+                    session.add(IranianLeaderNews(
+                        leader_id=leader["id"],
+                        leader_name=leader["name_en"],
+                        title=title[:300],
+                        url=url,
+                        news_date=event_date,
+                    ))
             except Exception as e:  # noqa: BLE001 - لا نُسقط الحدث بسبب خبر قائد
                 logger.warning(f"تعذّر ربط خبر بالقائد {leader['name_en']}: {e}")
 

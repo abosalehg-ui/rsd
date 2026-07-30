@@ -92,7 +92,10 @@ async def collect_gdelt_events() -> int:
                 await session.commit()
 
     except Exception as e:
+        # نرفع بعد التسجيل كي يُميّز /api/collectors/status و/api/refresh فشلاً
+        # حقيقياً من "لا جديد" (كان يُعيد 0 صامتاً فيبدو الجامع المعطّل هادئاً).
         logger.error(f"خطأ في جمع بيانات GDELT: {e}")
+        raise
 
     logger.info(f"GDELT: تم جمع {count} حدث جديد")
     return count

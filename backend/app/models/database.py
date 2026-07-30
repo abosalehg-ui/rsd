@@ -13,6 +13,7 @@ from sqlalchemy import (
     Text,
     delete,
     event,
+    text,
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -49,9 +50,10 @@ class Event(Base):
     country_code = Column(String(10))
     location_name = Column(String(255))
 
-    # التوقيت
-    event_date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    collected_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    # التوقيت — timezone=True كي لا يُجرَّد الإزاحة عند الكتابة (تبقى القيم aware
+    # وتُقارَن صحيحاً حتى على PostgreSQL).
+    event_date = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    collected_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     # بيانات إضافية (JSON string)
     extra_data = Column(Text)
@@ -94,12 +96,14 @@ class FlightTrack(Base):
     aircraft_type = Column(String(50))                     # نوع الطائرة
     squawk = Column(String(10))                            # رمز السكواك
 
-    tracked_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    tracked_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
         Index("idx_flight_icao", "icao24"),
         Index("idx_flight_military", "is_military"),
         Index("idx_flight_time", "tracked_at"),
+        # مركّب: /flights/military/* يفلتر بـ (is_military, tracked_at) معاً
+        Index("idx_flight_mil_time", "is_military", "tracked_at"),
     )
 
 
@@ -112,12 +116,14 @@ class IranianLeaderNews(Base):
     leader_name = Column(String(100))
     title = Column(Text)
     url = Column(Text)
-    news_date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    collected_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    news_date = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    collected_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
         Index("idx_leader_news_id", "leader_id"),
         Index("idx_leader_news_date", "news_date"),
+        # تستخدمه وظيفة الاحتفاظ (prune_old_data) — كان مسحاً كاملاً للجدول
+        Index("idx_leader_news_collected", "collected_at"),
     )
 
 # إعداد محرك قاعدة البيانات
@@ -140,15 +146,46 @@ def _register_sqlite_pragmas(engine) -> None:
         cur.close()
 
 
-async def init_db(database_url: str = "sqlite+aiosqlite:///./data/rasad.db"):
-    """تهيئة قاعدة البيانات وإنشاء الجداول"""
+# أعمدة أُضيفت بعد الإصدار الأول — نضمن وجودها على قواعد بيانات قديمة.
+# (source_id فريد؛ لا نُدرجه هنا لأنه من الإنشاء الأصلي.)
+_EVENTS_ADDED_COLUMNS = {
+    "confidence": "VARCHAR(10) DEFAULT 'LOW'",
+    "video_url": "TEXT",
+}
+
+
+async def _migrate_sqlite(conn) -> None:
+    """ترقية بسيطة لـSQLite: يضيف الأعمدة الناقصة على جدول قائم.
+
+    `create_all` لا يضيف أعمدة لجدول موجود، فمستخدم يُرقّي تطبيق سطح المكتب
+    (قاعدته تعيش في %LOCALAPPDATA% وتبقى بين الإصدارات) كان يصطدم بـ
+    'no such column: confidence'. نفحص الأعمدة الحالية ونضيف الناقص.
+    """
+    rows = await conn.execute(text("PRAGMA table_info(events)"))
+    existing = {r[1] for r in rows.fetchall()}
+    for col, ddl in _EVENTS_ADDED_COLUMNS.items():
+        if col not in existing:
+            await conn.execute(text(f"ALTER TABLE events ADD COLUMN {col} {ddl}"))
+            logger.info("🛠️ ترقية: أُضيف العمود events.%s", col)
+
+
+async def init_db(database_url: str):
+    """تهيئة قاعدة البيانات وإنشاء/ترقية الجداول."""
     global _engine, _session_factory
 
     _engine = create_async_engine(database_url, echo=False)
     _register_sqlite_pragmas(_engine)
     _session_factory = async_sessionmaker(_engine, class_=AsyncSession, expire_on_commit=False)
 
+    is_sqlite = _engine.url.get_backend_name().startswith("sqlite")
     async with _engine.begin() as conn:
+        if is_sqlite:
+            # نُرقّي قبل create_all كي نضيف الأعمدة لجدول قائم دون كسر.
+            has_events = (await conn.execute(
+                text("SELECT name FROM sqlite_master WHERE type='table' AND name='events'")
+            )).first() is not None
+            if has_events:
+                await _migrate_sqlite(conn)
         await conn.run_sync(Base.metadata.create_all)
 
     return _engine

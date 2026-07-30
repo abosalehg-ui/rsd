@@ -29,7 +29,7 @@ async def get_military_history(
             select(FlightTrack)
             .where(
                 and_(
-                    FlightTrack.is_military == True,
+                    FlightTrack.is_military.is_(True),
                     FlightTrack.tracked_at >= since,
                 )
             )
@@ -63,7 +63,7 @@ async def get_military_stats(hours: int = Query(default=24, ge=1, le=168)):
     session_factory = get_session_factory()
     async with session_factory() as session:
         since = datetime.now(timezone.utc) - timedelta(hours=hours)
-        base = and_(FlightTrack.is_military == True, FlightTrack.tracked_at >= since)
+        base = and_(FlightTrack.is_military.is_(True), FlightTrack.tracked_at >= since)
 
         total = (await session.execute(
             select(func.count(FlightTrack.id)).where(base)

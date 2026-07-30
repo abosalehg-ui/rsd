@@ -19,9 +19,9 @@ def _load_data() -> dict:
 
 @router.get("/facilities")
 async def list_facilities(
-    country: Optional[str] = Query(default=None, description="ISO country code, e.g. IR"),
-    facility_type: Optional[str] = Query(default=None, description="power|research|enrichment|conversion|heavy_water|fuel"),
-    status: Optional[str] = Query(default=None, description="operational|construction|planned|shutdown|modified"),
+    country: Optional[str] = Query(default=None, max_length=10, description="ISO country code, e.g. IR"),
+    facility_type: Optional[str] = Query(default=None, max_length=20, description="power|research|enrichment|conversion|heavy_water|fuel"),
+    status: Optional[str] = Query(default=None, max_length=20, description="operational|construction|planned|shutdown|modified"),
 ):
     """قائمة المنشآت النووية (مفاعلات قوة، أبحاث، تخصيب، تحويل)"""
     data = _load_data()

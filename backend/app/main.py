@@ -52,6 +52,16 @@ async def lifespan(app: FastAPI):
     await init_db(settings.database_url)
     logger.info("✅ قاعدة البيانات جاهزة")
 
+    # تحذير من سوء إعداد صامت: خادم مكشوف على الشبكة بلا مفتاح API يعني
+    # واجهة مفتوحة بالكامل. نُبرز هذا بدل تركه fail-open صامتاً.
+    _loopback = {"127.0.0.1", "::1", "localhost", ""}
+    if settings.backend_host not in _loopback and not settings.api_key:
+        logger.warning(
+            "⚠️ الخادم يستمع على %s بلا API_KEY — الواجهة مكشوفة بلا مصادقة. "
+            "اضبط API_KEY وضعه خلف وكيل عكسي + TLS قبل النشر.",
+            settings.backend_host,
+        )
+
     # جمع أولي للبيانات
     logger.info("📡 جمع البيانات الأولي...")
     try:
@@ -90,8 +100,28 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — أصول محدّدة من الإعدادات بدل "*" (لا credentials؛ لا جلسات مستخدم).
+# ترتيب الطبقات — في Starlette آخر `add_middleware` يُسجَّل هو الأبعد للخارج
+# (يلفّ الباقي)، لذا نُسجّل من الداخل للخارج:
+#   1) ETag  (الأعمق، الأقرب للتطبيق)
+#   2) RateLimit  (يرفض مبكراً قبل هدر عمل على طلب مرفوض)
+#   3) CORS  (الأبعد للخارج، فيلفّ استجابات RateLimit فتحمل 429 ترويسات CORS
+#            ويستطيع المتصفح قراءة Retry-After؛ كما يلتقط preflight بلا استهلاك
+#            حصة المعدّل)
 _settings = get_settings()
+
+# ETag + Cache-Control (v1.4) — الأعمق
+app.add_middleware(ETagCacheMiddleware)
+
+# حدّ معدل لكل IP
+app.add_middleware(
+    RateLimitMiddleware,
+    max_requests=_settings.rate_limit_requests,
+    window_seconds=_settings.rate_limit_window_seconds,
+    trust_proxy_headers=_settings.trust_proxy_headers,
+)
+
+# CORS — أصول محدّدة من الإعدادات بدل "*" (لا credentials؛ لا جلسات مستخدم).
+# يُسجَّل أخيراً فيكون الأبعد للخارج ويلفّ كل الاستجابات بما فيها 429.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_settings.cors_origins_list,
@@ -99,17 +129,6 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
     expose_headers=["ETag", "Cache-Control"],
-)
-
-# ETag + Cache-Control (v1.4) — يُسجَّل بعد CORS ليكون أعمق في السلسلة
-app.add_middleware(ETagCacheMiddleware)
-
-# حدّ معدل لكل IP — يُسجَّل أخيراً فيكون الأقرب للتطبيق، فلا نهدر عملاً على
-# طلبات مرفوضة (الترتيب في Starlette معكوس: آخر مُسجَّل = أعمق في السلسلة).
-app.add_middleware(
-    RateLimitMiddleware,
-    max_requests=_settings.rate_limit_requests,
-    window_seconds=_settings.rate_limit_window_seconds,
 )
 
 # تسجيل نقاط API
@@ -170,7 +189,10 @@ async def manual_refresh():
 
     for i, name in enumerate(sources):
         if isinstance(results[i], Exception):
-            summary[name] = {"status": "error", "message": str(results[i])}
+            # لا نُعيد نصّ الاستثناء الخام للعميل — قد يحوي URLs من httpx تتضمّن
+            # مفاتيح (apiKey في مسار NewsAPI مثلاً). نُسجّل التفصيل ونُعيد رسالة عامة.
+            logger.warning("تحديث يدوي — فشل %s: %s", name, results[i])
+            summary[name] = {"status": "error", "message": "تعذّر الجمع من هذا المصدر"}
         else:
             summary[name] = {"status": "ok", "new_events": results[i]}
             total += results[i]
@@ -202,7 +224,7 @@ async def get_collectors_status():
         "newsapi": settings.newsapi_interval,
         "rss": settings.rss_interval,
         "ucdp": settings.ucdp_interval,
-        "iran_osint": 1800,
+        "iran_osint": settings.iran_osint_interval,
     }
 
     session_factory = get_session_factory()
@@ -260,8 +282,8 @@ async def get_sources():
             {"id": "newsapi", "name": "NewsAPI", "interval": _fmt(s.newsapi_interval), "status": "active"},
             {"id": "rss", "name": "RSS Feeds", "interval": _fmt(s.rss_interval), "status": "active"},
             {"id": "ucdp", "name": "UCDP Uppsala", "interval": _fmt(s.ucdp_interval), "status": "active"},
-            {"id": "iran_osint", "name": "Iran OSINT", "interval": "كل 30 دقيقة", "status": "active"},
-            {"id": "adsb", "name": "adsb.lol ADS-B", "interval": _fmt(max(s.adsb_interval, 30)), "status": "active"},
+            {"id": "iran_osint", "name": "Iran OSINT", "interval": _fmt(s.iran_osint_interval), "status": "active"},
+            {"id": "adsb", "name": "adsb.lol ADS-B", "interval": _fmt(s.effective_adsb_interval), "status": "active"},
         ],
         "planned": [
             {"id": "telegram", "name": "Telegram", "status": "phase_2"},

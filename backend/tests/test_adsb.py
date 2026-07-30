@@ -31,6 +31,22 @@ class TestParseAircraft:
         f = _parse_aircraft({"hex": "a1", "lat": 30.0, "lon": 40.0, "alt_baro": "ground"})
         assert f["on_ground"] is True
 
+    def test_grounded_aircraft_altitude_is_numeric(self):
+        """alt_baro='ground' يجب ألا يتسرّب كنص إلى عمود Float."""
+        f = _parse_aircraft({"hex": "a1", "lat": 30.0, "lon": 40.0, "alt_baro": "ground"})
+        assert f["altitude"] == 0
+        assert not isinstance(f["altitude"], str)
+
+    def test_zero_heading_is_preserved(self):
+        """اتجاه شمالاً (0.0) قيمة صحيحة لا تُستبدل بالافتراضي."""
+        f = _parse_aircraft({"hex": "a1", "lat": 30.0, "lon": 40.0, "track": 0.0})
+        assert f["heading"] == 0.0
+
+    def test_sea_level_altitude_is_preserved(self):
+        """ارتفاع alt_baro=0 لا يتخطّى إلى alt_geom."""
+        f = _parse_aircraft({"hex": "a1", "lat": 30.0, "lon": 40.0, "alt_baro": 0, "alt_geom": 5000})
+        assert f["altitude"] == 0
+
     def test_military_by_icao_prefix(self):
         f = _parse_aircraft({"hex": "AE1234", "lat": 30.0, "lon": 40.0})
         assert f["is_military"] is True
@@ -40,8 +56,15 @@ class TestParseAircraft:
         f = _parse_aircraft({"hex": "c01234", "lat": 30.0, "lon": 40.0, "flight": "RCH512 "})
         assert f["is_military"] is True
 
-    def test_military_by_emergency_squawk(self):
+    def test_emergency_squawk_is_not_military(self):
+        """7700/7600/7500 رموز طوارئ عامة (غالباً مدنية) — لا تُصنّف عسكرية،
+        بل تُرصد كعلَم طوارئ منفصل."""
         f = _parse_aircraft({"hex": "c01234", "lat": 30.0, "lon": 40.0, "squawk": "7700"})
+        assert f["is_military"] is False
+        assert f["is_emergency"] is True
+
+    def test_military_squawk_block_is_military(self):
+        f = _parse_aircraft({"hex": "c01234", "lat": 30.0, "lon": 40.0, "squawk": "0021"})
         assert f["is_military"] is True
 
     def test_military_by_aircraft_type(self):
