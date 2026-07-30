@@ -15,7 +15,7 @@ import { Newspaper, ExternalLink, Filter, Search, X, RotateCcw } from 'lucide-re
 
 const SEARCH_DEBOUNCE_MS = 400;
 
-export default function NewsFeed({ events = [], error, onSelectEvent, filters, onFilterChange, onResetFilters }) {
+export default function NewsFeed({ events = [], error, loading = false, onSelectEvent, filters, onFilterChange, onResetFilters }) {
   const { t } = useTranslation();
   const [expandedId, setExpandedId] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
@@ -49,7 +49,7 @@ export default function NewsFeed({ events = [], error, onSelectEvent, filters, o
         >
           <Filter className="w-4 h-4" aria-hidden="true" />
           {activeFilterCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-1 bg-cyan-500 text-black text-[10px] font-bold rounded-full flex items-center justify-center">
+            <span className="absolute -top-0.5 -end-0.5 min-w-[15px] h-[15px] px-1 bg-cyan-500 text-black text-[10px] font-bold rounded-full flex items-center justify-center">
               {activeFilterCount}
             </span>
           )}
@@ -172,6 +172,12 @@ export default function NewsFeed({ events = [], error, onSelectEvent, filters, o
           <div className="flex items-center justify-center h-32 px-4 text-sm text-red-200 text-center" role="alert">
             {t('news.loadFailed')}
           </div>
+        ) : loading && events.length === 0 ? (
+          <div className="p-3 space-y-2" aria-busy="true" aria-label={t('common.loading')}>
+            {[0, 1, 2, 3, 4].map(i => (
+              <div key={i} className="shimmer h-16 rounded-lg" />
+            ))}
+          </div>
         ) : events.length === 0 ? (
           <div className="flex items-center justify-center h-32 text-sm text-slate-300">{t('news.noEvents')}</div>
         ) : (
@@ -211,7 +217,8 @@ export default function NewsFeed({ events = [], error, onSelectEvent, filters, o
                 {/* التفاصيل */}
                 <div className="flex items-center gap-2 text-[11px] text-slate-300">
                   {flag && <span>{flag} {t(`countries.${event.country_code}`, { defaultValue: event.country || '' })}</span>}
-                  <span>• {event.source}</span>
+                  {/* bdi يعزل اسم المصدر اللاتيني فلا تقفز النقطة في سياق RTL */}
+                  <span>• <bdi>{event.source}</bdi></span>
                 </div>
 
                 {/* التوسع */}

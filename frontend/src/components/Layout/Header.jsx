@@ -8,7 +8,9 @@ import { Satellite, Radio, Wifi, WifiOff, RefreshCw, Bell, BellOff, Globe2, Map 
 export default function Header({ stats, isConnected, onRefresh, refreshing, alertsEnabled = true, lastAlertEvent = null, recentAlertCount = 0, onOpenAlerts, viewMode = '2d', onToggleView }) {
   const { t, i18n } = useTranslation();
   const isAr = i18n.language === 'ar';
-  const localeCode = isAr ? 'ar-SA' : 'en-US';
+  // ar-SA وحده يُنتج تقويماً هجرياً وأرقاماً هندية؛ نفرض التقويم الميلادي والأرقام
+  // اللاتينية كي تتّسق مع بقية الأرقام في الواجهة (كلها لاتينية/mono).
+  const localeCode = isAr ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-US';
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [lastFetch, setLastFetch] = useState(() => new Date());
   const [bellShake, setBellShake] = useState(false);
@@ -33,8 +35,8 @@ export default function Header({ stats, isConnected, onRefresh, refreshing, aler
     if (lastAlertIdRef.current === lastAlertEvent.id) return;
     lastAlertIdRef.current = lastAlertEvent.id;
     setBellShake(true);
-    const t = setTimeout(() => setBellShake(false), 1800);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setBellShake(false), 1800);
+    return () => clearTimeout(timer);
   }, [lastAlertEvent]);
 
   const timeStr = currentTime.toLocaleTimeString(localeCode, {
@@ -50,24 +52,24 @@ export default function Header({ stats, isConnected, onRefresh, refreshing, aler
   const toggleLang = () => i18n.changeLanguage(isAr ? 'en' : 'ar');
 
   return (
-    <header className="bg-rasad-bg border-b border-rasad-border px-4 py-2">
-      <div className="flex items-center justify-between">
+    <header className="bg-rasad-bg border-b border-rasad-border px-3 sm:px-4 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         {/* الشعار */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <div className="relative">
-            <Satellite className="w-9 h-9 text-cyan-400" />
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
+            <Satellite className="w-7 h-7 sm:w-9 sm:h-9 text-cyan-400" aria-hidden="true" />
+            <span className="absolute -top-1 -end-1 w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-cyan-400 tracking-wide font-arabic">
+            <h1 className="text-lg sm:text-2xl font-bold text-cyan-400 tracking-wide font-arabic">
               {t('app.name')} <span className="text-sm text-slate-300 font-mono">RSD</span>
             </h1>
-            <p className="text-[11px] text-slate-300 -mt-0.5">{t('app.tagline')}</p>
+            <p className="hidden sm:block text-[11px] text-slate-300 -mt-0.5">{t('app.tagline')}</p>
           </div>
         </div>
 
-        {/* الإحصائيات السريعة */}
-        <div className="flex items-center gap-6">
+        {/* الإحصائيات السريعة — تُخفى على الشاشات الصغيرة لتفادي القصّ */}
+        <div className="hidden lg:flex items-center gap-6">
           {/* مؤشر التصعيد */}
           {stats && (
             <div className="flex items-center gap-4 text-xs">
@@ -82,7 +84,7 @@ export default function Header({ stats, isConnected, onRefresh, refreshing, aler
                   ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400'
                   : 'bg-green-500/10 border-green-500/30 text-green-400'
               }`}>
-                <Radio className="w-3 h-3 animate-pulse" />
+                <Radio className="w-3 h-3 animate-pulse" aria-hidden="true" />
                 <span>{t('app.escalation')}</span>
                 <span className="font-bold font-mono">{stats.escalation_index || 0}%</span>
               </div>
@@ -91,9 +93,9 @@ export default function Header({ stats, isConnected, onRefresh, refreshing, aler
         </div>
 
         {/* التوقيت والحالة */}
-        <div className="flex items-center gap-4">
-          {/* مؤشر آخر فحص */}
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-rasad-panel border border-rasad-border">
+        <div className="flex items-center gap-2 sm:gap-4">
+          {/* مؤشر آخر فحص — يُخفى دون lg */}
+          <div className="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded bg-rasad-panel border border-rasad-border">
             <span className="text-[11px] text-slate-300">{t('app.lastCheck')}</span>
             <span className="text-[11px] text-cyan-400 font-mono">{lastFetchStr}</span>
           </div>
@@ -144,21 +146,21 @@ export default function Header({ stats, isConnected, onRefresh, refreshing, aler
             aria-label={t('alerts.settings')}
           >
             {alertsEnabled
-              ? <Bell className={`w-4 h-4 ${bellShake ? 'bell-alert' : ''}`} />
-              : <BellOff className="w-4 h-4" />}
+              ? <Bell className={`w-4 h-4 ${bellShake ? 'bell-alert' : ''}`} aria-hidden="true" />
+              : <BellOff className="w-4 h-4" aria-hidden="true" />}
             {recentAlertCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center">
+              <span className="absolute -top-1 -end-1 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center">
                 {recentAlertCount > 9 ? '9+' : recentAlertCount}
               </span>
             )}
           </button>
 
           <div className={`flex items-center gap-1.5 text-xs ${isConnected ? 'text-green-400' : 'text-red-400'}`}>
-            {isConnected ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
-            <span>{isConnected ? t('app.connected') : t('app.disconnected')}</span>
+            {isConnected ? <Wifi className="w-3.5 h-3.5" aria-hidden="true" /> : <WifiOff className="w-3.5 h-3.5" aria-hidden="true" />}
+            <span className="hidden sm:inline">{isConnected ? t('app.connected') : t('app.disconnected')}</span>
           </div>
 
-          <div className={isAr ? 'text-left' : 'text-right'}>
+          <div className="hidden md:block text-end">
             <div className="text-sm font-mono text-cyan-400 font-bold">{timeStr}</div>
             <div className="text-[11px] text-slate-300">{dateStr}</div>
           </div>

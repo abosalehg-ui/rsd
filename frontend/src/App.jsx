@@ -60,7 +60,7 @@ export default function App() {
   }, []);
 
   // جلب البيانات مع تحديث تلقائي
-  const { data: eventsData, error: eventsError, refetch: refetchEvents } = usePolling(
+  const { data: eventsData, error: eventsError, loading: eventsLoading, refetch: refetchEvents } = usePolling(
     useCallback(() => getEvents({ ...filters, limit: 200 }), [filters]),
     30000, [filters]
   );
@@ -102,7 +102,7 @@ export default function App() {
   );
 
   // مؤشر استخبارات الدول (v1.3)
-  const { data: countryIndex } = usePolling(
+  const { data: countryIndex, loading: countryLoading } = usePolling(
     useCallback(() => getCountryIndex({ hours: 72, top: 15 }), []),
     120000
   );
@@ -245,6 +245,7 @@ export default function App() {
           <NewsFeed
             events={events}
             error={eventsError}
+            loading={eventsLoading}
             onSelectEvent={handleSelectEvent}
             filters={filters}
             onFilterChange={updateFilter}
@@ -254,13 +255,14 @@ export default function App() {
         {activeTab === 'timeline' && (
           <Timeline
             events={events}
+            loading={eventsLoading}
             hours={filters.hours}
             onHoursChange={(h) => updateFilter('hours', h)}
             onSelectEvent={handleSelectEvent}
           />
         )}
         {activeTab === 'stats' && (
-          <StatsPanel stats={stats} countryIndex={countryIndex} />
+          <StatsPanel stats={stats} countryIndex={countryIndex} countryLoading={countryLoading} />
         )}
         {activeTab === 'iran' && (
           <IranPanel onSelectStrike={handleSelectEvent} />

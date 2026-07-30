@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { CATEGORIES, TIME_WINDOWS, categoryOf, severityOf } from '../../utils/constants';
 import { Clock, Calendar } from 'lucide-react';
 
-export default function Timeline({ events = [], hours = 24, onHoursChange, onSelectEvent }) {
+export default function Timeline({ events = [], loading = false, hours = 24, onHoursChange, onSelectEvent }) {
   const { t, i18n } = useTranslation();
   const [selectedCategory, setSelectedCategory] = useState('');
 
@@ -32,7 +32,8 @@ export default function Timeline({ events = [], hours = 24, onHoursChange, onSel
   }, [sorted]);
 
   const hourFormatter = useMemo(
-    () => new Intl.DateTimeFormat(i18n.language === 'ar' ? 'ar-SA' : 'en-US', {
+    // تقويم ميلادي وأرقام لاتينية (ar-SA وحده هجري/هندي)
+    () => new Intl.DateTimeFormat(i18n.language === 'ar' ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-US', {
       month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
     }),
     [i18n.language]
@@ -77,7 +78,11 @@ export default function Timeline({ events = [], hours = 24, onHoursChange, onSel
 
       {/* المحتوى */}
       <div className="flex-1 overflow-y-auto px-3 py-2">
-        {grouped.length === 0 ? (
+        {loading && grouped.length === 0 ? (
+          <div className="space-y-2" aria-busy="true" aria-label={t('common.loading')}>
+            {[0, 1, 2, 3].map(i => <div key={i} className="shimmer h-14 rounded-lg" />)}
+          </div>
+        ) : grouped.length === 0 ? (
           <div className="text-center text-slate-300 text-sm mt-8">{t('timeline.noEvents')}</div>
         ) : (
           grouped.map(([timeKey, items]) => (
@@ -110,7 +115,7 @@ export default function Timeline({ events = [], hours = 24, onHoursChange, onSel
                         </div>
                         <p className="text-xs text-slate-200 leading-relaxed line-clamp-2">{ev.title}</p>
                         <span className="text-[11px] text-slate-300">
-                          {t(`countries.${ev.country_code}`, { defaultValue: ev.country || '' })} • {ev.source}
+                          {t(`countries.${ev.country_code}`, { defaultValue: ev.country || '' })} • <bdi>{ev.source}</bdi>
                         </span>
                       </div>
                     </div>

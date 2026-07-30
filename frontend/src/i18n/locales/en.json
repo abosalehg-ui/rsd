@@ -22,6 +22,9 @@
     "showPanel": "Data",
     "skipToPanel": "Skip to content"
   },
+  "common": {
+    "loading": "Loading…"
+  },
   "tabs": {
     "news": "Events",
     "timeline": "Timeline",
