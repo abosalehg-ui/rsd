@@ -39,7 +39,9 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 ; Name: "arabic"; MessagesFile: "compiler:Languages\Arabic.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+; checkedonce: الخانة مؤشَّرة افتراضياً فيحصل المستخدم على أيقونة سطح المكتب
+; تلقائياً، مع احترام قراره إن أزال العلامة (وتذكُّره عند إعادة التثبيت).
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: checkedonce
 
 [Files]
 ; كامل مجلّد onedir الناتج عن PyInstaller
