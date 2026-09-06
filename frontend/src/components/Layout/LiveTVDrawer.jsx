@@ -125,7 +125,7 @@ export default function LiveTVDrawer() {
           aria-label={t('tv.open')}
         >
           <Tv className="w-4 h-4" aria-hidden="true" />
-          <span className="text-[11px] font-bold">LIVE</span>
+          <span className="text-2xs font-bold">LIVE</span>
         </button>
       )}
 
@@ -147,7 +147,7 @@ export default function LiveTVDrawer() {
                 <span className="text-xs font-bold text-white">
                   {activeChannel.icon} {t(`tv.channels.${activeChannel.id}`)}
                 </span>
-                <span className="text-[11px] bg-red-600 text-white px-1.5 py-0.5 rounded font-bold animate-pulse">LIVE</span>
+                <span className="text-2xs bg-red-600 text-white px-1.5 py-0.5 rounded font-bold animate-pulse">LIVE</span>
               </div>
               <button
                 onClick={() => setIsOpen(false)}

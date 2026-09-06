@@ -44,9 +44,19 @@ class Settings(BaseSettings):
     # NewsAPI
     newsapi_key: str = ""
 
-    # OpenSky
+    # OpenSky — محجوزة لتوسّع مستقبلي (تتبّع الطيران يعمل عبر adsb.lol)
     opensky_client_id: str = ""
     opensky_client_secret: str = ""
+
+    # UCDP — الـ API صار مغلقًا برمز وصول؛ بلا رمز يُتخطّى المصدر كليًا.
+    ucdp_access_token: str = ""
+    # مجموعة البيانات: المجموعات السنوية (مثل "24.1") تنتهي عند نهاية سنتها،
+    # فاستخدم مجموعة المرشّحين الشهرية لتغطية الأحداث الحديثة.
+    ucdp_dataset: str = "24.1"
+    # معرّفات دول UCDP (Gleditsch & Ward) للشرق الأوسط. أفرغها لجلب كل الدول
+    # والاكتفاء بالتصفية المحلية على أسماء الدول.
+    ucdp_country_ids: str = "620,625,630,640,645,651,652,660,663,666,670,678"
+    ucdp_max_pages: int = 5
 
     # خلاصات Google Alerts — روابط خاصة بحساب المستخدم (تُعامَل كأسرار).
     # الصيغة: عناصر مفصولة بفواصل، كل عنصر "الاسم|التصنيف|الرابط".
@@ -58,7 +68,9 @@ class Settings(BaseSettings):
 
     # Intervals (seconds)
     gdelt_interval: int = 900
-    newsapi_interval: int = 600
+    # ساعة كاملة: المستوى المجاني من NewsAPI يسمح بـ100 طلب/يوم، والجامع
+    # يُرسل طلبًا لكل لغة، فالفاصل الأقصر كان يستنزف الحصة قبل الظهر.
+    newsapi_interval: int = 3600
     rss_interval: int = 120
     ucdp_interval: int = 86400
     adsb_interval: int = 10

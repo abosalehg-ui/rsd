@@ -7,10 +7,15 @@
  *
  * مفتاح API اختياري: عند ضبط VITE_API_KEY تُرسَل الترويسة X-API-Key مع كل
  * طلب — مطلوبة للنقاط المحمية (POST /api/refresh) حين يفعّلها الخادم.
+ *
+ * حارس CSRF: النقاط المكلفة تشترط الترويسة X-Rasad-Client. وجودها وحده هو
+ * المقصود — ترويسة غير بسيطة تُلزم المتصفح بطلب preflight يرفضه الخادم لأي
+ * أصل خارج CORS_ORIGINS، فلا تستطيع صفحة خارجية إطلاق الجامعين على الجهاز.
  */
 
 const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 const API_KEY = import.meta.env.VITE_API_KEY || '';
+const CLIENT_HEADER = 'X-Rasad-Client';
 
 /** خطأ يحمل حالة HTTP و Retry-After كي تعرض الواجهة رسالة مفيدة بدل "فشل". */
 export class ApiError extends Error {
@@ -27,6 +32,9 @@ const resolveBase = () =>
   (API_BASE.startsWith('http') ? API_BASE : `${window.location.origin}${API_BASE}`);
 
 const authHeaders = () => (API_KEY ? { 'X-API-Key': API_KEY } : undefined);
+
+/** ترويسات النقاط المكلفة: حارس CSRF + المفتاح إن وُجد. */
+const mutationHeaders = () => ({ [CLIENT_HEADER]: '1', ...authHeaders() });
 
 async function toApiError(response) {
   const retryAfterRaw = response.headers?.get?.('Retry-After');
@@ -61,7 +69,7 @@ export async function fetchAPI(endpoint, params = {}) {
 export async function postAPI(endpoint) {
   const response = await fetch(`${resolveBase()}${endpoint}`, {
     method: 'POST',
-    headers: authHeaders(),
+    headers: mutationHeaders(),
   });
   if (!response.ok) throw await toApiError(response);
   return response.json();

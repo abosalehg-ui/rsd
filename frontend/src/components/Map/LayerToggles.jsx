@@ -45,7 +45,7 @@ export default function LayerToggles({ layers = {}, onLayerChange, className = '
       >
         <Layers className="w-4 h-4 text-slate-300" aria-hidden="true" />
         <span className="text-slate-200 font-medium">{t('map.layers')}</span>
-        <span className="text-[11px] font-mono text-cyan-300 bg-cyan-400/10 border border-cyan-400/20 rounded-full px-1.5">
+        <span className="text-2xs font-mono text-cyan-300 bg-cyan-400/10 border border-cyan-400/20 rounded-full px-1.5">
           {activeCount}
         </span>
         <ChevronDown

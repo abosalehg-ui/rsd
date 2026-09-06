@@ -34,11 +34,11 @@ export default function StatsPanel({ stats, countryIndex, countryLoading = false
       <div className="grid grid-cols-2 gap-2">
         <div className="bg-rasad-bg rounded border border-rasad-border p-2 text-center">
           <div className="text-lg font-bold font-mono text-white">{formatNumber(stats.total)}</div>
-          <div className="text-[11px] text-slate-300">{t('stats.totalEvents')}</div>
+          <div className="text-2xs text-slate-300">{t('stats.totalEvents')}</div>
         </div>
         <div className="bg-rasad-bg rounded border border-rasad-border p-2 text-center">
           <div className="text-lg font-bold font-mono text-red-400">{formatNumber(stats.categories?.military || 0)}</div>
-          <div className="text-[11px] text-slate-300">{t('stats.militaryEvents')}</div>
+          <div className="text-2xs text-slate-300">{t('stats.militaryEvents')}</div>
         </div>
       </div>
 
@@ -58,11 +58,11 @@ export default function StatsPanel({ stats, countryIndex, countryLoading = false
             return (
               <div key={key} className="flex items-center gap-2">
                 <span className="text-xs w-5">{cat.icon}</span>
-                <span className="text-[11px] text-slate-300 w-16">{t(`categories.${key}`)}</span>
+                <span className="text-2xs text-slate-300 w-16">{t(`categories.${key}`)}</span>
                 <div className="flex-1 h-1.5 bg-rasad-border rounded-full overflow-hidden">
                   <div className="h-full rounded-full" style={{ width: `${pct}%`, background: cat.color }} />
                 </div>
-                <span className="text-[11px] font-mono text-slate-300 w-8 text-end">{count}</span>
+                <span className="text-2xs font-mono text-slate-300 w-8 text-end">{count}</span>
               </div>
             );
           })}
@@ -82,11 +82,11 @@ export default function StatsPanel({ stats, countryIndex, countryLoading = false
             return (
               <div key={c.code} className="flex items-center gap-2">
                 <span className="text-xs">{info?.flag || '🌍'}</span>
-                <span className="text-[11px] text-slate-300 flex-1">{t(`countries.${c.code}`, { defaultValue: c.name || c.code })}</span>
+                <span className="text-2xs text-slate-300 flex-1">{t(`countries.${c.code}`, { defaultValue: c.name || c.code })}</span>
                 <div className="w-16 h-1.5 bg-rasad-border rounded-full overflow-hidden">
                   <div className="h-full rounded-full bg-cyan-500" style={{ width: `${pct}%` }} />
                 </div>
-                <span className="text-[11px] font-mono text-slate-300 w-6 text-end">{c.count}</span>
+                <span className="text-2xs font-mono text-slate-300 w-6 text-end">{c.count}</span>
               </div>
             );
           })}
@@ -101,7 +101,7 @@ export default function StatsPanel({ stats, countryIndex, countryLoading = false
         </div>
         <div className="flex flex-wrap gap-1.5">
           {Object.entries(stats.sources || {}).map(([src, count]) => (
-            <span key={src} className="text-[11px] px-2 py-0.5 rounded bg-rasad-border text-slate-300">
+            <span key={src} className="text-2xs px-2 py-0.5 rounded bg-rasad-border text-slate-300">
               <bdi>{src}</bdi> <span className="font-mono text-cyan-400">{count}</span>
             </span>
           ))}

@@ -7,8 +7,11 @@
        يستخدم nginx.conf فتظلّ الترويسات غائبة بدونها. (frame-ancestors وX-Frame
        يُتجاهلان في meta فيبقيان في nginx.) -->
   <!-- connect-src يسمح بـ https: لأن نشر Pages يتصل بخلفية على نطاق خارجي
-       قابل للضبط (VITE_API_BASE)؛ نشر Docker يضيّقه أكثر عبر nginx (تقاطع). -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://unpkg.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https:; frame-src https://www.youtube-nocookie.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'" />
+       قابل للضبط (VITE_API_BASE)؛ نشر Docker يضيّقه أكثر عبر nginx (تقاطع).
+       script-src بلا 'unsafe-inline' ولا 'unsafe-eval': بناء Vite الإنتاجي لا
+       يُنتج سكربتات مضمّنة، ولا تستدعي three/globe.gl/leaflet eval ولا
+       new Function — مُتحقَّق منه بالفحص على الحزم المبنية. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://unpkg.com; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https:; frame-src https://www.youtube-nocookie.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'" />
   <title>رصد | Rasad - OSINT Dashboard</title>
   <meta name="description" content="منصة استخبارات المصادر المفتوحة للشرق الأوسط — OSINT Dashboard for the Middle East" />
 
@@ -22,7 +25,9 @@
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <!-- ثلاثة أوزان فقط: الكود يستعمل font-medium/semibold/bold (500/600/700)
+       والأوزان 300 و800 و900 كانت حمولة ثلاثة ملفات woff2 بلا استعمال. -->
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <!-- leaflet.css مُضمَّن في الحزمة عبر import في RasadMap.jsx — لا حاجة لنسخة CDN -->
 </head>
 <body class="bg-[#0a0e17] text-white font-arabic">

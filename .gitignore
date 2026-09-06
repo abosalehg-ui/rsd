@@ -57,8 +57,3 @@ frontend/coverage/
 
 # ===== PWA / Service Worker generated =====
 frontend/dev-dist/
-
-# ===== Tauri (v1.4) =====
-frontend/src-tauri/target/
-frontend/src-tauri/Cargo.lock
-frontend/src-tauri/gen/

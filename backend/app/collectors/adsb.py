@@ -41,8 +41,15 @@ EMERGENCY_SQUAWKS = ["7500", "7600", "7700"]
 MILITARY_AIRCRAFT_TYPES = ["F16", "F15", "F35", "F18", "B52", "C130", "C17", "E3", "P8", "RC135", "U2"]
 
 # لقطة آخر جمع ناجح — تقرأها /flights/live بدل استدعاء المزوّد الخارجي والكتابة
-# في DB عند كل طلب من كل عميل (PERF-1). تحدّثها الوظيفة المجدولة وحدها.
-_last_snapshot: Dict = {"total": 0, "military": 0, "flights": [], "updated_at": None}
+# في DB عند كل طلب من كل عميل (PERF-1). تحدّثها الوظيفة المجدولة وحدها،
+# وعند الفشل تبقى اللقطة السابقة مع `stale=True` بدل أن تُمسح إلى صفر رحلة.
+_last_snapshot: Dict = {
+    "total": 0,
+    "military": 0,
+    "flights": [],
+    "updated_at": None,
+    "stale": False,
+}
 
 # إزالة تكرار كتابات المسارات: نسجّل صفّاً فقط عند حركة معتبرة أو بعد فجوة
 # زمنية، بدل صفّ لكل طائرة كل 30 ثانية.
@@ -55,65 +62,86 @@ _last_recorded: Dict[str, Tuple[datetime, float, float]] = {}
 
 
 async def collect_flights() -> Dict:
-    """جمع بيانات الطيران فوق الشرق الأوسط"""
+    """جمع بيانات الطيران فوق الشرق الأوسط.
+
+    عند تعذّر الجمع (شبكة، 429، رد مشوّه) نُبقي آخر لقطة صالحة ونضع
+    `stale=True` بدل الكتابة فوقها بصفر رحلة — انقطاع لثانية واحدة كان يُفرغ
+    الخريطة من الطائرات حتى الدورة التالية.
+    """
     session_factory = get_session_factory()
-    flights_data = {"total": 0, "military": 0, "flights": []}
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(ADSB_API)
-
-            if response.status_code == 429:
-                logger.warning("adsb.lol: rate limit reached")
-                return flights_data
-
-            if response.status_code != 200:
-                logger.warning(f"adsb.lol returned {response.status_code}")
-                return flights_data
-
-            data = response.json()
-            aircraft_list = data.get("ac", [])
-            if not aircraft_list:
-                return flights_data
-
-            flights_data["total"] = len(aircraft_list)
-            now = datetime.now(timezone.utc)
-            parsed = []
-            skipped = 0
-
-            for ac in aircraft_list:
-                try:
-                    flight = _parse_aircraft(ac)
-                    if flight:
-                        parsed.append(flight)
-                        if flight["is_military"]:
-                            flights_data["military"] += 1
-                except Exception as e:
-                    # لا نبتلع صامتاً: تغيّر مخطط المزوّد كان يُسقط كل الرحلات بلا أثر
-                    skipped += 1
-                    logger.debug("تخطّي طائرة %s: %s", ac.get("hex", "?"), e)
-                    continue
-
-            if skipped:
-                logger.warning("ADS-B: تخطّي %s/%s طائرة لتعذّر التحليل", skipped, len(aircraft_list))
-
-            flights_data["flights"] = parsed
-
-            if session_factory:
-                await _persist_military_tracks(session_factory, parsed, now)
-
+        flights_data = await _fetch_flights(session_factory)
     except Exception as e:
         logger.error(f"خطأ في جمع بيانات الطيران: {e}")
+        return _mark_stale()
 
-    # حدّث اللقطة المشتركة (تقرأها /flights/live)
+    if flights_data is None:
+        return _mark_stale()
+
     _last_snapshot.update(
         total=flights_data["total"],
         military=flights_data["military"],
         flights=flights_data["flights"],
         updated_at=datetime.now(timezone.utc).isoformat(),
+        stale=False,
     )
 
     logger.info(f"ADS-B: {flights_data['total']} رحلة ({flights_data['military']} عسكرية)")
+    return flights_data
+
+
+def _mark_stale() -> Dict:
+    """يُعلّم اللقطة المحفوظة كقديمة ويعيدها كما هي (بلا مسح)."""
+    _last_snapshot["stale"] = True
+    return dict(_last_snapshot)
+
+
+async def _fetch_flights(session_factory) -> Optional[Dict]:
+    """طلب واحد للمزوّد. يعيد None عند حالة عابرة (429/رد غير 200/لا طائرات)."""
+    flights_data: Dict = {"total": 0, "military": 0, "flights": []}
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.get(ADSB_API)
+
+        if response.status_code == 429:
+            logger.warning("adsb.lol: rate limit reached")
+            return None
+
+        if response.status_code != 200:
+            logger.warning(f"adsb.lol returned {response.status_code}")
+            return None
+
+        aircraft_list = response.json().get("ac", [])
+        if not aircraft_list:
+            return None
+
+        flights_data["total"] = len(aircraft_list)
+        now = datetime.now(timezone.utc)
+        parsed = []
+        skipped = 0
+
+        for ac in aircraft_list:
+            try:
+                flight = _parse_aircraft(ac)
+                if flight:
+                    parsed.append(flight)
+                    if flight["is_military"]:
+                        flights_data["military"] += 1
+            except Exception as e:
+                # لا نبتلع صامتاً: تغيّر مخطط المزوّد كان يُسقط كل الرحلات بلا أثر
+                skipped += 1
+                logger.debug("تخطّي طائرة %s: %s", ac.get("hex", "?"), e)
+                continue
+
+        if skipped:
+            logger.warning("ADS-B: تخطّي %s/%s طائرة لتعذّر التحليل", skipped, len(aircraft_list))
+
+        flights_data["flights"] = parsed
+
+        if session_factory:
+            await _persist_military_tracks(session_factory, parsed, now)
+
     return flights_data
 
 
@@ -289,7 +317,9 @@ async def get_live_flights() -> Dict:
     """يعيد آخر لقطة مُجمَّعة (من الوظيفة المجدولة) دون استدعاء المزوّد الخارجي
     أو الكتابة في DB — يمنع تضخيم الطلبات عبر العملاء المتعددين (PERF-1).
 
-    عند عدم توفّر لقطة بعد (إقلاع بارد) نجمع مرة واحدة فقط."""
+    عند عدم توفّر لقطة بعد (إقلاع بارد) نجمع مرة واحدة فقط.
+    الحقل `stale` يخبر الواجهة أن آخر محاولة جمع فشلت فتُعلِم المستخدم بدل
+    عرض بيانات قديمة كأنها لحظية."""
     if _last_snapshot["updated_at"] is None:
         return await collect_flights()
-    return _last_snapshot
+    return dict(_last_snapshot)

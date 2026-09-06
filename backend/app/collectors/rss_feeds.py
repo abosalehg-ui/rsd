@@ -161,8 +161,10 @@ async def _process_feed(client: httpx.AsyncClient, feed_config: Dict) -> int:
 
     response = await client.get(feed_config["url"])
     if response.status_code != 200:
-        logger.warning(f"RSS {feed_config['name']}: HTTP {response.status_code}")
-        return 0
+        # نرفع ولا نعيد 0: `process_feeds` يعدّ الاستثناءات ليقرّر هل سقطت كل
+        # الخلاصات. ابتلاع خطأ HTTP هنا كان يُبطل تلك الضمانة تمامًا — وخطأ
+        # HTTP هو أشيع أشكال العطل — فيبدو جامع ميت تمامًا "هادئًا".
+        raise RuntimeError(f"RSS {feed_config['name']}: HTTP {response.status_code}")
 
     feed = await parse_feed_async(response.text)
 

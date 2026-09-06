@@ -40,8 +40,10 @@ async def collect_gdelt_events() -> int:
             response = await client.get(GDELT_DOC_API, params=params)
 
             if response.status_code != 200:
-                logger.warning(f"GDELT API returned {response.status_code}")
-                return 0
+                # نرفع ولا نعيد 0: GDELT يردّ 429 عند تجاوز الحصة، وابتلاعه
+                # كان يجعل جامعًا مخنوقًا يبدو "بلا أخبار جديدة" في
+                # /api/collectors/status و/api/refresh معًا.
+                raise RuntimeError(f"GDELT: HTTP {response.status_code}")
 
             data = response.json()
             articles = data.get("articles", [])

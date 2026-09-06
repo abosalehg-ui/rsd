@@ -25,7 +25,7 @@ export default function CountryIndex({ data, loading = false }) {
             {[0, 1, 2].map(i => <div key={i} className="shimmer h-8 rounded" />)}
           </div>
         ) : (
-          <div className="text-[11px] text-slate-300 text-center py-3">{t('stats.noData')}</div>
+          <div className="text-2xs text-slate-300 text-center py-3">{t('stats.noData')}</div>
         )}
       </div>
     );
@@ -37,7 +37,7 @@ export default function CountryIndex({ data, loading = false }) {
         <Activity className="w-3.5 h-3.5 text-cyan-400" />
         <span className="text-xs font-bold text-slate-300">{t('stats.countryIndex')}</span>
       </div>
-      <div className="text-[11px] text-slate-300 mb-3">{t('stats.countryIndexDesc')}</div>
+      <div className="text-2xs text-slate-300 mb-3">{t('stats.countryIndexDesc')}</div>
       <div className="space-y-2">
         {ranking.slice(0, 10).map((c, i) => {
           const info = COUNTRIES[c.country_code];
@@ -47,15 +47,15 @@ export default function CountryIndex({ data, loading = false }) {
           return (
             <div key={c.country_code} className="bg-rasad-bg border border-rasad-border rounded p-2">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-[11px] font-mono text-slate-300 w-4">#{i + 1}</span>
+                <span className="text-2xs font-mono text-slate-300 w-4">#{i + 1}</span>
                 <span className="text-sm">{info?.flag || '🌍'}</span>
-                <span className="text-[11px] text-slate-200 flex-1 truncate">{t(`countries.${c.country_code}`, { defaultValue: c.country_name || c.country_code })}</span>
+                <span className="text-2xs text-slate-200 flex-1 truncate">{t(`countries.${c.country_code}`, { defaultValue: c.country_name || c.country_code })}</span>
                 <span className="text-sm font-bold font-mono" style={{ color }}>{c.score}</span>
               </div>
               <div className="h-1.5 bg-rasad-border rounded-full overflow-hidden mb-1.5">
                 <div className="h-full rounded-full transition-all duration-700" style={{ width: `${c.score}%`, background: color }} />
               </div>
-              <div className="flex items-center justify-between text-[11px] text-slate-300">
+              <div className="flex items-center justify-between text-2xs text-slate-300">
                 <span>
                   {c.by_severity?.critical ? <span className="text-red-400 me-1">{c.by_severity.critical}❗</span> : null}
                   {c.by_severity?.high ? <span className="text-orange-400 me-1">{c.by_severity.high}↑</span> : null}

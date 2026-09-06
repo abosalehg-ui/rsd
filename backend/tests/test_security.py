@@ -4,9 +4,13 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from httpx import ASGITransport, AsyncClient
 
-from app.auth import require_api_key
+from app.auth import CLIENT_HEADER, require_api_key
 from app.config import Settings, get_settings
 from app.middleware.ratelimit import RateLimitMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
+
+#: حارس CSRF مطلوب على كل نقطة محمية، بمعزل عن مفتاح API
+CLIENT_HEADERS = {CLIENT_HEADER: "1"}
 
 
 def _app_with_protected_route() -> FastAPI:
@@ -23,6 +27,43 @@ async def _client(app: FastAPI) -> AsyncClient:
     return AsyncClient(transport=ASGITransport(app=app), base_url="http://t")
 
 
+class TestCsrfGuard:
+    """الترويسة المخصّصة `X-Rasad-Client` مطلوبة دائمًا على النقاط المكلفة.
+
+    السيناريو الذي تحرسه: صفحة خبيثة يزورها المستخدم ترسل POST عبر الأصول إلى
+    الخادم المحلي. CORS يمنع *قراءة* الرد لا *إرساله*، لكن ترويسة غير بسيطة
+    تُلزم المتصفح بـpreflight يرفضه الخادم لأصل غير مُدرَج.
+    """
+
+    @pytest.mark.asyncio
+    async def test_rejects_request_without_the_client_header(self, monkeypatch):
+        get_settings.cache_clear()
+        monkeypatch.delenv("API_KEY", raising=False)
+        async with await _client(_app_with_protected_route()) as c:
+            r = await c.post("/api/protected")
+        assert r.status_code == 403
+        get_settings.cache_clear()
+
+    @pytest.mark.asyncio
+    async def test_client_header_alone_is_not_a_substitute_for_the_key(self, monkeypatch):
+        """الحارسان مستقلّان: المرور من CSRF لا يُغني عن مفتاح API المضبوط."""
+        get_settings.cache_clear()
+        monkeypatch.setenv("API_KEY", "s3cret-value")
+        async with await _client(_app_with_protected_route()) as c:
+            r = await c.post("/api/protected", headers=CLIENT_HEADERS)
+        assert r.status_code == 401
+        get_settings.cache_clear()
+
+    @pytest.mark.asyncio
+    async def test_correct_key_without_client_header_is_still_rejected(self, monkeypatch):
+        get_settings.cache_clear()
+        monkeypatch.setenv("API_KEY", "s3cret-value")
+        async with await _client(_app_with_protected_route()) as c:
+            r = await c.post("/api/protected", headers={"X-API-Key": "s3cret-value"})
+        assert r.status_code == 403
+        get_settings.cache_clear()
+
+
 class TestApiKey:
     @pytest.mark.asyncio
     async def test_open_when_no_key_configured(self, monkeypatch):
@@ -30,7 +71,8 @@ class TestApiKey:
         get_settings.cache_clear()
         monkeypatch.delenv("API_KEY", raising=False)
         async with await _client(_app_with_protected_route()) as c:
-            assert (await c.post("/api/protected")).status_code == 200
+            r = await c.post("/api/protected", headers=CLIENT_HEADERS)
+        assert r.status_code == 200
         get_settings.cache_clear()
 
     @pytest.mark.asyncio
@@ -38,7 +80,7 @@ class TestApiKey:
         get_settings.cache_clear()
         monkeypatch.setenv("API_KEY", "s3cret-value")
         async with await _client(_app_with_protected_route()) as c:
-            r = await c.post("/api/protected")
+            r = await c.post("/api/protected", headers=CLIENT_HEADERS)
         assert r.status_code == 401
         get_settings.cache_clear()
 
@@ -47,7 +89,9 @@ class TestApiKey:
         get_settings.cache_clear()
         monkeypatch.setenv("API_KEY", "s3cret-value")
         async with await _client(_app_with_protected_route()) as c:
-            r = await c.post("/api/protected", headers={"X-API-Key": "wrong"})
+            r = await c.post(
+                "/api/protected", headers={**CLIENT_HEADERS, "X-API-Key": "wrong"}
+            )
         assert r.status_code == 401
         get_settings.cache_clear()
 
@@ -56,9 +100,54 @@ class TestApiKey:
         get_settings.cache_clear()
         monkeypatch.setenv("API_KEY", "s3cret-value")
         async with await _client(_app_with_protected_route()) as c:
-            r = await c.post("/api/protected", headers={"X-API-Key": "s3cret-value"})
+            r = await c.post(
+                "/api/protected", headers={**CLIENT_HEADERS, "X-API-Key": "s3cret-value"}
+            )
         assert r.status_code == 200
         get_settings.cache_clear()
+
+
+class TestSecurityHeaders:
+    """ترويسات الصفحات في وضع سطح المكتب (الواجهة تُقدَّم من FastAPI بلا nginx)."""
+
+    def _app(self) -> FastAPI:
+        a = FastAPI()
+        a.add_middleware(SecurityHeadersMiddleware)
+
+        @a.get("/")
+        async def index():
+            return {"page": True}
+
+        @a.get("/api/thing")
+        async def thing():
+            return {"ok": True}
+
+        return a
+
+    @pytest.mark.asyncio
+    async def test_page_responses_carry_the_full_header_set(self):
+        async with await _client(self._app()) as c:
+            r = await c.get("/")
+        assert r.headers["X-Frame-Options"] == "DENY"
+        assert r.headers["X-Content-Type-Options"] == "nosniff"
+        assert r.headers["Referrer-Policy"] == "no-referrer"
+        assert "frame-ancestors 'none'" in r.headers["Content-Security-Policy"]
+
+    @pytest.mark.asyncio
+    async def test_script_src_allows_neither_inline_nor_eval(self):
+        """مُتحقَّق من الحزم المبنية: لا سكربت مضمّن ولا eval، فلا مبرّر لهما."""
+        async with await _client(self._app()) as c:
+            r = await c.get("/")
+        csp = r.headers["Content-Security-Policy"]
+        script_src = [d for d in csp.split(";") if d.strip().startswith("script-src")][0]
+        assert "unsafe-inline" not in script_src
+        assert "unsafe-eval" not in script_src
+
+    @pytest.mark.asyncio
+    async def test_api_paths_are_untouched(self):
+        async with await _client(self._app()) as c:
+            r = await c.get("/api/thing")
+        assert "x-frame-options" not in {k.lower() for k in r.headers}
 
 
 class TestRateLimit:
