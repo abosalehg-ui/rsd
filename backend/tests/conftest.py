@@ -20,10 +20,7 @@ _TMP_DB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
 _TMP_DB.close()
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{_TMP_DB.name}"
 
-from app.api.events import router as events_router  # noqa: E402
-from app.api.infrastructure import router as infrastructure_router  # noqa: E402
-from app.api.iran import router as iran_router  # noqa: E402
-from app.api.nuclear import router as nuclear_router  # noqa: E402
+from app.main import create_app  # noqa: E402
 from app.models.database import Event, get_session_factory, init_db  # noqa: E402
 
 
@@ -40,12 +37,12 @@ async def _init_database():
 
 @pytest.fixture
 def app() -> FastAPI:
-    """تطبيق FastAPI نظيف بدون lifespan/scheduler/collectors."""
-    test_app = FastAPI(title="rsd-test")
-    test_app.include_router(events_router)
-    test_app.include_router(infrastructure_router)
-    test_app.include_router(nuclear_router)
-    return test_app
+    """التطبيق الحقيقي بلا lifespan — لا مجدول ولا جمع خارجي.
+
+    كان يُعاد تركيب تطبيق ناقص هنا بيدٍ (بعض الموجّهات فقط وبلا middleware)،
+    فتُختبر مسارات لا تشبه ما يعمل في الإنتاج. `create_app` تعطي الطبقات نفسها.
+    """
+    return create_app(with_lifespan=False)
 
 
 @pytest_asyncio.fixture
@@ -57,11 +54,9 @@ async def client(app: FastAPI):
 
 
 @pytest_asyncio.fixture
-async def iran_client():
-    """عميل لمسارات /api/iran (يستورد جامعي إيران، فيُفصَل عن التطبيق الأساسي)."""
-    test_app = FastAPI(title="rsd-test-iran")
-    test_app.include_router(iran_router)
-    transport = ASGITransport(app=test_app)
+async def iran_client(app: FastAPI):
+    """عميل لمسارات /api/iran — التطبيق نفسه (صار يضمّ كل الموجّهات)."""
+    transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
 

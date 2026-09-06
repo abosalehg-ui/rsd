@@ -162,7 +162,9 @@ async def _process_iran_feed(client: httpx.AsyncClient, feed_config: Dict) -> in
 
     response = await client.get(feed_config["url"])
     if response.status_code != 200:
-        return 0
+        # كما في جامع RSS: نرفع كي يعدّها `process_feeds` فشلًا. كانت تُبتلَع
+        # بلا حتى سطر سجل، فخلاصة ماتت منذ أسابيع لا أثر لها في أي مكان.
+        raise RuntimeError(f"Iran OSINT {feed_config['name']}: HTTP {response.status_code}")
 
     feed = await parse_feed_async(response.text)
 

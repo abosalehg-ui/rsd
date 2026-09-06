@@ -4,7 +4,7 @@
  * تعرض نفس البيانات (أحداث / إيران / مفاعلات / قواعد / أنابيب) على كرة Three.js
  * عبر globe.gl. ليست بديلًا كاملاً عن خريطة Leaflet — وضع تكميلي.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Globe from 'globe.gl';
 import { CATEGORIES, CONFIDENCE } from '../../utils/constants';
@@ -104,6 +104,10 @@ export default function RasadGlobe({
   } = layers;
   const containerRef = useRef(null);
   const globeRef = useRef(null);
+  // توقيع محتوى الطبقات — الاستطلاع يعيد مصفوفات جديدة الهوية كل 30 ثانية حتى
+  // حين لا يتغيّر شيء، فكانت كل العلامات (Sprite + SpriteMaterial لكل واحدة)
+  // تُبنى من جديد بلا داعٍ. نفس الحارس المستخدم في الخريطة 2D.
+  const objectsSigRef = useRef('');
   // ارتفاع الكاميرا (مُقسّم إلى درجات متقطعة) — يعيد بناء التجميع عند تغيّر التقريب
   const [altBucket, setAltBucket] = useState(2); // يقابل altitude≈1.6 عند البداية
   const altRef = useRef(1.7);
@@ -173,9 +177,30 @@ export default function RasadGlobe({
   // (طبقة pointsData ترسم أسطوانات بحجم جغرافي — كانت 111 كم عرضاً و96 كم
   // ارتفاعاً فتغطي جيرانها وتُخرج الطائرات كأعمدة من الأرض)،
   // + حلقات رادار متحرّكة (ringsData) للأحداث الحرجة/المرتفعة والضربات.
+  // ما يؤثّر فعلاً على ما يُرسم. الطيران جزء منه بإحداثياته لأنه يتحرّك حقاً.
+  const objectsSig = useMemo(() => [
+    showEvents ? events.map(e => `${e.id}:${e.severity}`).join(',') : '',
+    showIran ? iranStrikes.map(s => `${s.id}:${s.confidence}:${s.event_type}`).join(',') : '',
+    showNuclear ? nuclearFacilities.map(f => `${f.id ?? f.name_en}`).join(',') : '',
+    showBases ? bases.map(b => `${b.id ?? b.name_en}`).join(',') : '',
+    showFlights
+      ? (flights?.flights || [])
+        .map(f => `${f.icao24}:${f.latitude?.toFixed?.(3)}:${f.longitude?.toFixed?.(3)}:${f.heading}`)
+        .join(',')
+      : '',
+    altBucket,
+    i18n.language,
+  ].join('#'), [
+    events, iranStrikes, nuclearFacilities, bases, flights,
+    showEvents, showIran, showNuclear, showBases, showFlights,
+    altBucket, i18n.language,
+  ]);
+
   useEffect(() => {
     const g = globeRef.current;
     if (!g) return;
+    if (objectsSig === objectsSigRef.current) return;
+    objectsSigRef.current = objectsSig;
 
     const objects = [];
     const rings = [];
@@ -332,7 +357,7 @@ export default function RasadGlobe({
       .ringMaxRadius('maxR')
       .ringPropagationSpeed('speed')
       .ringRepeatPeriod('period');
-  }, [events, flights, iranStrikes, nuclearFacilities, bases, showEvents, showFlights, showIran, showNuclear, showBases, onSelectEvent, t, dir, altBucket]);
+  }, [objectsSig, events, flights, iranStrikes, nuclearFacilities, bases, showEvents, showFlights, showIran, showNuclear, showBases, onSelectEvent, t, dir, altBucket]);
 
   // خطوط الأنابيب
   useEffect(() => {

@@ -112,7 +112,7 @@ def classify(
 def country_code_from_text(text: str) -> str:
     """رمز ISO للدولة المذكورة في النص، أو "" عند التعذّر.
 
-    مصدر واحد لمطابقة الدول — كان مكرّراً في `collectors/gdelt.py`.
+    مصدر واحد لمطابقة الدول يستعمله كل الجامعين.
     """
     lowered = text.lower()
     for code, keywords in COUNTRY_KEYWORDS.items():

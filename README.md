@@ -100,12 +100,15 @@ npm run dev
 
 > للمساهمة وتشغيل الفحوص: راجع **[`CONTRIBUTING.md`](CONTRIBUTING.md)**.
 
+> مراجعات المستودع وخطط الإصلاح: **[`docs/reviews/`](docs/reviews/)**.
+
 > 💡 على ويندوز يمكنك بدل ذلك النقر على `start-rasad.bat` لتشغيل Backend + Frontend معاً.
 
 ### 📋 المتطلّبات | Requirements
 
 - **Python** 3.10+ و **Node.js** 18+ (للتطوير/البناء)
 - **مفتاح NewsAPI** (اختياري) — [احصل على مفتاح مجاني](https://newsapi.org/)
+- **رمز UCDP** (اختياري) — [توثيق UCDP](https://ucdp.uu.se/apidocs/) (الـ API لم يعد مفتوحاً بلا رمز)
 - لبناء المثبّت: **Inno Setup 6** ([تنزيل](https://jrsoftware.org/isdl.php))
 
 ---
@@ -245,10 +248,10 @@ packaging\build_installer.bat
 | المصدر | الوصف | التحديث |
 |--------|-------|---------|
 | **GDELT** | أحداث عالمية من تحليل الأخبار | كل 15 دقيقة |
-| **NewsAPI** | أخبار من مصادر عالمية متعددة | كل 10 دقائق |
+| **NewsAPI** | أخبار من مصادر عالمية متعددة *(يحتاج `NEWSAPI_KEY`)* | كل ساعة |
 | **RSS Feeds** | خلاصات عربية ودولية (25+ مصدر) | كل دقيقتين |
 | **Google Alerts** | تنبيهات مخصصة (تُضاف من `.env`) | كل دقيقتين |
-| **UCDP** | بيانات النزاعات المسلحة (جامعة أوبسالا) | يومياً |
+| **UCDP** | بيانات النزاعات المسلحة (جامعة أوبسالا) *(يحتاج `UCDP_ACCESS_TOKEN` — الـ API لم يعد عاماً)* | يومياً |
 | **ADS-B** | تتبع الطيران (adsb.lol) | كل 30 ثانية |
 | **Iran OSINT** | مصادر OSINT متخصصة بإيران والشرق الأوسط | كل 30 دقيقة |
 
@@ -295,7 +298,6 @@ rsd/
 │   │   ├── 📂 i18n/                # index.js + locales/{ar,en}.json
 │   │   └── 📂 utils/               # api.js · constants.js
 │   ├── 📂 public/                  # favicon.ico + أيقونات PWA
-│   ├── 📂 src-tauri/               # scaffolding Tauri (بديل تجريبي لسطح المكتب)
 │   └── 📄 vite.config.js · index.html · package.json
 │
 ├── 📂 packaging/                   # 🖥️ بناء مثبّت ويندوز (v1.5)
@@ -390,8 +392,12 @@ GOOGLE_ALERT_FEEDS=
 DATABASE_URL=sqlite+aiosqlite:///./rasad.db
 
 # فترات التحديث (بالثواني)
+# رمز UCDP — بدونه يُتخطّى المصدر ويظهر disabled في /api/sources
+UCDP_ACCESS_TOKEN=
+
+# فترات التحديث (بالثواني)
 GDELT_INTERVAL=900        # 15 دقيقة
-NEWSAPI_INTERVAL=600      # 10 دقائق
+NEWSAPI_INTERVAL=3600     # ساعة (الحصة المجانية 100 طلب/يوم)
 RSS_INTERVAL=120          # دقيقتان
 UCDP_INTERVAL=86400       # يوم
 ADSB_INTERVAL=30          # 30 ثانية
@@ -405,6 +411,7 @@ CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 
 # مفتاح حماية /api/refresh — فارغ = معطّل (مناسب للتشغيل المحلي).
 # عند ضبطه أرسل الترويسة X-API-Key من العميل (VITE_API_KEY في الواجهة).
+# ملاحظة: /api/refresh يشترط دائماً الترويسة X-Rasad-Client: 1 (حارس CSRF).
 API_KEY=
 
 # حدّ المعدل لكل IP على مسارات /api
@@ -484,7 +491,7 @@ git push origin feat/my-feature   # ثم افتح Pull Request
 - **v1.1** — طبقة إيران OSINT + تصنيف الثقة + متابعة القادة
 - **v1.2** — المنشآت النووية + التنبيهات الصوتية + نشر GitHub Pages
 - **v1.3** — كرة 3D + i18n عربي/إنجليزي + مؤشر استخبارات الدول + قواعد/أنابيب
-- **v1.4** — اختبارات (pytest + vitest) + CI + ETag caching + PWA + Tauri scaffold
+- **v1.4** — اختبارات (pytest + vitest) + CI + ETag caching + PWA
 
 </details>
 
@@ -514,6 +521,7 @@ git push origin feat/my-feature   # ثم افتح Pull Request
 | **لا تظهر أخبار جديدة** | تأكد من تشغيل Backend (`/api/health`)، افحص `/api/collectors/status`، ثم اضغط 🔄 |
 | **طبقة إيران OSINT فارغة** | تظهر بعد أول دورة جمع — انتظر دقيقة بعد التشغيل واضغط 🔄 (`/api/iran/strikes`) |
 | **خطأ NewsAPI** | أضف `NEWSAPI_KEY` في `.env` (المفتاح المجاني يعطي أخباراً قديمة 24+ ساعة) |
+| **UCDP لا يجمع شيئاً** | الـ API صار يتطلّب رمزاً — أضف `UCDP_ACCESS_TOKEN`، وإلا يظهر المصدر `disabled` في `/api/sources` |
 | **الخريطة 2D لا تعمل** | تحقق من الإنترنت (Leaflet يحتاج tiles من CartoCDN) وافحص Console |
 | **🖥️ المثبّت: تحذير SmartScreen/مكافح فيروسات** | طبيعي لتطبيق غير موقّع — اختر "Run anyway" (للتوقيع: شهادة Code Signing) |
 | **🖥️ المنفذ 8000 مشغول** | أغلق أي نسخة عاملة (أو خادم تطوير) — التطبيق يكتفي بفتح المتصفح على النسخة العاملة |

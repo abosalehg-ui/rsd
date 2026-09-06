@@ -50,7 +50,7 @@ export default function Timeline({ events = [], loading = false, hours = 24, onH
           {TIME_WINDOWS.map(h => (
             <button key={h} onClick={() => onHoursChange?.(h)}
               aria-pressed={hours === h}
-              className={`text-[11px] px-1.5 py-1 rounded focus-ring ${hours === h ? 'bg-cyan-400/20 text-cyan-200' : 'text-slate-300 hover:text-white'}`}>
+              className={`text-2xs px-1.5 py-1 rounded focus-ring ${hours === h ? 'bg-cyan-400/20 text-cyan-200' : 'text-slate-300 hover:text-white'}`}>
               {t('time.hoursShort', { count: h })}
             </button>
           ))}
@@ -61,7 +61,7 @@ export default function Timeline({ events = [], loading = false, hours = 24, onH
       <div className="flex gap-1 px-3 py-1.5 border-b border-rasad-border/50 overflow-x-auto">
         <button onClick={() => setSelectedCategory('')}
           aria-pressed={!selectedCategory}
-          className={`text-[11px] px-2 py-1 rounded whitespace-nowrap focus-ring ${!selectedCategory ? 'bg-cyan-400/20 text-cyan-200' : 'text-slate-300'}`}>
+          className={`text-2xs px-2 py-1 rounded whitespace-nowrap focus-ring ${!selectedCategory ? 'bg-cyan-400/20 text-cyan-200' : 'text-slate-300'}`}>
           {t('timeline.all')}
         </button>
         {Object.entries(CATEGORIES).map(([k, c]) => (
@@ -69,7 +69,7 @@ export default function Timeline({ events = [], loading = false, hours = 24, onH
             aria-pressed={selectedCategory === k}
             aria-label={t(`categories.${k}`)}
             title={t(`categories.${k}`)}
-            className={`text-[11px] px-2 py-1 rounded whitespace-nowrap focus-ring ${selectedCategory === k ? 'text-white' : 'text-slate-300'}`}
+            className={`text-2xs px-2 py-1 rounded whitespace-nowrap focus-ring ${selectedCategory === k ? 'text-white' : 'text-slate-300'}`}
             style={selectedCategory === k ? { background: c.color + '20', color: c.color } : {}}>
             <span aria-hidden="true">{c.icon}</span>
           </button>
@@ -89,8 +89,8 @@ export default function Timeline({ events = [], loading = false, hours = 24, onH
             <div key={timeKey} className="mb-4">
               <div className="flex items-center gap-2 mb-2">
                 <Calendar className="w-3 h-3 text-slate-400" aria-hidden="true" />
-                <span className="text-[11px] font-mono text-slate-300">{hourFormatter.format(new Date(timeKey))}</span>
-                <span className="text-[11px] bg-rasad-border text-slate-300 px-1.5 rounded">{items.length}</span>
+                <span className="text-2xs font-mono text-slate-300">{hourFormatter.format(new Date(timeKey))}</span>
+                <span className="text-2xs bg-rasad-border text-slate-300 px-1.5 rounded">{items.length}</span>
                 <div className="flex-1 h-px bg-rasad-border" />
               </div>
               <div className="space-y-1 ms-4 border-s border-rasad-border ps-3">
@@ -108,13 +108,13 @@ export default function Timeline({ events = [], loading = false, hours = 24, onH
                         style={{ background: cat.color }} aria-hidden="true" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1 mb-0.5">
-                          <span className="text-[11px]" aria-hidden="true">{cat.icon}</span>
-                          <span className="text-[11px] px-1 rounded" style={{ background: sev.color + '20', color: sev.color }}>
+                          <span className="text-2xs" aria-hidden="true">{cat.icon}</span>
+                          <span className="text-2xs px-1 rounded" style={{ background: sev.color + '20', color: sev.color }}>
                             {t(`severity.${ev.severity}`, { defaultValue: t('severity.low') })}
                           </span>
                         </div>
                         <p className="text-xs text-slate-200 leading-relaxed line-clamp-2">{ev.title}</p>
-                        <span className="text-[11px] text-slate-300">
+                        <span className="text-2xs text-slate-300">
                           {t(`countries.${ev.country_code}`, { defaultValue: ev.country || '' })} • <bdi>{ev.source}</bdi>
                         </span>
                       </div>

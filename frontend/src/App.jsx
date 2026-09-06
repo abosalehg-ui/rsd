@@ -71,7 +71,7 @@ export default function App() {
     30000, [filters.hours]
   );
 
-  const { data: stats, error: statsError, refetch: refetchStats } = usePolling(
+  const { data: stats, error: statsError, refetch: refetchStats, lastFetchedAt: statsFetchedAt } = usePolling(
     useCallback(() => getStats(filters.hours), [filters.hours]),
     60000, [filters.hours]
   );
@@ -273,7 +273,9 @@ export default function App() {
           <StatsPanel stats={stats} countryIndex={countryIndex} countryLoading={countryLoading} />
         )}
         {activeTab === 'iran' && (
-          <IranPanel onSelectStrike={handleSelectEvent} />
+          // الضربات تأتي من الاستطلاع المشترك في App: كانت اللوحة تجلبها
+          // مستقلّةً بحدّ مختلف (50 مقابل 100) فتعرض قائمة تخالف الخريطة.
+          <IranPanel strikes={iranStrikes} onSelectStrike={handleSelectEvent} />
         )}
       </div>
     </>
@@ -294,6 +296,7 @@ export default function App() {
         onOpenAlerts={() => setAlertsOpen(true)}
         viewMode={viewMode}
         onToggleView={toggleViewMode}
+        lastFetchedAt={statsFetchedAt}
       />
 
       {/* بانر تعذّر الاتصال — البيانات المعروضة قد تكون قديمة */}

@@ -39,7 +39,7 @@ jobs:
         run: ruff check app tests
 
       - name: Tests (pytest)
-        run: pytest --cov=app --cov-report=term-missing
+        run: pytest --cov=app --cov-report=term-missing --cov-fail-under=75
 
       - name: Audit dependencies (pip-audit)
         # تبعيات التشغيل وحدها — أدوات التطوير لا تُشحن للمستخدم

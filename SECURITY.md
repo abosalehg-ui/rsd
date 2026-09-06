@@ -16,29 +16,21 @@ public issue**. Report it privately via GitHub Security Advisories
 We aim to respond within **72 hours** and to coordinate disclosure once a fix
 is available.
 
-## ⚠️ إجراء مطلوب: أسرار في تاريخ Git
+## حالة الأسرار في تاريخ Git
 
-ملف `.env` كان مرفوعاً في المستودع سابقاً وأُزيل من شجرة العمل في الـ commit
-`f565426`، **لكنه ما يزال قابلاً للاسترجاع من تاريخ Git**:
+سبق أن رُفع ملف `.env` إلى المستودع وأُزيل، **ثم نُظّف تاريخ Git من الملف
+وأُبطلت المفاتيح المكشوفة وأُصدرت بدائل**. فحص التاريخ الكامل الآن لا يُظهر أي
+commit أضاف `.env`:
 
 ```bash
-git show f565426^:.env      # يُظهر NEWSAPI_KEY و OPENSKY_CLIENT_SECRET
+git log --all --diff-filter=A -- .env    # لا نتائج
 ```
 
-الإزالة من الشجرة لا تُبطل مفتاحاً مكشوفاً. المطلوب من مالك المستودع:
+فلا حاجة لإعادة كتابة التاريخ. (كان هذا القسم يوجّه إلى `git filter-repo`
+ودفعٍ قسري استنادًا إلى commit لم يعد موجودًا — إجراء مدمّر بلا سبب.)
 
-1. **أبطِل المفتاحين فوراً وأصدر بديلين** — هذه الخطوة غير قابلة للتأجيل ولا
-   تُغني عنها إعادة كتابة التاريخ:
-   - NewsAPI: <https://newsapi.org/account>
-   - OpenSky: <https://opensky-network.org/> → Account → API Clients
-2. **نظّف التاريخ** (يُعيد كتابة الـ commits ويتطلّب دفعاً قسرياً — نسّق مع أي
-   شخص لديه نسخة مستنسخة قبل التنفيذ):
-   ```bash
-   git filter-repo --path .env --invert-paths
-   git push --force-with-lease --all
-   ```
-3. **فعّل الحماية الاستباقية:** Settings → Code security → Secret scanning +
-   Push protection.
+الحماية الاستباقية المطلوبة تبقى: تفعيل Secret scanning و Push protection من
+Settings → Code security.
 
 روابط خلاصات Google Alerts كانت أيضاً مثبّتة في المصدر (وهي أسرار شخصية لأنها
 تتضمّن معرّف الحساب)؛ نُقلت إلى `GOOGLE_ALERT_FEEDS` في `.env`. إن كنت تستخدم
@@ -56,12 +48,19 @@ git show f565426^:.env      # يُظهر NEWSAPI_KEY و OPENSKY_CLIENT_SECRET
 - **الشبكة:** الخادم بلا حسابات مستخدمين. الضوابط المتاحة:
   - `BACKEND_HOST` افتراضه `127.0.0.1`، وملفّا compose يربطان المنافذ على
     الحلقة المحلية. يُسجَّل تحذير عند البدء إن كان المضيف غير محلي بلا `API_KEY`.
-  - `API_KEY` يحمي `POST /api/refresh` (الترويسة `X-API-Key`).
+  - حارس CSRF: `POST /api/refresh` يشترط الترويسة `X-Rasad-Client` دائماً.
+    ترويسة غير بسيطة تُلزم المتصفح بطلب preflight يرفضه الخادم لأي أصل خارج
+    `CORS_ORIGINS`، فلا تستطيع صفحة خارجية إطلاق الجامعين على جهاز المستخدم
+    (CORS يمنع *قراءة* الرد لا *إرساله*).
+  - `API_KEY` يحمي `POST /api/refresh` إضافةً لذلك (الترويسة `X-API-Key`).
   - حدّ معدل لكل IP على مسارات `/api` (`RATE_LIMIT_REQUESTS`). لا يُوثَق بترويسة
     `X-Forwarded-For` إلا عند ضبط `TRUST_PROXY_HEADERS=true` (وضع الإنتاج خلف
     nginx فقط)، وإلا يمكن انتحال IP لتجاوز الحدّ.
-  - ترويسات أمنية (CSP وغيرها) في `frontend/nginx.conf` مع نسخة احتياطية
-    (`<meta>`) في `index.html` لنشر GitHub Pages الذي لا يستخدم nginx.
+  - ترويسات أمنية (CSP وغيرها) في ثلاثة مواضع بحسب هدف النشر:
+    `frontend/security-headers.conf` (nginx)، و`<meta>` في `index.html` (نشر
+    GitHub Pages بلا خادم)، و`backend/app/middleware/security_headers.py`
+    (وضع سطح المكتب حيث تُقدَّم الواجهة من FastAPI). `script-src` بلا
+    `'unsafe-inline'` ولا `'unsafe-eval'`.
   لا تعرضه للإنترنت العام دون وكيل عكسي بـ TLS ومصادقة أمامه.
 - **مفتاح الواجهة `VITE_API_KEY`:** أي متغيّر `VITE_*` **يُدمَج في حزمة
   JavaScript المبنية** فيصبح عاماً لكل زائر. اضبطه فقط لبناء محلي/سطح مكتب،

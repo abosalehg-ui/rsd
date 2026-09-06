@@ -1,8 +1,8 @@
 /**
  * رصد - قائمة الأحداث مع البحث والفلاتر
  *
- * الخلفية تدعم search / country_code / source / hours منذ البداية، ولم تكن
- * أيٌّ منها معروضة في الواجهة — أُضيفت هنا وموصولة بـ useFilters.
+ * المرشّحات هنا (بحث/دولة/مصدر/نافذة زمنية) موصولة بـ`useFilters`، وهي نفسها
+ * معاملات `GET /api/events/`.
  */
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -49,7 +49,7 @@ export default function NewsFeed({ events = [], error, loading = false, onSelect
         >
           <Filter className="w-4 h-4" aria-hidden="true" />
           {activeFilterCount > 0 && (
-            <span className="absolute -top-0.5 -end-0.5 min-w-[15px] h-[15px] px-1 bg-cyan-500 text-black text-[10px] font-bold rounded-full flex items-center justify-center">
+            <span className="absolute -top-0.5 -end-0.5 min-w-[15px] h-[15px] px-1 bg-cyan-500 text-black text-2xs font-bold rounded-full flex items-center justify-center">
               {activeFilterCount}
             </span>
           )}
@@ -201,21 +201,21 @@ export default function NewsFeed({ events = [], error, loading = false, onSelect
                 {/* الشريط العلوي */}
                 <div className="flex items-center gap-1.5 mb-1">
                   <span className="text-xs" aria-hidden="true">{cat.icon}</span>
-                  <span className="text-[11px] px-1.5 py-0.5 rounded" style={{ background: cat.color + '20', color: cat.color }}>
+                  <span className="text-2xs px-1.5 py-0.5 rounded" style={{ background: cat.color + '20', color: cat.color }}>
                     {t(`categories.${event.category}`, { defaultValue: t('categories.general') })}
                   </span>
-                  <span className="text-[11px] px-1.5 py-0.5 rounded" style={{ background: sev.color + '20', color: sev.color }}>
+                  <span className="text-2xs px-1.5 py-0.5 rounded" style={{ background: sev.color + '20', color: sev.color }}>
                     {t(`severity.${event.severity}`, { defaultValue: t('severity.low') })}
                   </span>
                   <span className="flex-1" />
-                  <span className="text-[11px] text-slate-300">{timeAgo(event.event_date, t)}</span>
+                  <span className="text-2xs text-slate-300">{timeAgo(event.event_date, t)}</span>
                 </div>
 
                 {/* العنوان */}
                 <h4 className="text-sm font-semibold text-slate-100 leading-relaxed mb-1 line-clamp-2">{event.title}</h4>
 
                 {/* التفاصيل */}
-                <div className="flex items-center gap-2 text-[11px] text-slate-300">
+                <div className="flex items-center gap-2 text-2xs text-slate-300">
                   {flag && <span>{flag} {t(`countries.${event.country_code}`, { defaultValue: event.country || '' })}</span>}
                   {/* bdi يعزل اسم المصدر اللاتيني فلا تقفز النقطة في سياق RTL */}
                   <span>• <bdi>{event.source}</bdi></span>
