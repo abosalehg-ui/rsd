@@ -30,6 +30,10 @@ yarn-error.log*
 
 # ===== Data / Databases =====
 *.db
+# ملفات SQLite الجانبية في وضع WAL
+*.db-shm
+*.db-wal
+*.db-journal
 *.sqlite
 *.sqlite3
 /data/
