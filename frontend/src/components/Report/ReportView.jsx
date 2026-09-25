@@ -79,8 +79,10 @@ export default function ReportView({ open, onClose }) {
   const color = r ? SEVERITIES[r.level || 'low'].color : undefined;
 
   return (
-    <div className="fixed inset-0 z-[10000] bg-black/60 flex justify-center overflow-y-auto print-root" role="dialog" aria-modal="true" aria-labelledby="report-title">
-      <div className="w-full max-w-3xl my-0 sm:my-6 bg-rasad-panel sm:rounded-xl border border-rasad-border shadow-2xl print-card">
+    // items-start: بدونه تمطّ flex الورقة إلى ارتفاع الشاشة فقط، فيتجاوز المحتوى
+    // الطويل خلفيتها ويظهر النص فوق الخريطة مباشرة.
+    <div className="fixed inset-0 z-[10000] bg-black/70 flex items-start justify-center overflow-y-auto print-root" role="dialog" aria-modal="true" aria-labelledby="report-title">
+      <div className="w-full max-w-3xl my-0 sm:my-6 min-h-full sm:min-h-0 bg-rasad-panel sm:rounded-xl border border-rasad-border shadow-2xl print-card">
         <div className="no-print sticky top-0 z-10 flex flex-wrap items-center gap-2 px-4 py-3 bg-rasad-panel/95 backdrop-blur border-b border-rasad-border sm:rounded-t-xl">
           <label htmlFor="report-period" className="text-xs text-slate-400">{t('report.period')}</label>
           <select
