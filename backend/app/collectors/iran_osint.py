@@ -10,8 +10,18 @@ import httpx
 
 from ..models.database import IranianLeaderNews, get_session_factory, insert_event_if_new
 from ..processors.dates import parse_entry_date
-from ..processors.text_analysis import COUNTRY_COORDS, country_code_from_text
-from ._feed_base import clean_html, make_source_id, parse_feed_async, process_feeds
+from ..processors.gazetteer import locate
+from ..processors.matching import KeywordSet
+from ..processors.normalize import normalize_for_match
+from ..processors.text_analysis import analyze, event_fields
+from ._feed_base import (
+    FEED_HEADERS,
+    clean_html,
+    clean_title,
+    make_source_id,
+    parse_feed_async,
+    process_feeds,
+)
 
 logger = logging.getLogger("rasad.iran_osint")
 
@@ -107,24 +117,35 @@ IRANIAN_LEADERS = [
     {"id": 10, "name": "علي شمخاني", "name_en": "Ali Shamkhani", "role": "مستشار المرشد", "role_en": "Supreme Leader Advisor", "icon": "👤", "keywords": ["shamkhani", "شمخاني"]},
 ]
 
-# الكلمات المفتاحية للضربات والإطلاقات
-STRIKE_KEYWORDS = [
+# الكلمات المفتاحية للضربات والإطلاقات — بحدود كلمة (matching.KeywordSet).
+# كانت `kw in text`، فتطابق "test" كلمتي "latest" و"protest".
+STRIKE_KEYWORDS = KeywordSet([
     "strike", "airstrike", "missile", "bomb", "explosion", "attack", "launch",
     "drone attack", "ballistic", "cruise missile", "rocket", "shahab", "fateh",
     "ضربة", "صاروخ", "قصف", "انفجار", "هجوم", "إطلاق", "مسيّرة",
-]
+])
 
-LAUNCH_KEYWORDS = [
+LAUNCH_KEYWORDS = KeywordSet([
     "launch", "fired", "launched", "test", "missile test", "ballistic missile",
     "irbm", "icbm", "hypersonic", "shahab", "sajjil", "emad",
     "أُطلق", "اختبار", "صاروخ باليستي",
-]
+])
 
-MILITARY_MOVE_KEYWORDS = [
+MILITARY_MOVE_KEYWORDS = KeywordSet([
     "deploy", "exercise", "troops", "warship", "submarine", "military movement",
     "irgc", "pasdaran", "revolutionary guard", "naval", "drills",
     "نشر", "مناورة", "قوات", "حرس ثوري", "بحرية",
-]
+])
+
+_REGION_KEYWORDS = KeywordSet([
+    "iran", "irgc", "tehran", "إيران", "حرس ثوري", "الحرس الثوري",
+    "middle east", "israel", "gaza", "yemen", "houthi", "houthis",
+    "hezbollah", "syria", "iraq", "saudi", "hormuz", "gulf",
+])
+_NUCLEAR_KEYWORDS = KeywordSet(["nuclear", "uranium", "enrich*", "iaea", "نووي", "يورانيوم", "تخصيب"])
+_DIPLOMATIC_KEYWORDS = KeywordSet([
+    "sanction*", "negotiat*", "deal", "talks", "ceasefire", "عقوبات", "مفاوضات", "محادثات",
+])
 
 # مواقع إيران الرئيسية للأحداث
 IRAN_LOCATIONS = {
@@ -148,7 +169,7 @@ async def collect_iran_osint() -> int:
     if not session_factory:
         return 0
 
-    async with httpx.AsyncClient(timeout=25.0, follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=25.0, follow_redirects=True, headers=FEED_HEADERS) as client:
         count = await process_feeds(client, IRAN_OSINT_FEEDS, _process_iran_feed, label="Iran OSINT")
 
     logger.info(f"Iran OSINT: تم جمع {count} حدث جديد")
@@ -183,20 +204,15 @@ async def _process_iran_feed(client: httpx.AsyncClient, feed_config: Dict) -> in
 
 async def _store_iran_entry(session, entry, feed_config: Dict) -> bool:
     """يحوّل إدخال خلاصة إيران إلى حدث ويُدرجه؛ يعيد True إن أُدرِج فعلاً."""
-    title = entry.get("title", "").strip()
+    title, _ = clean_title(entry.get("title", ""))
     if not title:
         return False
 
     description = clean_html(entry.get("summary", entry.get("description", "")), _DESC_CAP)
-    text = f"{title} {description}".lower()
+    text = normalize_for_match(f"{title} {description}")
 
     # تصفية: فقط الأحداث المتعلقة بإيران أو الشرق الأوسط
-    iran_related = any(kw in text for kw in [
-        "iran", "irgc", "tehran", "إيران", "حرس ثوري",
-        "middle east", "israel", "gaza", "yemen", "houthi",
-        "hezbollah", "syria", "iraq", "saudi", "hormuz",
-    ])
-    if not iran_related:
+    if not _REGION_KEYWORDS.matches(text):
         return False
 
     event_subtype, category = _classify_iran_event(text)
@@ -204,7 +220,7 @@ async def _store_iran_entry(session, entry, feed_config: Dict) -> bool:
         return False
 
     link = entry.get("link", "")
-    lat, lon, location_name, country_code = _geolocate_iran(text)
+    lat, lon, location_name, country_code = _geolocate_iran(f"{title} {description}")
     event_date = parse_entry_date(entry)
 
     video_url = ""
@@ -218,15 +234,34 @@ async def _store_iran_entry(session, entry, feed_config: Dict) -> bool:
     if feed_config["confidence"] == "HIGH":
         severity = "critical" if event_subtype == "strike" else severity
 
-    icon = feed_config.get("icon", "📡")
     conf = feed_config["confidence"]
     conf_icon = "🟢" if conf == "HIGH" else "🟡" if conf == "MEDIUM" else "🔵"
+
+    extra = {
+        "feed_name": feed_config["name"],
+        "source_name": feed_config["name"],
+        "confidence": conf,
+        "confidence_icon": conf_icon,
+        "event_subtype": event_subtype,
+        "is_iran_osint": True,
+    }
+
+    # الخبر النووي/الإشعاعي يُقيَّم بالمحرّك المشترك كي يظهر في الرصد النووي
+    # بدرجة خطر محسوبة كبقية المصادر (ضربة على منشأة ≠ ضربة على مستودع).
+    nuclear_fields: dict = {}
+    analysis = analyze(title, description, source_kind="specialist" if conf == "HIGH" else "news")
+    if analysis.is_nuclear:
+        derived = event_fields(analysis)
+        category, severity = derived["category"], derived["severity"]
+        nuclear_fields = {k: derived[k] for k in ("topic", "risk_score", "facility_id")}
+        extra.update(analysis.extra)
+    extra.setdefault("geo_precision", "facility" if location_name in _SITE_NAMES else "city")
 
     inserted = await insert_event_if_new(
         session,
         source="iran_osint",
         source_id=make_source_id("iran", link),
-        title=f"{icon} {title}",
+        title=title,
         description=description,
         url=link,
         video_url=video_url,
@@ -237,16 +272,12 @@ async def _store_iran_entry(session, entry, feed_config: Dict) -> bool:
         latitude=lat,
         longitude=lon,
         country=location_name or "إيران / الشرق الأوسط",
-        country_code=country_code or "IR",
+        country_code=country_code,
         location_name=location_name,
         event_date=event_date,
-        extra_data=json.dumps({
-            "feed_name": feed_config["name"],
-            "confidence": conf,
-            "confidence_icon": conf_icon,
-            "event_subtype": event_subtype,
-            "is_iran_osint": True,
-        }),
+        geo_precision=extra.get("geo_precision"),
+        extra_data=json.dumps(extra, ensure_ascii=False),
+        **nuclear_fields,
     )
     if not inserted:
         return False
@@ -260,35 +291,40 @@ async def _store_iran_entry(session, entry, feed_config: Dict) -> bool:
 def _classify_iran_event(text: str) -> Tuple[Optional[str], Optional[str]]:
     """تصنيف نوع الحدث الإيراني — (النوع الفرعي، التصنيف) أو (None, None)
     إذا لم يطابق النص أي نوع معروف (فيُتجاهل الخبر)."""
-    if any(kw in text for kw in STRIKE_KEYWORDS):
+    text = normalize_for_match(text)
+    if STRIKE_KEYWORDS.matches(text):
         return "strike", "military"
-    if any(kw in text for kw in LAUNCH_KEYWORDS):
+    if LAUNCH_KEYWORDS.matches(text):
         return "launch", "military"
-    if any(kw in text for kw in MILITARY_MOVE_KEYWORDS):
+    if MILITARY_MOVE_KEYWORDS.matches(text):
         return "movement", "military"
-    if any(kw in text for kw in ["nuclear", "uranium", "enrichment", "iaea", "نووي", "يورانيوم"]):
+    if _NUCLEAR_KEYWORDS.matches(text):
         return "nuclear", "nuclear"
-    if any(kw in text for kw in ["sanction", "negotiat", "deal", "talk", "ceasefire", "عقوبات", "مفاوضات"]):
+    if _DIPLOMATIC_KEYWORDS.matches(text):
         return "diplomatic", "diplomatic"
     # إذا ذكر إيران لكن لا يتطابق مع أي نوع محدد
     return None, None
+
+
+_SITE_NAMES = {name for _, _, name, _ in IRAN_LOCATIONS.values()}
 
 
 def _geolocate_iran(text: str) -> Tuple[float, float, str, str]:
     """تحديد الموقع الجغرافي للحدث الإيراني (lat, lon, الاسم، رمز الدولة).
 
     المواقع الإيرانية أدق من مستوى الدولة (نطنز/فردو/بوشهر…) فتُفحَص أولاً؛
-    ثم نقع على مطابقة الدول المشتركة في `text_analysis` بدل نسخة محلية ثانية.
-    الافتراضي طهران عند تعذّر كل ما سبق.
+    ثم المعجم المشترك (مدن، مسطّحات مائية، دول). الافتراضي طهران عند تعذّر
+    كل ما سبق. المسطّح المائي (البحر الأحمر، هرمز) يعيد رمز دولة فارغًا —
+    كان يُنسب لليمن أو لإيران فيضخّم مؤشرها.
     """
+    lowered = text.lower()
     for loc_key, (lat, lon, name_ar, code) in IRAN_LOCATIONS.items():
-        if loc_key in text:
+        if loc_key in lowered:
             return lat, lon, name_ar, code
 
-    code = country_code_from_text(text)
-    if code:
-        lat, lon, name_ar = COUNTRY_COORDS[code]
-        return lat, lon, name_ar, code
+    loc = locate(text)
+    if loc.lat is not None:
+        return loc.lat, loc.lon, loc.place_name or loc.country_name, loc.country_code
 
     return 35.6892, 51.3890, "إيران", "IR"
 

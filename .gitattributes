@@ -1,0 +1,6 @@
+# LF everywhere: CRLF checkouts on Windows break the shebang in scripts/*.mjs
+# (vitest fails to parse ensure-deps.mjs) and bloat diffs.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.png binary
+*.ico binary

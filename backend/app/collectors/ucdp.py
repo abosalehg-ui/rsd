@@ -191,6 +191,8 @@ async def _store_event(session, event_data: dict, since: datetime) -> tuple[bool
         country=ME_COUNTRY_NAMES.get(code, ""),
         country_code=code,
         location_name=event_data.get("where_description", ""),
+        # UCDP يعطي إحداثيات الواقعة نفسها؛ بدونها نقع على مركز الدولة
+        geo_precision="city" if str(lat or "") != "" else "country",
         event_date=event_date,
         extra_data=json.dumps({
             "deaths_total": total_deaths,

@@ -15,24 +15,55 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import logging
-import re
 from typing import Awaitable, Callable
 
 import feedparser
 import httpx
 
-logger = logging.getLogger("rasad.feeds")
+from ..processors.normalize import clean_text, split_source_suffix
+from ..processors.text_analysis import Analysis, analyze, event_fields
 
-_TAG_RE = re.compile(r"<[^>]+>")
+logger = logging.getLogger("rasad.feeds")
 
 # عدد الخلاصات المجلوبة بالتوازي — يوازن بين السرعة وعدم إغراق الشبكة/المزوّدين
 _FEED_CONCURRENCY = 6
 
 
+# ترويسة عامة: بعض الخوادم (IAEA، Google News) تردّ 403 على عميل بلا User-Agent
+FEED_HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; Rasad-OSINT/2.0)"}
+
+
 def clean_html(raw: str, cap: int) -> str:
-    """يزيل وسوم HTML البسيطة ويقتطع الوصف إلى `cap` حرفاً."""
-    return _TAG_RE.sub("", raw or "")[:cap]
+    """نص صالح للعرض: كيانات مفكوكة، بلا وسوم، مقتطع إلى `cap` حرفًا.
+
+    كانت تزيل الوسوم فقط ولا تفكّ الكيانات، والعناوين لم تمرّ بها أصلًا —
+    فظهرت `&quot;` و`<b>` في شريط الأخبار العاجلة."""
+    return clean_text(raw, cap)
+
+
+def clean_title(raw: str, known_source: str = "") -> tuple[str, str]:
+    """(عنوان نظيف، اسم مصدر مفصول من لاحقته إن وُجد)."""
+    return split_source_suffix(clean_text(raw, 500), known_source)
+
+
+def analyzed_fields(
+    title: str,
+    description: str = "",
+    *,
+    base_category: str = "general",
+    source_kind: str = "news",
+    extra: dict | None = None,
+) -> tuple[dict, Analysis]:
+    """حقول الحدث المشتقّة من التحليل + `extra_data` مدموجة، مع التحليل نفسه.
+
+    مصدر واحد لكل الجامعين: التصنيف والموقع ودرجة الخطر النووي تُحسب هنا
+    بالطريقة نفسها أيًّا كان المصدر."""
+    analysis = analyze(title, description, base_category=base_category, source_kind=source_kind)
+    fields = event_fields(analysis)
+    fields["extra_data"] = json.dumps({**(extra or {}), **analysis.extra}, ensure_ascii=False)
+    return fields, analysis
 
 
 def make_source_id(prefix: str, url: str) -> str:

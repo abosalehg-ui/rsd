@@ -1,82 +1,141 @@
 """رصد - تحليل النصوص المشترك بين الجامعين.
 
-مصدر واحد لتصنيف الأحداث وتحديد مواقعها وتحويل تواريخها، بدل تكرار المنطق
-(والإحداثيات وقوائم الكلمات) في كل جامع. أي تعديل تصنيف يتم هنا فقط.
+نقطة دخول واحدة `analyze()` تعيد كل ما يحتاجه الجامع لتخزين حدث: التصنيف،
+والخطورة، والموقع بدقته، وتقييم المخاطر النووية/الإشعاعية إن انطبق. الدوال
+القديمة (`classify`, `geolocate`, `country_code_from_text`) باقية كواجهات
+رقيقة فوقها كي لا يتغيّر توقيع أي جامع.
+
+المطابقة كلها عبر `matching.KeywordSet` (حدود كلمة + سوابق/لواحق عربية)، لا
+`kw in text` — راجع توثيق `matching.py` لأمثلة الأخطاء التي كان يُنتجها ذلك.
 """
 from __future__ import annotations
 
-# ===== إحداثيات مراكز دول الشرق الأوسط (lat, lon, الاسم العربي) — مصدر واحد =====
-COUNTRY_COORDS: dict[str, tuple[float, float, str]] = {
-    "PS": (31.5, 34.47, "فلسطين"),
-    "IL": (31.77, 35.23, "إسرائيل"),
-    "YE": (15.55, 48.52, "اليمن"),
-    "SY": (34.8, 38.99, "سوريا"),
-    "LB": (33.87, 35.51, "لبنان"),
-    "IR": (35.69, 51.39, "إيران"),
-    "IQ": (33.31, 44.37, "العراق"),
-    "SA": (24.71, 46.68, "السعودية"),
-    "EG": (30.04, 31.24, "مصر"),
-    "JO": (31.95, 35.93, "الأردن"),
-    "TR": (39.93, 32.86, "تركيا"),
-    "LY": (32.9, 13.18, "ليبيا"),
-    "SD": (15.59, 32.53, "السودان"),
-}
+from dataclasses import dataclass, field
 
-# أسماء عربية إضافية لدول الخليج (تُستخدم من GDELT)
-ME_COUNTRY_NAMES: dict[str, str] = {
-    **{code: name for code, (_, _, name) in COUNTRY_COORDS.items()},
-    "AE": "الإمارات",
-    "QA": "قطر",
-    "KW": "الكويت",
-    "BH": "البحرين",
-    "OM": "عمان",
-}
+from .gazetteer import (  # noqa: F401 - إعادة تصدير للتوافق الخلفي
+    COUNTRY_COORDS,
+    ME_COUNTRY_NAMES,
+    Location,
+    locate,
+)
+from .gazetteer import country_code_from_text as _country_code
+from .matching import KeywordSet
+from .normalize import normalize_for_match
+from .nuclear import NuclearAssessment, assess
 
-# ===== كلمات تحديد الموقع (رمز الدولة → كلمات مفتاحية عربية/إنجليزية) =====
-COUNTRY_KEYWORDS: dict[str, list[str]] = {
-    "PS": ["gaza", "palestine", "west bank", "غزة", "فلسطين", "الضفة"],
-    "IL": ["israel", "tel aviv", "jerusalem", "إسرائيل", "تل أبيب", "القدس"],
-    "YE": ["yemen", "houthi", "sanaa", "red sea", "اليمن", "حوثي", "صنعاء", "البحر الأحمر"],
-    "SY": ["syria", "damascus", "aleppo", "سوريا", "دمشق", "حلب"],
-    "LB": ["lebanon", "beirut", "hezbollah", "لبنان", "بيروت", "حزب الله"],
-    "IR": ["iran", "tehran", "إيران", "طهران"],
-    "IQ": ["iraq", "baghdad", "العراق", "بغداد"],
-    "SA": ["saudi", "riyadh", "السعودية", "الرياض"],
-    "EG": ["egypt", "cairo", "sinai", "مصر", "القاهرة", "سيناء"],
-    "JO": ["jordan", "amman", "الأردن", "عمان"],
-    "TR": ["turkey", "ankara", "تركيا", "أنقرة"],
-    "LY": ["libya", "tripoli", "ليبيا", "طرابلس"],
-    "SD": ["sudan", "khartoum", "السودان", "الخرطوم"],
-}
+# ===== قوائم كلمات التصنيف العام =====
+MILITARY_KW = KeywordSet((
+    "attack", "strike", "airstrike", "bomb*", "missile*", "war", "troops", "drone*", "soldier*",
+    "combat", "killed", "kill", "casualt*", "shelling", "clashes", "rocket*", "intercept*",
+    "هجوم", "قصف", "صاروخ", "صواريخ", "غارة", "غارات", "حرب", "قتل", "قتلى", "طائرة مسيرة",
+    "مسيرة", "مسيرات", "عسكري", "اشتباك", "اشتباكات", "اعتراض",
+))
+DEATH_KW = KeywordSet((
+    "killed", "kill", "dead", "deaths", "casualt*", "قتل", "قتلى", "مقتل", "شهداء", "ضحايا",
+))
+DIPLOMATIC_KW = KeywordSet((
+    "ceasefire", "peace", "diplomat*", "negotiat*", "summit", "treaty", "united nations",
+    "foreign minister", "talks",
+    "هدنة", "سلام", "دبلوماسي", "مفاوضات", "قمة", "وقف إطلاق النار", "اتفاق", "محادثات",
+    "وزير الخارجية", "الأمم المتحدة",
+))
+HUMANITARIAN_KW = KeywordSet((
+    "humanitarian", "refugee*", "aid", "civilian*", "displaced", "famine", "relief",
+    "إنساني", "لاجئ", "لاجئين", "مساعدات", "نازح", "نازحين", "إغاثة", "مجاعة", "مدنيين",
+))
+ECONOMIC_KW = KeywordSet((
+    "sanctions", "oil price*", "crude", "economic", "economy", "trade", "tariff*", "inflation",
+    "عقوبات", "نفط", "أسعار النفط", "اقتصاد", "اقتصادي", "تجارة", "تضخم",
+))
 
-# ===== قوائم كلمات التصنيف =====
-NUCLEAR_KW = [
-    "nuclear", "uranium", "enrichment", "iaea", "atomic", "reactor", "radiation",
-    "centrifuge", "نووي", "يورانيوم", "تخصيب", "مفاعل", "ذري", "إشعاع",
-]
-MILITARY_KW = [
-    "attack", "strike", "bomb", "missile", "war", "troops", "drone", "airstrike",
-    "soldier", "combat", "killed", "kill", "dead", "casualt",
-    "هجوم", "قصف", "صاروخ", "غارة", "حرب", "قتل", "طائرة مسيرة", "عسكري",
-]
-DEATH_KW = ["kill", "dead", "killed", "قتل", "قتلى"]
-DIPLOMATIC_KW = [
-    "ceasefire", "peace", "diplomat", "negotiate", "summit", "treaty",
-    "united nations", "un ",
-    "هدنة", "سلام", "دبلوماسي", "مفاوضات", "قمة", "وقف إطلاق", "اتفاق",
-]
-HUMANITARIAN_KW = [
-    "humanitarian", "refugee", "aid", "civilian", "displaced", "famine",
-    "إنساني", "لاجئ", "مساعدات", "نازح", "إغاثة", "مجاعة",
-]
-ECONOMIC_KW = [
-    "sanctions", "oil", "economic", "trade", "عقوبات", "نفط", "اقتصاد",
-]
+CATEGORIES = ("military", "nuclear", "radiological", "diplomatic", "humanitarian", "economic", "general")
 
 
-def _has(text: str, keywords: list[str]) -> bool:
-    return any(kw in text for kw in keywords)
+@dataclass
+class Analysis:
+    category: str
+    severity: str
+    location: Location
+    nuclear: NuclearAssessment
+    extra: dict = field(default_factory=dict)
 
+    @property
+    def is_nuclear(self) -> bool:
+        return self.nuclear.relevant
+
+
+def _classify_general(norm: str, base_category: str, escalate_on_death: bool) -> tuple[str, str]:
+    if MILITARY_KW.matches(norm):
+        sev = "critical" if (escalate_on_death and DEATH_KW.matches(norm)) else "high"
+        return "military", sev
+    if DIPLOMATIC_KW.matches(norm):
+        return "diplomatic", "medium"
+    if HUMANITARIAN_KW.matches(norm):
+        return "humanitarian", "medium"
+    if ECONOMIC_KW.matches(norm):
+        return "economic", "low"
+    return base_category, ("medium" if base_category != "general" else "low")
+
+
+def analyze(
+    title: str,
+    description: str = "",
+    *,
+    base_category: str = "general",
+    source_kind: str = "news",
+    escalate_on_death: bool = True,
+) -> Analysis:
+    """تحليل كامل لخبر. `base_category="nuclear"` يعني مصدرًا نوويًا متخصصًا
+    (كل منشوراته نووية) فيُقيَّم نوويًا حتى لو لم تظهر كلمة «نووي»."""
+    location = locate(title, description)
+    nuclear = assess(
+        title, description, location,
+        source_kind=source_kind,
+        force=base_category in ("nuclear", "radiological"),
+    )
+
+    if nuclear.relevant:
+        category, severity = nuclear.category, nuclear.severity
+    else:
+        norm = normalize_for_match(f"{title} {description}")
+        category, severity = _classify_general(norm, base_category, escalate_on_death)
+
+    extra = {"geo_precision": location.precision}
+    if location.place_name:
+        extra["place_name"] = location.place_name
+    if nuclear.relevant:
+        extra["nuclear"] = {
+            "topic": nuclear.topic,
+            "risk_score": nuclear.risk_score,
+            "components": nuclear.components,
+            "facility_ids": nuclear.facility_ids,
+            "distance_to_ksa_km": nuclear.distance_to_ksa_km,
+            "nearest_ksa_point": nuclear.nearest_ksa_point,
+            "reassuring": nuclear.reassuring,
+            "matched": nuclear.matched,
+        }
+    return Analysis(category=category, severity=severity, location=location, nuclear=nuclear, extra=extra)
+
+
+def event_fields(analysis: Analysis) -> dict:
+    """حقول نموذج `Event` المشتقّة من التحليل — تُفكّ مباشرة في `insert_event_if_new`."""
+    loc = analysis.location
+    nuc = analysis.nuclear
+    return {
+        "category": analysis.category,
+        "severity": analysis.severity,
+        "latitude": loc.lat,
+        "longitude": loc.lon,
+        "country": loc.country_name,
+        "country_code": loc.country_code,
+        "topic": nuc.topic if nuc.relevant else None,
+        "risk_score": nuc.risk_score if nuc.relevant else None,
+        "facility_id": (nuc.facility_ids[0] if nuc.facility_ids else loc.facility_id) or None,
+        "geo_precision": loc.precision,
+    }
+
+
+# ===== واجهات التوافق الخلفي =====
 
 def classify(
     title: str,
@@ -84,47 +143,16 @@ def classify(
     base_category: str = "general",
     escalate_on_death: bool = True,
 ) -> tuple[str, str]:
-    """تصنيف حدث إلى (category, severity) من عنوانه ووصفه.
-
-    - base_category="nuclear" يفرض التصنيف النووي مباشرة (مصادر نووية مخصّصة).
-    - escalate_on_death يرفع العسكري إلى "critical" عند ذكر قتلى.
-    """
-    if base_category == "nuclear":
-        return "nuclear", "high"
-
-    text = f"{title} {description}".lower()
-
-    if _has(text, NUCLEAR_KW):
-        return "nuclear", "high"
-    if _has(text, MILITARY_KW):
-        sev = "critical" if (escalate_on_death and _has(text, DEATH_KW)) else "high"
-        return "military", sev
-    if _has(text, DIPLOMATIC_KW):
-        return "diplomatic", "medium"
-    if _has(text, HUMANITARIAN_KW):
-        return "humanitarian", "medium"
-    if _has(text, ECONOMIC_KW):
-        return "economic", "low"
-
-    return base_category, "medium" if base_category != "general" else "low"
+    """(category, severity) — كما كانت، مع دعم التصنيف النووي/الإشعاعي."""
+    a = analyze(title, description, base_category=base_category, escalate_on_death=escalate_on_death)
+    return a.category, a.severity
 
 
 def country_code_from_text(text: str) -> str:
-    """رمز ISO للدولة المذكورة في النص، أو "" عند التعذّر.
-
-    مصدر واحد لمطابقة الدول يستعمله كل الجامعين.
-    """
-    lowered = text.lower()
-    for code, keywords in COUNTRY_KEYWORDS.items():
-        if _has(lowered, keywords):
-            return code
-    return ""
+    return _country_code(text)
 
 
 def geolocate(title: str, description: str = "") -> tuple[str, str, float | None, float | None]:
-    """تحديد (code, name_ar, lat, lon) من النص. يعيد ("", "", None, None) عند التعذّر."""
-    code = country_code_from_text(f"{title} {description}")
-    if not code:
-        return "", "", None, None
-    lat, lon, name = COUNTRY_COORDS[code]
-    return code, name, lat, lon
+    """(code, name_ar, lat, lon) — أدق موقع متاح، أو ("", "", None, None)."""
+    loc = locate(title, description)
+    return loc.country_code, loc.country_name, loc.lat, loc.lon

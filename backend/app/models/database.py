@@ -62,6 +62,13 @@ class Event(Base):
     confidence = Column(String(10), default="LOW")   # HIGH, MEDIUM, LOW
     video_url = Column(Text)                          # رابط فيديو OSINT
 
+    # الرصد النووي والإشعاعي (v2.0) — تُملأ من `processors.text_analysis.analyze`
+    topic = Column(String(40))              # موضوع نووي/إشعاعي (processors/nuclear.TOPICS)
+    risk_score = Column(Float)              # درجة الخطر 0-100 (للأحداث النووية/الإشعاعية فقط)
+    facility_id = Column(String(40))        # منشأة مذكورة (data/nuclear_facilities.json)
+    geo_precision = Column(String(12))      # facility | city | region | country | none
+    cluster_id = Column(Integer)            # معرّف «القصة»: أول حدث في مجموعة الأخبار المتشابهة
+
     __table_args__ = (
         Index("idx_events_date", "event_date"),
         Index("idx_events_category", "category"),
@@ -72,6 +79,9 @@ class Event(Base):
         Index("idx_events_collected", "collected_at"),
         # مركّب: /api/collectors/status يبحث بـ (source, collected_at) معاً
         Index("idx_events_source_collected", "source", "collected_at"),
+        Index("idx_events_topic", "topic"),
+        Index("idx_events_cluster", "cluster_id"),
+        Index("idx_events_facility", "facility_id"),
     )
 
 
@@ -151,6 +161,11 @@ def _register_sqlite_pragmas(engine) -> None:
 _EVENTS_ADDED_COLUMNS = {
     "confidence": "VARCHAR(10) DEFAULT 'LOW'",
     "video_url": "TEXT",
+    "topic": "VARCHAR(40)",
+    "risk_score": "FLOAT",
+    "facility_id": "VARCHAR(40)",
+    "geo_precision": "VARCHAR(12)",
+    "cluster_id": "INTEGER",
 }
 
 
@@ -167,6 +182,13 @@ async def _migrate_sqlite(conn) -> None:
         if col not in existing:
             await conn.execute(text(f"ALTER TABLE events ADD COLUMN {col} {ddl}"))
             logger.info("🛠️ ترقية: أُضيف العمود events.%s", col)
+    # create_all يتخطّى الجداول القائمة بفهارسها، فنُنشئ فهارس الأعمدة المضافة هنا
+    for name, col in (
+        ("idx_events_topic", "topic"),
+        ("idx_events_cluster", "cluster_id"),
+        ("idx_events_facility", "facility_id"),
+    ):
+        await conn.execute(text(f"CREATE INDEX IF NOT EXISTS {name} ON events ({col})"))
 
 
 async def init_db(database_url: str):
@@ -242,6 +264,73 @@ async def insert_event_if_new(session, **fields) -> bool:
         return True
     except IntegrityError:
         return False
+
+
+# مصادر يحدّد جامعها التصنيف والموقع بنفسه (بيانات منظّمة) فلا يُعاد تحليلها
+_BACKFILL_SKIP_SOURCES = ("ucdp", "iran_osint")
+
+
+async def backfill_analysis(batch: int = 500) -> int:
+    """يعيد تحليل الأحداث المخزّنة قبل v2.0 (لا `geo_precision` لها).
+
+    قاعدة سطح المكتب تبقى بين الإصدارات، فبدون هذا تظهر أحداث الأيام الثلاثين
+    الماضية بلا موضوع نووي ولا درجة خطر ولا موقع مُصحَّح حتى تنتهي صلاحيتها.
+    يعمل على دفعات ويتوقّف حين لا يبقى شيء؛ تشغيله مرة ثانية لا يفعل شيئًا.
+    """
+    if not _session_factory:
+        return 0
+    import json
+
+    from sqlalchemy import select
+
+    from ..processors.normalize import clean_text
+    from ..processors.text_analysis import analyze, event_fields
+
+    total = 0
+    while True:
+        async with _session_factory() as session:
+            rows = (await session.execute(
+                select(Event)
+                .where(Event.geo_precision.is_(None), Event.source.notin_(_BACKFILL_SKIP_SOURCES))
+                .limit(batch)
+            )).scalars().all()
+            if not rows:
+                break
+            for ev in rows:
+                title = clean_text(ev.title)
+                description = clean_text(ev.description)
+                try:
+                    extra = json.loads(ev.extra_data) if ev.extra_data else {}
+                except (json.JSONDecodeError, TypeError):
+                    extra = {}
+                kind = extra.get("source_kind", "news")
+                forced = extra.get("feed_category") == "nuclear" or kind in ("official", "specialist")
+                a = analyze(
+                    title, description,
+                    base_category="nuclear" if forced else "general",
+                    source_kind=kind,
+                )
+                for key, value in event_fields(a).items():
+                    setattr(ev, key, value)
+                ev.title = title
+                ev.description = description
+                ev.extra_data = json.dumps({**extra, **a.extra}, ensure_ascii=False)
+            await session.commit()
+            total += len(rows)
+    if total:
+        logger.info("🔁 إعادة تحليل %s حدثًا مخزّنًا بمحرّك v2.0", total)
+    return total
+
+
+async def run_story_clustering(hours: int = 72) -> int:
+    """يُسند القصص للأحداث الجديدة خلال آخر `hours` ساعة (انظر processors/clustering)."""
+    if not _session_factory:
+        return 0
+    from ..processors.clustering import assign_story_clusters
+
+    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+    async with _session_factory() as session:
+        return await assign_story_clusters(session, since)
 
 
 async def prune_old_data(events_days: int = 30, flights_days: int = 7) -> dict:

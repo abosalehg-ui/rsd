@@ -27,7 +27,7 @@ from .config import Settings, get_settings
 from .middleware.cache import ETagCacheMiddleware
 from .middleware.ratelimit import RateLimitMiddleware
 from .middleware.security_headers import SecurityHeadersMiddleware
-from .models.database import init_db
+from .models.database import backfill_analysis, init_db
 from .scheduler import start_scheduler, stop_scheduler
 
 # إعداد السجل
@@ -49,6 +49,10 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     await init_db(settings.database_url)
     logger.info("✅ قاعدة البيانات جاهزة")
+    try:
+        await backfill_analysis()
+    except Exception as e:  # noqa: BLE001 - الترقية تحسين؛ فشلها لا يمنع الإقلاع
+        logger.warning("تعذّرت إعادة تحليل الأحداث القديمة: %s", e)
 
     # تحذير من سوء إعداد صامت: خادم مكشوف على الشبكة بلا مفتاح API يعني
     # واجهة مفتوحة بالكامل. نُبرز هذا بدل تركه fail-open صامتاً.

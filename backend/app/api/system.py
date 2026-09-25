@@ -21,11 +21,12 @@ from ..collectors import (
     collect_gdelt_events,
     collect_iran_osint,
     collect_news,
+    collect_nuclear_watch,
     collect_rss_feeds,
     collect_ucdp_events,
 )
 from ..config import get_settings
-from ..models.database import Event, get_session_factory
+from ..models.database import Event, get_session_factory, run_story_clustering
 from ..processors.dates import utcnow
 
 logger = logging.getLogger("rasad.system")
@@ -41,6 +42,7 @@ COLLECTORS: dict[str, Callable[[], Awaitable[int]]] = {
     "rss": collect_rss_feeds,
     "ucdp": collect_ucdp_events,
     "iran_osint": collect_iran_osint,
+    "nuclear_watch": collect_nuclear_watch,
 }
 
 # حدّ أدنى بين تحديثين يدويّين — يمنع قصف المصادر الخارجية بطلبات متتالية.
@@ -70,6 +72,12 @@ async def run_all_collectors() -> tuple[dict, int]:
         else:
             summary[name] = {"status": "ok", "new_events": result}
             total += result
+
+    # تجميع القصص فور انتهاء الجمع كي لا تظهر الأخبار المكررة حتى الدورة التالية
+    try:
+        await run_story_clustering()
+    except Exception as e:  # noqa: BLE001 - التجميع تحسين، فشله لا يُفشل الجمع
+        logger.warning("تعذّر تجميع القصص: %s", e)
     return summary, total
 
 
@@ -121,6 +129,7 @@ def _collector_intervals(settings) -> dict[str, int]:
         "rss": settings.rss_interval,
         "ucdp": settings.ucdp_interval,
         "iran_osint": settings.iran_osint_interval,
+        "nuclear_watch": settings.nuclear_interval,
     }
 
 
@@ -206,6 +215,7 @@ async def get_sources():
             {"id": "rss", "name": "RSS Feeds", "interval": _fmt(s.rss_interval), "status": "active"},
             {"id": "ucdp", "name": "UCDP Uppsala", "interval": _fmt(s.ucdp_interval), "status": _state(bool(s.ucdp_access_token))},
             {"id": "iran_osint", "name": "Iran OSINT", "interval": _fmt(s.iran_osint_interval), "status": "active"},
+            {"id": "nuclear_watch", "name": "الرصد النووي والإشعاعي", "interval": _fmt(s.nuclear_interval), "status": "active"},
             {"id": "adsb", "name": "adsb.lol ADS-B", "interval": _fmt(s.effective_adsb_interval), "status": "active"},
         ],
         "planned": [

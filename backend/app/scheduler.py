@@ -9,11 +9,12 @@ from .collectors import (
     collect_gdelt_events,
     collect_iran_osint,
     collect_news,
+    collect_nuclear_watch,
     collect_rss_feeds,
     collect_ucdp_events,
 )
 from .config import get_settings
-from .models.database import prune_old_data
+from .models.database import prune_old_data, run_story_clustering
 
 logger = logging.getLogger("rasad.scheduler")
 
@@ -82,6 +83,25 @@ def start_scheduler():
         seconds=settings.iran_osint_interval,
         id="iran_osint_collector",
         name="جامع إيران OSINT",
+        max_instances=1,
+    )
+
+    scheduler.add_job(
+        collect_nuclear_watch,
+        "interval",
+        seconds=settings.nuclear_interval,
+        id="nuclear_watch_collector",
+        name="جامع الرصد النووي والإشعاعي",
+        max_instances=1,
+    )
+
+    # تجميع القصص: كل جامع يكتب مستقلًا، فالتجميع وظيفة دورية واحدة بعدهم
+    scheduler.add_job(
+        run_story_clustering,
+        "interval",
+        seconds=settings.clustering_interval,
+        id="story_clustering",
+        name="تجميع القصص",
         max_instances=1,
     )
 

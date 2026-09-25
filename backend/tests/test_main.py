@@ -72,12 +72,12 @@ async def test_sources_marks_credential_less_collectors_disabled(main_client):
 
 @pytest.mark.asyncio
 async def test_refresh_aggregates_collector_counts(main_client, mock_collectors):
-    """أول استدعاء ينجح ويجمع أعداد الجامعين المُبدَّلة (5 × 3 = 15)."""
+    """أول استدعاء ينجح ويجمع أعداد الجامعين المُبدَّلة (6 × 3 = 18)."""
     async with main_client as c:
         r = await c.post("/api/refresh", headers=CLIENT_HEADERS)
     assert r.status_code == 200
     body = r.json()
-    assert body["total_new"] == 15
+    assert body["total_new"] == 18
     assert body["sources"]["gdelt"]["status"] == "ok"
     assert body["sources"]["gdelt"]["new_events"] == 3
 
@@ -133,7 +133,7 @@ async def test_collectors_status_covers_every_scheduled_source(main_client):
         r = await c.get("/api/collectors/status")
     assert r.status_code == 200
     data = r.json()
-    assert {"gdelt", "newsapi", "rss", "ucdp", "iran_osint"} == set(data)
+    assert {"gdelt", "newsapi", "rss", "ucdp", "iran_osint", "nuclear_watch"} == set(data)
     for entry in data.values():
         assert entry["interval_seconds"] > 0
         assert isinstance(entry["healthy"], bool)

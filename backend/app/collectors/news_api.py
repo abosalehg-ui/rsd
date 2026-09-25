@@ -5,7 +5,6 @@
 429. هنا استعلام مركّب واحد لكل لغة (طلبان لكل دورة) مع فاصل ساعة —
 48 طلبًا يوميًا داخل الحصة.
 """
-import json
 import logging
 
 import httpx
@@ -13,8 +12,7 @@ import httpx
 from ..config import get_settings
 from ..models.database import get_session_factory, insert_event_if_new
 from ..processors.dates import parse_iso
-from ..processors.text_analysis import classify, geolocate
-from ._feed_base import make_source_id
+from ._feed_base import analyzed_fields, clean_html, clean_title, make_source_id
 
 logger = logging.getLogger("rasad.newsapi")
 
@@ -25,13 +23,14 @@ NEWSAPI_URL = "https://newsapi.org/v2/everything"
 SEARCH_QUERIES = {
     "en": (
         '("middle east" OR gaza OR palestine OR israel OR yemen OR houthi OR syria '
-        'OR lebanon OR hezbollah OR iran OR iraq) AND (war OR conflict OR attack OR '
-        'strike OR airstrike OR missile OR ceasefire OR nuclear OR sanctions OR "red sea")'
+        'OR lebanon OR hezbollah OR iran OR iraq OR saudi OR uae OR gulf) AND (war OR attack OR '
+        'strike OR missile OR ceasefire OR nuclear OR radiation OR radioactive OR IAEA OR '
+        'uranium OR sanctions OR "red sea")'
     ),
     "ar": (
-        '("الشرق الأوسط" OR غزة OR فلسطين OR إسرائيل OR اليمن OR سوريا OR لبنان '
-        'OR إيران OR العراق) AND (حرب OR هجوم OR قصف OR غارة OR صاروخ OR هدنة '
-        'OR نووي OR عقوبات)'
+        '("الشرق الأوسط" OR غزة OR إسرائيل OR اليمن OR سوريا OR لبنان '
+        'OR إيران OR العراق OR السعودية OR الإمارات OR الخليج) AND (حرب OR هجوم OR قصف '
+        'OR صاروخ OR هدنة OR نووي OR إشعاعي OR يورانيوم OR "الطاقة الذرية" OR عقوبات)'
     ),
 }
 
@@ -111,15 +110,21 @@ async def _collect_language(client, session_factory, api_key: str, lang: str, qu
 
 async def _store_article(session, article: dict, lang: str) -> bool:
     """يحوّل مقال NewsAPI إلى حدث ويُدرجه ذرّيًا؛ يعيد True إن أُدرِج فعلاً."""
-    title = article.get("title") or ""
+    source_name = (article.get("source") or {}).get("name", "")
+    title, _ = clean_title(article.get("title") or "", source_name)
     if not title:
         return False
 
     url = article.get("url", "")
-    description = article.get("description") or ""
-    category, severity = classify(title, description)
-    country_code, country_name, lat, lon = geolocate(title, description)
-    source_name = (article.get("source") or {}).get("name", "")
+    description = clean_html(article.get("description") or "", 600)
+    fields, analysis = analyzed_fields(
+        title, description,
+        extra={
+            "author": article.get("author") or "",
+            "source_name": source_name,
+            "language": lang,
+        },
+    )
 
     return await insert_event_if_new(
         session,
@@ -129,17 +134,7 @@ async def _store_article(session, article: dict, lang: str) -> bool:
         description=description,
         url=url,
         image_url=article.get("urlToImage") or "",
-        category=category,
-        severity=severity,
-        latitude=lat,
-        longitude=lon,
-        country=country_name,
-        country_code=country_code,
-        location_name=source_name,
+        location_name=analysis.location.place_name or source_name,
         event_date=parse_iso(article.get("publishedAt")),
-        extra_data=json.dumps({
-            "author": article.get("author") or "",
-            "source_name": source_name,
-            "language": lang,
-        }),
+        **fields,
     )

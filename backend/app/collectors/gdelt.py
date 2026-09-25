@@ -2,15 +2,14 @@
 يجمع الأحداث من مشروع GDELT كل 15 دقيقة
 GDELT يراقب الأخبار العالمية ويحولها لأحداث مصنفة جغرافياً
 """
-import json
 import logging
 
 import httpx
 
 from ..models.database import get_session_factory, insert_event_if_new
 from ..processors.dates import parse_compact
-from ..processors.text_analysis import ME_COUNTRY_NAMES as ME_COUNTRIES
-from ..processors.text_analysis import classify, country_code_from_text
+from ..processors.gazetteer import COUNTRY_BY_CODE, COUNTRY_COORDS
+from ._feed_base import analyzed_fields, clean_title
 
 logger = logging.getLogger("rasad.gdelt")
 
@@ -29,9 +28,14 @@ async def collect_gdelt_events() -> int:
         async with httpx.AsyncClient(timeout=30.0) as client:
             # جلب أحداث الشرق الأوسط
             params = {
-                "query": "middleeast OR gaza OR israel OR yemen OR syria OR lebanon OR iran",
+                # المفردات النووية/الإشعاعية ضمن الاستعلام نفسه: GDELT يحدّ
+                # الطلبات (نحو طلب كل 5 ثوانٍ)، فاستعلام ثانٍ يعني انتظارًا.
+                "query": (
+                    "(middleeast OR gaza OR israel OR yemen OR syria OR lebanon OR iran "
+                    "OR iaea OR uranium OR radioactive OR barakah OR bushehr)"
+                ),
                 "mode": "artlist",
-                "maxrecords": 50,
+                "maxrecords": 75,
                 "format": "json",
                 "sort": "datedesc",
                 "timespan": "4hours",
@@ -51,17 +55,24 @@ async def collect_gdelt_events() -> int:
             async with session_factory() as session:
                 for article in articles:
                     try:
-                        source_id = f"gdelt_{article.get('url', '')[:200]}"
-
-                        # تحديد التصنيف من العنوان
-                        title = article.get("title", "")
-                        category, severity = classify(title)
-
-                        # تحديد الدولة
-                        country_code = _extract_country(title, article.get("sourcecountry", ""))
+                        source_id = f"gdelt_{(article.get('url') or '')[:200]}"
+                        title, _ = clean_title(article.get("title") or "")
+                        if not title:
+                            continue
 
                         # ملاحظة: GDELT artlist لا يعيد وصفاً — نترك الوصف فارغاً بدل
                         # حشو حقل الوصف بطابع seendate الزمني (BUG-1).
+                        fields, analysis = analyzed_fields(
+                            title,
+                            extra={
+                                "domain": article.get("domain", ""),
+                                "source_name": article.get("domain", ""),
+                                "language": article.get("language", ""),
+                                "tone": article.get("tone", ""),
+                            },
+                        )
+                        _fallback_to_source_country(fields, article.get("sourcecountry", ""))
+
                         inserted = await insert_event_if_new(
                             session,
                             source="gdelt",
@@ -70,19 +81,9 @@ async def collect_gdelt_events() -> int:
                             description="",
                             url=article.get("url", ""),
                             image_url=article.get("socialimage", ""),
-                            category=category,
-                            severity=severity,
-                            latitude=article.get("lat"),
-                            longitude=article.get("lon"),
-                            country=ME_COUNTRIES.get(country_code, ""),
-                            country_code=country_code,
-                            location_name=article.get("sourcelocation", ""),
+                            location_name=analysis.location.place_name or article.get("sourcecountry", ""),
                             event_date=parse_compact(article.get("seendate")),
-                            extra_data=json.dumps({
-                                "domain": article.get("domain", ""),
-                                "language": article.get("language", ""),
-                                "tone": article.get("tone", ""),
-                            }),
+                            **fields,
                         )
                         if inserted:
                             count += 1
@@ -103,10 +104,22 @@ async def collect_gdelt_events() -> int:
     return count
 
 
-def _extract_country(title: str, source_country: str) -> str:
-    """رمز الدولة من العنوان، وإلا من بلد المصدر الذي يعطيه GDELT.
+# اسم الدولة كما يكتبه GDELT في sourcecountry → رمز ISO. كان الرمز يُشتقّ
+# بأول حرفين من الاسم ("Israel" → "IS" = آيسلندا، "Iran" → "IR" صدفةً).
+_GDELT_COUNTRY_CODES = {c.name_en.lower(): c.code for c in COUNTRY_BY_CODE.values()}
+_GDELT_COUNTRY_CODES.update({"turkey": "TR", "west bank": "PS", "gaza strip": "PS"})
 
-    المطابقة عبر `country_code_from_text` المشترك — كانت نسخة ثانية من خريطة
-    الكلمات المفتاحية هنا وتتباعد عن الأصل مع كل تعديل.
-    """
-    return country_code_from_text(title) or (source_country[:2].upper() if source_country else "")
+
+def gdelt_country_code(source_country: str) -> str:
+    return _GDELT_COUNTRY_CODES.get((source_country or "").strip().lower(), "")
+
+
+def _fallback_to_source_country(fields: dict, source_country: str) -> None:
+    """حين لا يذكر العنوان أي مكان، نستعمل بلد الناشر رمزًا فقط — بلا إحداثيات:
+    بلد الصحيفة ليس مكان الحدث، ووضعه على الخريطة كان يضلّل."""
+    if fields.get("country_code"):
+        return
+    code = gdelt_country_code(source_country)
+    if code:
+        fields["country_code"] = code
+        fields["country"] = COUNTRY_COORDS[code][2]
