@@ -91,8 +91,12 @@ export const getIranStrikes = (params = {}) => fetchAPI('/iran/strikes', params)
 export const getIranLeaders = (hours = 72) => fetchAPI('/iran/leaders', { hours });
 export const getIranStats = (hours = 72) => fetchAPI('/iran/stats', { hours });
 
-// Nuclear facilities ☢️
+// Nuclear & radiological watch
 export const getNuclearFacilities = (params = {}) => fetchAPI('/nuclear/facilities', params);
+export const getNuclearRisk = (hours = 24) => fetchAPI('/nuclear/risk', { hours });
+export const getNuclearEvents = (params = {}) => fetchAPI('/nuclear/events', params);
+export const getFacilityWatch = (hours = 168) => fetchAPI('/nuclear/facilities/watch', { hours });
+export const getNuclearBrief = (hours = 24) => fetchAPI('/nuclear/brief', { hours });
 
 // Country Intelligence Index 📊 (v1.3)
 export const getCountryIndex = (params = {}) => fetchAPI('/events/country-index', params);

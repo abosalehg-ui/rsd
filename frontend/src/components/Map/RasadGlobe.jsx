@@ -6,6 +6,7 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { iconSvg } from '../../utils/icons';
 import Globe from 'globe.gl';
 import { CATEGORIES, CONFIDENCE } from '../../utils/constants';
 import { esc } from '../../utils/security';
@@ -215,7 +216,7 @@ export default function RasadGlobe({
           kind: 'event', data: ev,
           sprite: { texture: dotTexture(), color, scale: markerScale(ev.severity) },
           label: `<div style="direction:${dir};font-family:Tajawal,sans-serif;background:#111827;border:1px solid #1e293b;padding:6px 8px;border-radius:6px;max-width:280px">
-            <div style="color:${color};font-size:11px;font-weight:700;margin-bottom:2px">${(CATEGORIES[ev.category]||CATEGORIES.general).icon} ${esc(ev.title)}</div>
+            <div style="color:${color};font-size:11px;font-weight:700;margin-bottom:2px">${iconSvg((CATEGORIES[ev.category]||CATEGORIES.general).icon, { size: 11, color })} ${esc(ev.title)}</div>
             <div style="color:#94a3b8;font-size:10px">${esc(ev.country)}</div>
           </div>`,
         };
@@ -240,7 +241,7 @@ export default function RasadGlobe({
           // بعيد: علامة تجميع واحدة تحمل العدد — الضغط عليها يقرّب الكاميرا
           const color = hasCritical ? '#ef4444' : '#22d3ee';
           const titles = cluster.events.slice(0, 5)
-            .map(e => `<div style="color:#cbd5e1;font-size:10px;padding:1px 0">${(CATEGORIES[e.category]||CATEGORIES.general).icon} ${esc((e.title || '').substring(0, 60))}</div>`)
+            .map(e => `<div style="color:#cbd5e1;font-size:10px;padding:1px 0">${iconSvg((CATEGORIES[e.category]||CATEGORIES.general).icon, { size: 10, color: '#cbd5e1' })} ${esc((e.title || '').substring(0, 60))}</div>`)
             .join('');
           objects.push({
             lat: cluster.lat, lng: cluster.lng, alt: SURFACE_ALT,
@@ -271,7 +272,7 @@ export default function RasadGlobe({
           kind: 'iran', data: s,
           sprite: { texture: dotTexture(), color: conf.color, scale: 0.026 },
           label: `<div style="direction:${dir};font-family:Tajawal,sans-serif;background:#111827;border:1px solid ${conf.color};padding:6px 8px;border-radius:6px;max-width:280px">
-            <div style="color:${conf.color};font-size:10px;margin-bottom:2px">${conf.icon} ${esc(t('confidence.' + s.confidence, { defaultValue: t('confidence.LOW') }))}</div>
+            <div style="color:${conf.color};font-size:10px;margin-bottom:2px">${esc(t('confidence.' + s.confidence, { defaultValue: t('confidence.LOW') }))}</div>
             <div style="color:#fff;font-size:11px;font-weight:700">${esc(s.title)}</div>
           </div>`,
         });
@@ -297,7 +298,7 @@ export default function RasadGlobe({
             opacity: isMil ? 1 : 0.85,
           },
           label: `<div style="direction:${dir};font-family:monospace;background:#0d1117;border:1px solid ${isMil ? '#a855f7' : '#475569'};padding:5px 7px;border-radius:6px">
-            <div style="color:${isMil ? '#c4b5fd' : '#cbd5e1'};font-size:11px;font-weight:700">${isMil ? '⚔️ ' : '✈️ '}${esc(f.callsign || f.icao24 || '')}</div>
+            <div style="color:${isMil ? '#c4b5fd' : '#cbd5e1'};font-size:11px;font-weight:700">${iconSvg(isMil ? 'shield' : 'plane', { size: 11, color: isMil ? '#c4b5fd' : '#cbd5e1' })} ${esc(f.callsign || f.icao24 || '')}</div>
             <div style="color:#94a3b8;font-size:9px">${esc(f.origin_country || '')}${f.altitude ? ` • ${esc(Math.round(f.altitude))} ${esc(t('map.metersShort'))}` : ''}</div>
           </div>`,
         });
@@ -311,7 +312,7 @@ export default function RasadGlobe({
           kind: 'nuclear', data: f,
           sprite: { texture: ringTexture(), color: '#facc15', scale: f.type === 'power' ? 0.026 : 0.021 },
           label: `<div style="direction:${dir};font-family:Tajawal,sans-serif;background:#0d1117;border:1px solid #facc15;padding:6px 8px;border-radius:6px;max-width:260px">
-            <div style="color:#facc15;font-size:11px;font-weight:700">☢️ ${esc(f.name_ar || f.name_en)}</div>
+            <div style="color:#facc15;font-size:11px;font-weight:700">${iconSvg('radiation', { size: 11, color: '#f2c230' })} ${esc(f.name_ar || f.name_en)}</div>
             <div style="color:#94a3b8;font-size:9px">${esc(f.country || '')} • ${f.capacity_mw ? esc(f.capacity_mw) + ' MW' : esc(f.type)}</div>
           </div>`,
         });

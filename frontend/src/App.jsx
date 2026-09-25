@@ -12,20 +12,27 @@ import NewsFeed from './components/NewsFeed/NewsFeed';
 import Timeline from './components/Timeline/Timeline';
 import StatsPanel from './components/Stats/StatsPanel';
 import IranPanel from './components/Iran/IranPanel';
+import NuclearPanel from './components/Nuclear/NuclearPanel';
+import EventDrawer from './components/Events/EventDrawer';
+import ReportView from './components/Report/ReportView';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { usePolling, useFilters } from './hooks/usePolling';
 import { useAudioAlert } from './hooks/useAudioAlert';
-import { Newspaper, Clock, BarChart3, PanelLeftClose, PanelLeftOpen, Crosshair, Map as MapIcon, X } from 'lucide-react';
+import {
+  Newspaper, Clock, BarChart3, PanelLeftClose, PanelLeftOpen, Crosshair, Map as MapIcon, X, Radiation,
+} from 'lucide-react';
 import {
   getEvents, getMapEvents, getStats, getLiveFlights, refreshSources,
-  getIranStrikes, getNuclearFacilities,
+  getIranStrikes, getNuclearFacilities, getNuclearRisk,
   getCountryIndex, getMilitaryBases, getPipelines,
 } from './utils/api';
 
 // تحميل كسول للكرة الأرضية — Three.js كبير الحجم
 const RasadGlobe = lazy(() => import('./components/Map/RasadGlobe'));
 
+// الرصد النووي والإشعاعي هو التبويب الأول والافتراضي: مهمة المنصة الأساسية
 const TABS = [
+  { id: 'nuclear', labelKey: 'tabs.nuclear', icon: Radiation },
   { id: 'news', labelKey: 'tabs.news', icon: Newspaper },
   { id: 'timeline', labelKey: 'tabs.timeline', icon: Clock },
   { id: 'stats', labelKey: 'tabs.stats', icon: BarChart3 },
@@ -34,11 +41,14 @@ const TABS = [
 
 // حالة الطبقات مرفوعة إلى App كي تتشارك الخريطة 2D والكرة 3D الإعدادات نفسها
 // (كان لكل منهما افتراضات مختلفة، والكرة بلا أزرار تحكّم أصلاً).
+// الطيران مطفأ افتراضيًا: مئات الطائرات المدنية كانت تغطي نصف الخريطة
+// وتطغى على الطبقات النووية. مسافات التخطيط حول محطات القوى ظاهرة افتراضيًا.
 const DEFAULT_LAYERS = {
   events: true,
-  flights: true,
-  iran: true,
   nuclear: true,
+  zones: true,
+  iran: true,
+  flights: false,
   bases: false,
   pipelines: false,
 };
@@ -46,7 +56,10 @@ const DEFAULT_LAYERS = {
 export default function App() {
   const { t } = useTranslation();
   const [selectedEvent, setSelectedEvent] = useState(null);
-  const [activeTab, setActiveTab] = useState('news');
+  const [detailEvent, setDetailEvent] = useState(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [nuclearHours, setNuclearHours] = useState(24);
+  const [activeTab, setActiveTab] = useState('nuclear');
   const [panelOpen, setPanelOpen] = useState(true);
   // على الجوال لا تتّسع الشاشة للخريطة واللوحة معاً — نعرض واحدة في كل مرة
   const [mobileView, setMobileView] = useState('map');
@@ -102,6 +115,12 @@ export default function App() {
     3600000
   );
 
+  // مؤشر المخاطر النووية والإشعاعية — يشاركه الهيدر ولوحة الرصد النووي
+  const { data: nuclearRisk, error: nuclearRiskError, refetch: refetchRisk } = usePolling(
+    useCallback(() => getNuclearRisk(nuclearHours), [nuclearHours]),
+    60000, [nuclearHours]
+  );
+
   // مؤشر استخبارات الدول (v1.3)
   const { data: countryIndex, loading: countryLoading } = usePolling(
     useCallback(() => getCountryIndex({ hours: 72, top: 15 }), []),
@@ -114,10 +133,12 @@ export default function App() {
   const nuclearFacilities = useMemo(() => nuclearData?.facilities || [], [nuclearData]);
   const militaryBases = useMemo(() => basesData?.bases || [], [basesData]);
   const pipelines = useMemo(() => pipelinesData?.pipelines || [], [pipelinesData]);
-  const criticalEvents = useMemo(
-    () => events.filter(e => e.severity === 'critical' || e.severity === 'high').slice(0, 10),
-    [events]
-  );
+  // الشريط العاجل: الأخبار النووية/الإشعاعية الحرجة والمرتفعة أولًا، ثم العسكرية
+  const criticalEvents = useMemo(() => {
+    const hot = events.filter(e => e.severity === 'critical' || e.severity === 'high');
+    const nuc = hot.filter(e => e.category === 'nuclear' || e.category === 'radiological');
+    return [...nuc, ...hot.filter(e => !nuc.includes(e))].slice(0, 10);
+  }, [events]);
 
   // 🔔 محرّك التنبيهات الصوتية — يراقب الأحداث الجديدة
   const {
@@ -168,11 +189,26 @@ export default function App() {
     }
   }, [refetchEvents, refetchStats, t]);
 
-  // اختيار حدث من اللوحة على الجوال ينقل المستخدم إلى الخريطة تلقائياً
+  // اختيار حدث: يفتح لوحة التفاصيل ويُحرّك الخريطة إليه. على الجوال تبقى
+  // اللوحة ظاهرة (التفاصيل فيها) و«عرض على الخريطة» ينقل صراحةً.
   const handleSelectEvent = useCallback((ev) => {
     setSelectedEvent(ev);
-    if (window.matchMedia('(max-width: 767px)').matches) setMobileView('map');
+    setDetailEvent(ev);
+    setMobileView('panel');
   }, []);
+
+  const handleShowOnMap = useCallback((ev) => {
+    setSelectedEvent({ ...ev });
+    setMobileView('map');
+  }, []);
+
+  const handleSelectFacility = useCallback((f) => {
+    setSelectedEvent({ id: `fac:${f.facility_id}`, latitude: f.latitude, longitude: f.longitude });
+    if (f.top_event) setDetailEvent(f.top_event);
+    else setMobileView('map');
+  }, []);
+
+  const closeDetail = useCallback(() => setDetailEvent(null), []);
 
   const mapNode = viewMode === '3d' ? (
     <ErrorBoundary onReset={() => setViewMode('2d')}>
@@ -186,7 +222,7 @@ export default function App() {
           pipelines={pipelines}
           layers={layers}
           selectedEvent={selectedEvent}
-          onSelectEvent={setSelectedEvent}
+          onSelectEvent={handleSelectEvent}
         />
       </Suspense>
       {/* تحكمات الطبقات فوق الكرة — الكرة نفسها بلا chrome داخلي */}
@@ -208,7 +244,7 @@ export default function App() {
         layers={layers}
         onLayerChange={setLayer}
         selectedEvent={selectedEvent}
-        onSelectEvent={setSelectedEvent}
+        onSelectEvent={handleSelectEvent}
       />
     </ErrorBoundary>
   );
@@ -229,14 +265,18 @@ export default function App() {
               aria-selected={active}
               aria-controls={`tabpanel-${tab.id}`}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm transition-colors focus-ring ${
+              onClickCapture={() => setDetailEvent(null)}
+              title={label}
+              className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 py-3 px-1 text-sm transition-colors focus-ring ${
                 active
-                  ? 'text-cyan-300 border-b-2 border-cyan-400 bg-cyan-400/5'
+                  ? tab.id === 'nuclear'
+                    ? 'text-hazard-soft border-b-2 border-hazard bg-hazard-dim'
+                    : 'text-cyan-200 border-b-2 border-cyan-400 bg-cyan-400/5'
                   : 'text-slate-300 hover:text-white'
               }`}
             >
-              <Icon className="w-4 h-4" aria-hidden="true" />
-              {tab.id === 'iran' ? <span>🇮🇷 {label}</span> : label}
+              <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
+              <span className={`truncate ${active ? '' : 'hidden xl:inline'}`}>{label}</span>
             </button>
           );
         })}
@@ -244,17 +284,30 @@ export default function App() {
 
       {/* محتوى التبويب */}
       <div
-        className="flex-1 overflow-hidden"
+        className="relative flex-1 overflow-hidden"
         role="tabpanel"
         id={`tabpanel-${activeTab}`}
         aria-labelledby={`tab-${activeTab}`}
       >
+        {activeTab === 'nuclear' && (
+          <NuclearPanel
+            risk={nuclearRisk}
+            riskError={nuclearRiskError}
+            onRetryRisk={refetchRisk}
+            hours={nuclearHours}
+            onHoursChange={setNuclearHours}
+            onOpenEvent={handleSelectEvent}
+            activeId={detailEvent?.id}
+            onSelectFacility={handleSelectFacility}
+          />
+        )}
         {activeTab === 'news' && (
           <NewsFeed
             events={events}
             error={eventsError}
             loading={eventsLoading}
             onSelectEvent={handleSelectEvent}
+            activeId={detailEvent?.id}
             filters={filters}
             onFilterChange={updateFilter}
             onResetFilters={resetFilters}
@@ -277,6 +330,12 @@ export default function App() {
           // مستقلّةً بحدّ مختلف (50 مقابل 100) فتعرض قائمة تخالف الخريطة.
           <IranPanel strikes={iranStrikes} onSelectStrike={handleSelectEvent} />
         )}
+        <EventDrawer
+          event={detailEvent}
+          onClose={closeDetail}
+          onShowOnMap={handleShowOnMap}
+          facilities={nuclearFacilities}
+        />
       </div>
     </>
   );
@@ -287,6 +346,9 @@ export default function App() {
 
       <Header
         stats={stats}
+        risk={nuclearRisk}
+        onOpenReport={() => setReportOpen(true)}
+        onOpenNuclear={() => { setActiveTab('nuclear'); setDetailEvent(null); setMobileView('panel'); setPanelOpen(true); }}
         isConnected={!statsError}
         onRefresh={handleRefresh}
         refreshing={refreshing}
@@ -330,7 +392,7 @@ export default function App() {
       {criticalEvents.length > 0 && (
         <div className="bg-red-500/10 border-b border-red-500/20 px-4 py-1 overflow-hidden">
           <div className="flex items-center gap-3">
-            <span className="text-xs bg-red-600 text-white px-3 py-1 rounded font-bold animate-pulse whitespace-nowrap">
+            <span className="text-xs bg-red-600 text-white px-3 py-1 rounded font-bold whitespace-nowrap">
               {t('app.breaking')}
             </span>
             <div className="overflow-hidden flex-1">
@@ -409,6 +471,8 @@ export default function App() {
       </div>
 
       <LiveTVDrawer />
+
+      <ReportView open={reportOpen} onClose={() => setReportOpen(false)} />
 
       <AlertSettings
         isOpen={alertsOpen}

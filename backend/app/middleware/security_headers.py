@@ -23,11 +23,11 @@ from starlette.requests import Request
 
 CONTENT_SECURITY_POLICY = (
     "default-src 'self'; "
-    "img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://unpkg.com; "
+    "img-src 'self' data: blob: https://server.arcgisonline.com https://*.basemaps.cartocdn.com https://unpkg.com; "
     "script-src 'self'; "
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
     "font-src 'self' data: https://fonts.gstatic.com; "
-    "connect-src 'self' https://*.basemaps.cartocdn.com https://unpkg.com; "
+    "connect-src 'self' https://server.arcgisonline.com https://*.basemaps.cartocdn.com https://unpkg.com; "
     "frame-src https://www.youtube-nocookie.com; "
     "worker-src 'self' blob:; "
     "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"

@@ -21,7 +21,7 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import and_, desc, select
 
 from ..models.database import Event, get_session_factory
-from ..processors.gazetteer import nearest_ksa_point
+from ..processors.gazetteer import ksa_point_en, nearest_ksa_point
 from ..processors.nuclear import TOPICS, severity_from_score
 from ._serializers import serialize_event
 from ._stories import collapse, representatives
@@ -63,6 +63,7 @@ def _enrich_facility(fac: dict) -> dict:
     near = nearest_ksa_point(fac.get("latitude"), fac.get("longitude"))
     if near:
         out["distance_to_ksa_km"], out["nearest_ksa_point"] = near
+        out["nearest_ksa_point_en"] = ksa_point_en(near[1])
     out["planning_zones"] = list(PLANNING_ZONES) if fac.get("type") == "power" else []
     return out
 
@@ -137,6 +138,7 @@ async def facilities_watch(hours: int = Query(default=168, ge=1, le=720)):
             "longitude": fac.get("longitude"),
             "distance_to_ksa_km": fac.get("distance_to_ksa_km"),
             "nearest_ksa_point": fac.get("nearest_ksa_point"),
+            "nearest_ksa_point_en": fac.get("nearest_ksa_point_en"),
             "mentions": len(evs),
             "stories": len(reps),
             "max_risk": top.risk_score or 0,

@@ -109,10 +109,12 @@ TOPICS: tuple[Topic, ...] = (
         "nuclear weapon*", "nuclear bomb", "atomic bomb", "highly enriched", "heu", "plutonium",
         "reprocessing", "npt withdrawal", "withdraw from the npt", "enrich*", "centrifuge*",
         "stockpile", "nuclear threat", "nuclear program*", "nuclear programme*",
+        "nuclear ambition*", "arms race", "nuclear arms", "nuclear armed", "nuclear capable",
         "درجة نقاء", "لأغراض عسكرية", "سلاح نووي", "أسلحة نووية", "قنبلة نووية", "قنبلة ذرية",
         "رؤوس نووية", "رأس نووي", "عالي التخصيب", "أجهزة الطرد المركزي", "طرد مركزي",
         "بلوتونيوم", "إعادة المعالجة", "الانسحاب من معاهدة", "تخصيب", "مخصب", "مخزون",
-        "تهديد نووي", "البرنامج النووي",
+        "تهديد نووي", "البرنامج النووي", "طموحات نووية", "سباق التسلح", "امتلاك قنبلة",
+        "التسلح النووي", "قدرات نووية",
     ))),
     Topic("safeguards_iaea", "nuclear", 35, KeywordSet((
         "iaea", "inspector*", "inspection*", "safeguards", "board of governors", "grossi",

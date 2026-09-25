@@ -6,6 +6,7 @@
  */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { Icon } from '../../utils/icons';
 import { Activity } from 'lucide-react';
 import { COUNTRIES, CATEGORIES, scoreColor } from '../../utils/constants';
 
@@ -64,7 +65,7 @@ export default function CountryIndex({ data, loading = false }) {
                 </span>
                 {topCatInfo && (
                   <span className="text-slate-300">
-                    {topCatInfo.icon} {topCat[1]} / {c.total}
+                    <Icon name={topCatInfo.icon} className="inline w-3 h-3 -mt-0.5" style={{ color: topCatInfo.color }} /> {topCat[1]} / {c.total}
                   </span>
                 )}
               </div>

@@ -6,16 +6,16 @@
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #1e293b #0a0e17;
+  scrollbar-color: #22303c #0b1016;
 }
 
 ::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #0a0e17; }
-::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+::-webkit-scrollbar-track { background: #0b1016; }
+::-webkit-scrollbar-thumb { background: #22303c; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #334155; }
 
 body {
-  background: #0a0e17;
+  background: #0b1016;
   /* الجذر يدير التمرير بنفسه (h-dvh + overflow-hidden على الحاوية)؛ منع
      التمرير على body كان يقفل الصفحة تماماً على الجوال. */
   overscroll-behavior: none;
@@ -55,7 +55,7 @@ select:focus-visible,
   top: 0;
   z-index: 10000;
   padding: 0.5rem 1rem;
-  background: #111827;
+  background: #121a22;
   color: #67e8f9;
   border: 1px solid #22d3ee;
   border-radius: 0 0 0.5rem 0.5rem;
@@ -78,8 +78,8 @@ select:focus-visible,
 
 /* خريطة مظلمة */
 .leaflet-container {
-  background: #0a0e17 !important;
-  font-family: 'Tajawal', sans-serif;
+  background: #0b1016 !important;
+  font-family: 'IBM Plex Sans Arabic', 'Tajawal', sans-serif;
 }
 
 .leaflet-tile-pane {
@@ -87,30 +87,30 @@ select:focus-visible,
 }
 
 .leaflet-control-zoom a {
-  background: #111827 !important;
+  background: #121a22 !important;
   color: #22d3ee !important;
-  border-color: #1e293b !important;
+  border-color: #22303c !important;
 }
 
 /* الاتجاه يُورَّث من <html dir> الذي يضبطه i18n. كان `direction: rtl` مثبّتاً
    هنا فيبقى غلاف النافذة وزرّ الإغلاق (×) على الجهة العربية في الوضع
    الإنجليزي، رغم أن المحتوى الداخلي ينعكس صحيحاً. */
 .leaflet-popup-content-wrapper {
-  background: #111827 !important;
+  background: #121a22 !important;
   color: white !important;
-  border: 1px solid #1e293b;
+  border: 1px solid #22303c;
   border-radius: 8px !important;
 }
 
 .leaflet-popup-tip {
-  background: #111827 !important;
+  background: #121a22 !important;
 }
 
 /* علامات الخريطة */
+/* الحركة للحرج وحده: كانت كل علامة تنبض فلا يتميّز الخطير من العادي */
 .event-marker {
   border-radius: 50%;
   border: 2px solid;
-  animation: marker-pulse 2s ease-in-out infinite;
 }
 
 .event-marker.critical {
@@ -143,9 +143,13 @@ select:focus-visible,
 }
 .bell-alert { animation: bell-shake 0.6s ease-in-out 3; }
 
-/* شريط الأخبار العاجلة */
+/* شريط الأخبار العاجلة — يتحرّك باتجاه القراءة: في العربية يدخل من اليسار
+   ويخرج يمينًا كي تُقرأ بداية الخبر أولًا (كان يتحرّك كالإنجليزية في اللغتين). */
 .ticker {
   animation: ticker-scroll 60s linear infinite;
+}
+[dir='rtl'] .ticker {
+  animation-name: ticker-scroll-rtl;
 }
 .ticker:hover,
 .ticker:focus-within {
@@ -156,10 +160,48 @@ select:focus-visible,
   0% { transform: translateX(100%); }
   100% { transform: translateX(-100%); }
 }
+@keyframes ticker-scroll-rtl {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ===== مقياس المؤشر (RiskGauge) ===== */
+.gauge-needle {
+  transition: inset-inline-start 900ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* علامة الموقع التقريبي (مستوى الدولة) — حدّ متقطّع بدل المصمت */
+.event-marker.approx {
+  border-style: dashed;
+  background-clip: content-box;
+  padding: 2px;
+}
+
+/* ===== طباعة التقرير =====
+   عند الطباعة يُخفى كل شيء إلا التقرير، على ورق أبيض بحبر داكن. */
+@media print {
+  @page { size: A4; margin: 14mm; }
+  body { background: #fff !important; }
+  body * { visibility: hidden; }
+  .print-root, .print-root * { visibility: visible; }
+  .print-root {
+    position: absolute; inset: 0; overflow: visible !important;
+    background: #fff !important; color: #111 !important;
+  }
+  .print-root .no-print { display: none !important; }
+  /* نصوص الواجهة الداكنة بحبر داكن؛ ما يحمل لونًا دلاليًا مضمّنًا (الدرجات) يبقى */
+  .print-root *:not([style*="color"]) { color: #15191e !important; }
+  .print-root * { background: transparent !important; border-color: #d6dbe0 !important; box-shadow: none !important; }
+  .print-root a { text-decoration: none; }
+  .print-root .print-card {
+    background: #fff !important; border-color: #ccc !important; break-inside: avoid;
+  }
+  .print-root .print-muted { color: #444 !important; }
+}
 
 /* تأثيرات التحميل */
 .shimmer {
-  background: linear-gradient(90deg, #111827 25%, #1e293b 50%, #111827 75%);
+  background: linear-gradient(90deg, #121a22 25%, #22303c 50%, #121a22 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }

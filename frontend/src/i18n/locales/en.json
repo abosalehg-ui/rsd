@@ -1,7 +1,7 @@
 {
   "app": {
     "name": "Rsd",
-    "tagline": "OSINT • Middle East",
+    "tagline": "Nuclear & radiological watch",
     "connected": "Connected",
     "disconnected": "Disconnected",
     "lastCheck": "Last check:",
@@ -20,7 +20,14 @@
     "loadingGlobe": "Loading globe…",
     "showMap": "Map",
     "showPanel": "Data",
-    "skipToPanel": "Skip to content"
+    "skipToPanel": "Skip to content",
+    "report": "Report",
+    "settings": "Settings",
+    "language": "Language",
+    "view": "View",
+    "lastUpdate": "Last update",
+    "escalationHelp": "Share of high-severity military events among all events in the period",
+    "nuclearIndex": "Risk index"
   },
   "common": {
     "loading": "Loading…"
@@ -29,7 +36,8 @@
     "news": "Events",
     "timeline": "Timeline",
     "stats": "Statistics",
-    "iran": "Iran"
+    "iran": "Iran",
+    "nuclear": "Nuclear & radiological"
   },
   "news": {
     "title": "Events",
@@ -109,14 +117,24 @@
     "bcm": "BCM",
     "osintVideo": "🎥 OSINT video",
     "showLayers": "Show layers",
-    "hideLayers": "Hide layers"
+    "hideLayers": "Hide layers",
+    "zones": "Planning distances",
+    "zoneNames": {
+      "PAZ": "Precautionary action zone",
+      "UPZ": "Urgent protective action zone",
+      "EPD": "Extended planning distance",
+      "ICPD": "Ingestion & commodities"
+    },
+    "zonesNote": "Reference distances per IAEA EPR-NPP 2013 — not designated zones",
+    "approx": "Dashed outline = approximate location",
+    "nuclearEvents": "Nuclear & radiological news"
   },
   "globe": {
     "clusterZoomHint": "Click to zoom in and expand"
   },
   "nuclearTypes": {
     "power": "Power plant",
-    "research": "Research",
+    "research": "Research reactor",
     "enrichment": "Enrichment",
     "conversion": "Conversion",
     "heavy_water": "Heavy water",
@@ -172,7 +190,8 @@
     "diplomatic": "Diplomatic",
     "humanitarian": "Humanitarian",
     "economic": "Economic",
-    "general": "General"
+    "general": "General",
+    "radiological": "Radiological"
   },
   "iranEventTypes": {
     "strike": "Strike",
@@ -199,7 +218,18 @@
     "JO": "Jordan",
     "TR": "Turkey",
     "LY": "Libya",
-    "SD": "Sudan"
+    "SD": "Sudan",
+    "AE": "UAE",
+    "QA": "Qatar",
+    "KW": "Kuwait",
+    "BH": "Bahrain",
+    "OM": "Oman",
+    "UA": "Ukraine",
+    "RU": "Russia",
+    "KP": "North Korea",
+    "PK": "Pakistan",
+    "IN": "India",
+    "JP": "Japan"
   },
   "time": {
     "now": "just now",
@@ -242,5 +272,127 @@
     "switch": "Switch language",
     "ar": "العربية",
     "en": "English"
+  },
+  "trend": {
+    "up": "Up {{value}} on the previous period",
+    "down": "Down {{value}} on the previous period",
+    "flat": "No change on the previous period"
+  },
+  "risk": {
+    "title": "Nuclear & radiological risk index",
+    "short": "Nuclear/radiological risk",
+    "levels": {
+      "low": "Low",
+      "medium": "Moderate",
+      "high": "High",
+      "critical": "Critical"
+    },
+    "why": "How is this calculated?",
+    "formula": "{{maxW}}% of the highest single risk ({{max}}) + {{topW}}% of the mean of the top {{n}} stories ({{mean}})",
+    "storiesNote": "A story counts once, however many outlets report it.",
+    "stories": "{{count}} stories",
+    "nearKsa": "{{count}} near the Kingdom",
+    "prev": "Previous period",
+    "empty": "No nuclear or radiological news in this period.",
+    "series": "Index over the period",
+    "window": "Period",
+    "loadFailed": "Couldn't load the index — check the server connection.",
+    "retry": "Retry",
+    "topics": "By topic",
+    "allTopics": "All topics",
+    "nearKsaOnly": "Near the Kingdom only (≤ 800 km)",
+    "score": "Risk score",
+    "breakdown": "Score components",
+    "components": {
+      "base": "Topic base",
+      "intensity": "Severity signals",
+      "dampening": "Exercise, conference or analysis",
+      "reassurance": "Official reassurance",
+      "statement": "Statement, not an incident",
+      "specificity": "Named facility",
+      "proximity": "Proximity to the Kingdom",
+      "source_trust": "Source trust factor"
+    }
+  },
+  "topics": {
+    "radiation_release": "Radiation release or contamination",
+    "military_threat": "Military threat to a nuclear site",
+    "radioactive_source": "Lost or seized radioactive source",
+    "trafficking_security": "Nuclear security & trafficking",
+    "safety_incident": "Facility safety incident",
+    "weapons_program": "Enrichment & weapons programmes",
+    "safeguards_iaea": "Safeguards & the IAEA",
+    "diplomacy_sanctions": "Talks & sanctions",
+    "emergency_preparedness": "Emergency preparedness",
+    "regulatory": "Regulation & oversight",
+    "medical_industrial": "Medical & industrial uses",
+    "energy_program": "Nuclear power programmes"
+  },
+  "facilities": {
+    "title": "Facilities in the news",
+    "empty": "No facility was named in this period.",
+    "distance": "{{km}} km from {{place}}",
+    "stories": "{{count}} stories",
+    "zones": "Emergency planning distances"
+  },
+  "events": {
+    "sources_one": "1 source",
+    "sources_other": "{{count}} sources",
+    "approx": "Approximate location",
+    "precision": {
+      "facility": "Facility",
+      "city": "City",
+      "region": "Maritime region",
+      "country": "Country level — approximate",
+      "none": "No location"
+    },
+    "groups": {
+      "hour": "Last hour",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "older": "Older"
+    },
+    "details": "Event details",
+    "close": "Close details",
+    "viewOnMap": "Show on map",
+    "openSource": "Open source",
+    "sourcesTitle": "Sources",
+    "distanceKsa": "Distance to the Kingdom",
+    "facility": "Facility",
+    "location": "Location",
+    "published": "Published",
+    "firstSeen": "First seen",
+    "noDescription": "The source gave no description.",
+    "sameCountry": "Other events in {{country}}"
+  },
+  "report": {
+    "title": "Nuclear & radiological watch report",
+    "open": "Open report",
+    "period": "Period",
+    "periods": {
+      "24": "Last 24 hours",
+      "72": "Last 3 days",
+      "168": "Last week"
+    },
+    "generated": "Prepared {{date}}",
+    "print": "Print / PDF",
+    "html": "Download HTML",
+    "markdown": "Download Markdown",
+    "close": "Close report",
+    "loading": "Preparing the report…",
+    "failed": "Couldn't prepare the report — check the server connection.",
+    "sections": {
+      "summary": "Summary",
+      "top": "Top stories by risk",
+      "nearKsa": "Near the Kingdom (≤ 800 km)",
+      "incidents": "Radiological & safety incidents",
+      "political": "Political & weapons developments",
+      "facilities": "Facilities in the news",
+      "sources": "Sources",
+      "method": "Method"
+    },
+    "summaryLine": "Index {{index}} ({{level}}), {{trend}}. {{stories}} stories from {{events}} reports, {{near}} of them near the Kingdom.",
+    "none": "Nothing in this period.",
+    "method": "Each report scores 0–100 = topic base + severity signals − dampeners (exercise, analysis, official reassurance, statement) ± proximity to the Kingdom, multiplied by a source trust factor. Index = 60% of the highest score + 40% of the mean of the top five stories. Weights are an initial operational estimate open to calibration; classification is automatic from open sources and needs human verification before any decision."
   }
 }

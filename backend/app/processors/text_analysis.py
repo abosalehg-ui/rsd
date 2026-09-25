@@ -16,6 +16,7 @@ from .gazetteer import (  # noqa: F401 - إعادة تصدير للتوافق ا
     COUNTRY_COORDS,
     ME_COUNTRY_NAMES,
     Location,
+    ksa_point_en,
     locate,
 )
 from .gazetteer import country_code_from_text as _country_code
@@ -111,6 +112,7 @@ def analyze(
             "facility_ids": nuclear.facility_ids,
             "distance_to_ksa_km": nuclear.distance_to_ksa_km,
             "nearest_ksa_point": nuclear.nearest_ksa_point,
+            "nearest_ksa_point_en": ksa_point_en(nuclear.nearest_ksa_point),
             "reassuring": nuclear.reassuring,
             "matched": nuclear.matched,
         }

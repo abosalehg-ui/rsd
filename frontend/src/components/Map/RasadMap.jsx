@@ -9,14 +9,24 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { CATEGORIES, CONFIDENCE, IRAN_EVENT_TYPES, categoryOf } from '../../utils/constants';
+import { CATEGORIES, CONFIDENCE, IRAN_EVENT_TYPES, categoryOf, riskColor } from '../../utils/constants';
 import { esc } from '../../utils/security';
+import { Icon, iconSvg } from '../../utils/icons';
 import {
   basePopup, clusterPopup, eventPopup, flightPopup,
   iranPopup, nuclearPopup, pipelinePopup,
 } from './popups';
 import { ZoomIn, ZoomOut, Crosshair } from 'lucide-react';
 import LayerToggles from './LayerToggles';
+
+// الخريطة الأساس: Esri World Dark Gray. صارت CARTO (dark_all) تعيد صورة
+// «API KEY REQUIRED» بدل البلاطات لطلبات بلا مفتاح (أيلول/سبتمبر 2026)، فبقيت
+// الخريطة بلا يابسة ولا حدود. قابلة للاستبدال بـ VITE_TILE_URL (مع تحديث
+// img-src في سياسات CSP الثلاث).
+const TILE_URL = import.meta.env.VITE_TILE_URL
+  || 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
+const TILE_ATTRIBUTION = import.meta.env.VITE_TILE_ATTRIBUTION
+  || 'Tiles &copy; <a href="https://www.esri.com/">Esri</a> &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors';
 
 const ME_CENTER = [29.0, 42.0];
 const ME_ZOOM = 5;
@@ -101,13 +111,16 @@ const NO_NUDGE = { dx: 0, dy: 0 };
 
 // ===== ألوان أنواع المنشآت النووية (التسميات من i18n) =====
 const NUCLEAR_TYPES = {
-  power:       { color: '#facc15', icon: '☢️' },
-  research:    { color: '#22d3ee', icon: '⚛️' },
-  enrichment:  { color: '#f97316', icon: '☢️' },
-  conversion:  { color: '#a78bfa', icon: '⚗️' },
-  heavy_water: { color: '#38bdf8', icon: '💧' },
-  fuel:        { color: '#fb7185', icon: '⚛️' },
+  power:       { color: '#f2c230' },
+  research:    { color: '#22d3ee' },
+  enrichment:  { color: '#f97316' },
+  conversion:  { color: '#a78bfa' },
+  heavy_water: { color: '#38bdf8' },
+  fuel:        { color: '#fb7185' },
 };
+
+const NUCLEAR_CATEGORIES = new Set(['nuclear', 'radiological']);
+const THEME_BG = '#0b1016';
 
 const NUCLEAR_STATUS_COLORS = {
   operational: '#22c55e',
@@ -138,6 +151,7 @@ export default function RasadMap({
   const nuclearRef = useRef(null);
   const basesRef = useRef(null);
   const pipelinesRef = useRef(null);
+  const zonesRef = useRef(null);
   // تواقيع محتوى الطبقات — نتخطّى إعادة البناء حين لا يتغيّر المحتوى فعلاً، كي
   // لا تُدمَّر النوافذ المفتوحة عند كل استطلاع (كل 30 ثانية) بمصفوفة جديدة الهوية.
   const eventsSigRef = useRef('');
@@ -151,12 +165,13 @@ export default function RasadMap({
     flights: showFlights = true,
     iran: showIran = true,
     nuclear: showNuclear = true,
+    zones: showZones = true,
     bases: showBases = false,
     pipelines: showPipelines = false,
   } = layers;
 
   // قوالب النوافذ في `./popups` — دوال نقيّة تأخذ (البيانات، {t, dir})
-  const popupCtx = useMemo(() => ({ t, dir }), [t, dir]);
+  const popupCtx = useMemo(() => ({ t, dir, lang: i18n.language }), [t, dir, i18n.language]);
 
   useEffect(() => {
     if (mapInstance.current || !mapRef.current) return undefined;
@@ -164,10 +179,9 @@ export default function RasadMap({
       // نُبقي عنصر الإسناد (تتطلّبه شروط OSM/CARTO) لكن مُصغّراً
       center: ME_CENTER, zoom: ME_ZOOM, zoomControl: false,
     });
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      subdomains: 'abcd',
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    L.tileLayer(TILE_URL, {
+      maxZoom: 16,
+      attribution: TILE_ATTRIBUTION,
     }).addTo(map);
     markersRef.current = L.layerGroup().addTo(map);
     flightsRef.current = L.layerGroup().addTo(map);
@@ -175,6 +189,8 @@ export default function RasadMap({
     nuclearRef.current = L.layerGroup().addTo(map);
     basesRef.current = L.layerGroup().addTo(map);
     pipelinesRef.current = L.layerGroup().addTo(map);
+    // الدوائر في overlayPane تحت markerPane دائمًا، وهي غير تفاعلية فلا تحجب النقر
+    zonesRef.current = L.layerGroup().addTo(map);
     mapInstance.current = map;
     setReady(true);
     map.on('zoomend', () => setZoomLevel(map.getZoom()));
@@ -254,15 +270,27 @@ export default function RasadMap({
       if (cluster.events.length === 1) {
         const ev = cluster.events[0];
         const cat = categoryOf(ev.category);
-        const sz = ev.severity === 'critical' ? 16 : ev.severity === 'high' ? 12 : 9;
+        const approx = ev.geo_precision === 'country' ? 'approx' : '';
+        const critical = ev.severity === 'critical' ? 'critical' : '';
         // iconAnchor مُزاح: العلامة تُرسم بعيداً عن نقطتها بمقدار (dx,dy) بكسل
         // فتظهر بجانب العلامات المتطابقة الموقع بدل الاختفاء تحتها،
         // وpopupAnchor يتبعها كي تبقى النافذة ملتصقة بالعلامة المرئية.
+        let sz;
+        let html;
+        if (NUCLEAR_CATEGORIES.has(ev.category)) {
+          // الخبر النووي/الإشعاعي: أيقونة تصنيفه داخل قرص بلون درجة خطره
+          sz = ev.severity === 'critical' ? 26 : ev.severity === 'high' ? 22 : 18;
+          const rc = riskColor(ev.risk_score);
+          html = `<div class="event-marker ${critical} ${approx}" style="width:${sz}px;height:${sz}px;display:flex;align-items:center;justify-content:center;background:${THEME_BG};border-color:${rc};box-shadow:0 0 ${sz}px ${rc}55;">${iconSvg(cat.icon, { size: sz - 10, color: rc, strokeWidth: 2.25 })}</div>`;
+        } else {
+          sz = ev.severity === 'critical' ? 14 : ev.severity === 'high' ? 11 : 8;
+          html = `<div class="event-marker ${critical} ${approx}" style="width:${sz}px;height:${sz}px;background:${cat.color};border-color:${cat.color};"></div>`;
+        }
         const icon = L.divIcon({
           className: '', iconSize: [sz, sz],
           iconAnchor: [sz / 2 - dx, sz / 2 - dy],
           popupAnchor: [dx, dy - sz / 2],
-          html: `<div class="event-marker ${ev.severity === 'critical' ? 'critical' : ''}" style="width:${sz}px;height:${sz}px;background:${cat.color};border-color:${cat.color};box-shadow:0 0 ${sz}px ${cat.color}40;"></div>`,
+          html,
         });
         const m = L.marker([ev.latitude, ev.longitude], { icon, zIndexOffset: Z_OFFSET.event })
           .bindPopup(eventPopup(ev, popupCtx), { maxWidth: 280 });
@@ -272,7 +300,8 @@ export default function RasadMap({
         // مجموعة نقاط — دائرة تجميع
         const count = cluster.events.length;
         const hasCritical = cluster.events.some(e => e.severity === 'critical' || e.severity === 'high');
-        const color = hasCritical ? '#ef4444' : '#22d3ee';
+        const hasNuclear = cluster.events.some(e => NUCLEAR_CATEGORIES.has(e.category));
+        const color = hasCritical ? '#f4585d' : hasNuclear ? '#f2c230' : '#67e8f9';
         const sz = Math.min(20 + count * 2, 44);
         const icon = L.divIcon({
           className: '', iconSize: [sz, sz],
@@ -331,7 +360,8 @@ export default function RasadMap({
       const sz = isMil ? 18 : 10;
       const icon = L.divIcon({
         className: '', iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2],
-        html: `<div style="transform:rotate(${Number(f.heading) || 0}deg);font-size:${sz}px;filter:drop-shadow(0 0 3px ${isMil ? '#a855f7' : '#64748b'})">✈️</div>`,
+        // أيقونة plane في lucide تتجه 45° — نطرحها كي يطابق الاتجاه المسار
+        html: `<div style="transform:rotate(${(Number(f.heading) || 0) - 45}deg);display:flex;opacity:${isMil ? 1 : 0.7}">${iconSvg('plane', { size: sz, color: isMil ? '#c4b5fd' : '#94a3b8' })}</div>`,
       });
       // ترتيب رسم أدنى: الطائرات لا تحجب الضربات والمنشآت الثابتة
       L.marker([f.latitude, f.longitude], { icon, zIndexOffset: Z_OFFSET.flight })
@@ -369,11 +399,10 @@ export default function RasadMap({
           border:2px solid ${evType.color};
           border-radius:50%;
           display:flex;align-items:center;justify-content:center;
-          font-size:${sz - 4}px;
           box-shadow:0 0 ${sz}px ${conf.color}80;
           position:relative;
         ">
-          ${evType.icon}
+          ${iconSvg(evType.icon, { size: Math.max(sz - 6, 8), color: evType.color })}
           <div style="
             position:absolute;bottom:-4px;inset-inline-end:-4px;
             width:8px;height:8px;
@@ -423,10 +452,9 @@ export default function RasadMap({
           border:2px solid ${typeInfo.color};
           border-radius:50%;
           display:flex;align-items:center;justify-content:center;
-          font-size:${sz - 6}px;
           ${pulse}
           cursor:pointer;
-        ">☢️</div>`,
+        ">${iconSvg('radiation', { size: sz - 6, color: typeInfo.color, strokeWidth: 2.25 })}</div>`,
       });
 
       const m = L.marker([fac.latitude, fac.longitude], { icon, zIndexOffset: Z_OFFSET.nuclear })
@@ -446,7 +474,7 @@ export default function RasadMap({
     militaryBases.forEach((b, bi) => {
       if (typeof b.latitude !== 'number' || typeof b.longitude !== 'number') return;
       const { dx, dy } = nudges.get(`ba:${b.id ?? bi}`) || NO_NUDGE;
-      const typeIcon = b.type === 'naval' ? '⚓' : b.type === 'air' ? '✈️' : b.type === 'ground' ? '🪖' : '⚔️';
+      const typeIcon = iconSvg(b.type === 'naval' ? 'anchor' : b.type === 'air' ? 'plane' : 'shield', { size: 11, color: '#c4b5fd' });
       const icon = L.divIcon({
         className: '',
         iconSize: [18, 18],
@@ -475,6 +503,43 @@ export default function RasadMap({
       pipelinesRef.current.addLayer(line);
     });
   }, [pipelines, showPipelines, ready, popupCtx]);
+
+  // ===== مسافات التخطيط للطوارئ حول محطات القوى =====
+  // دوائر متقطّعة باهتة (5/30/100/300 كم) — مرجعية IAEA EPR-NPP لا مناطق
+  // معتمدة. تُرسم للمحطات العاملة وقيد الإنشاء فقط.
+  useEffect(() => {
+    if (!ready || !zonesRef.current) return;
+    zonesRef.current.clearLayers();
+    if (!showZones) return;
+    nuclearFacilities.forEach(fac => {
+      if (!fac.planning_zones?.length || !['operational', 'construction'].includes(fac.status)) return;
+      fac.planning_zones.forEach((z, i) => {
+        const circle = L.circle([fac.latitude, fac.longitude], {
+          radius: z.km * 1000,
+          color: '#f2c230',
+          weight: i < 2 ? 1.25 : 1,
+          opacity: 0.55 - i * 0.1,
+          dashArray: i < 2 ? null : '4 6',
+          fill: i === 0,
+          fillOpacity: 0.08,
+          interactive: false,
+        });
+        zonesRef.current.addLayer(circle);
+      });
+      // تسمية واحدة على الدائرة الأكبر
+      const outer = fac.planning_zones[fac.planning_zones.length - 1];
+      const labelLat = fac.latitude + (outer.km / 111);
+      zonesRef.current.addLayer(L.marker([labelLat, fac.longitude], {
+        interactive: false,
+        icon: L.divIcon({
+          className: '',
+          iconSize: [80, 14],
+          iconAnchor: [40, 7],
+          html: `<div dir="ltr" style="font:10px 'IBM Plex Mono',monospace;color:#f2c230aa;text-align:center">${esc(outer.key)} ${esc(outer.km)} km</div>`,
+        }),
+      }));
+    });
+  }, [nuclearFacilities, showZones, ready]);
 
   useEffect(() => {
     if (selectedEvent?.latitude && mapInstance.current) {
@@ -505,20 +570,22 @@ export default function RasadMap({
       />
 
       <div className="absolute bottom-3 end-3 z-[1000] bg-rasad-panel/95 border border-rasad-border rounded-lg p-3 hidden sm:block">
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
           {Object.entries(CATEGORIES).map(([k, c]) => (
-            <div key={k} className="flex items-center gap-1">
-              <div className="w-2.5 h-2.5 rounded-full" style={{ background: c.color }} aria-hidden="true" />
-              <span className="text-xs text-slate-200">{c.icon} {t(`categories.${k}`)}</span>
+            <div key={k} className="flex items-center gap-1.5">
+              <Icon name={c.icon} className="w-3.5 h-3.5" style={{ color: c.color }} />
+              <span className="text-xs text-slate-200">{t(`categories.${k}`)}</span>
             </div>
           ))}
         </div>
+        <p className="mt-2 pt-2 border-t border-rasad-border text-2xs text-slate-400">{t('map.approx')}</p>
+        {showZones && <p className="text-2xs text-hazard-soft/80 max-w-[15rem]">{t('map.zonesNote')}</p>}
       </div>
 
-      {flights && (
+      {flights && showFlights && (
         <div className="absolute top-3 end-3 z-[1000] bg-rasad-panel/95 border border-rasad-border rounded-lg px-2.5 py-1.5 text-xs flex gap-3">
-          <span className="text-slate-200">✈️ <span className="font-mono text-white">{flights.total || 0}</span></span>
-          <span className="text-purple-300">⚔️ <span className="font-mono text-purple-200">{flights.military || 0}</span></span>
+          <span className="inline-flex items-center gap-1 text-slate-200"><Icon name="plane" className="w-3.5 h-3.5" /> <span className="font-mono text-white">{flights.total || 0}</span></span>
+          <span className="inline-flex items-center gap-1 text-purple-300"><Icon name="shield" className="w-3.5 h-3.5" /> <span className="font-mono text-purple-200">{flights.military || 0}</span></span>
         </div>
       )}
     </div>

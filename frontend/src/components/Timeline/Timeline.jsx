@@ -6,6 +6,7 @@
  */
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Icon } from '../../utils/icons';
 import { CATEGORIES, TIME_WINDOWS, categoryOf, severityOf } from '../../utils/constants';
 import { Clock, Calendar } from 'lucide-react';
 
@@ -71,7 +72,7 @@ export default function Timeline({ events = [], loading = false, hours = 24, onH
             title={t(`categories.${k}`)}
             className={`text-2xs px-2 py-1 rounded whitespace-nowrap focus-ring ${selectedCategory === k ? 'text-white' : 'text-slate-300'}`}
             style={selectedCategory === k ? { background: c.color + '20', color: c.color } : {}}>
-            <span aria-hidden="true">{c.icon}</span>
+            <Icon name={c.icon} className="w-3.5 h-3.5" />
           </button>
         ))}
       </div>
@@ -108,14 +109,14 @@ export default function Timeline({ events = [], loading = false, hours = 24, onH
                         style={{ background: cat.color }} aria-hidden="true" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1 mb-0.5">
-                          <span className="text-2xs" aria-hidden="true">{cat.icon}</span>
+                          <Icon name={cat.icon} className="w-3 h-3" style={{ color: cat.color }} />
                           <span className="text-2xs px-1 rounded" style={{ background: sev.color + '20', color: sev.color }}>
                             {t(`severity.${ev.severity}`, { defaultValue: t('severity.low') })}
                           </span>
                         </div>
                         <p className="text-xs text-slate-200 leading-relaxed line-clamp-2">{ev.title}</p>
                         <span className="text-2xs text-slate-300">
-                          {t(`countries.${ev.country_code}`, { defaultValue: ev.country || '' })} • <bdi>{ev.source}</bdi>
+                          {t(`countries.${ev.country_code}`, { defaultValue: ev.country || '' })} • <bdi>{ev.source_name || ev.source}</bdi>
                         </span>
                       </div>
                     </div>
