@@ -18,9 +18,9 @@
  * بالألوان القديمة. هذا هو المصدر الواحد لها — ويطابق رموز `tailwind.config.js`.
  */
 export const THEME = {
-  bg: '#0a0e17',        // rasad-bg
-  panel: '#111827',     // rasad-panel
-  border: '#1e293b',    // rasad-border
+  bg: '#0b1016',        // rasad-bg
+  panel: '#121a22',     // rasad-panel
+  border: '#22303c',    // rasad-border
   text: '#e2e8f0',      // نص أساسي داخل النوافذ
   textSecondary: '#cbd5e1',
   textMuted: '#94a3b8',
@@ -30,23 +30,72 @@ export const THEME = {
   violetSoft: '#c4b5fd',
 };
 
+// الأيقونات أسماء مكوّنات lucide (انظر utils/icons.jsx) لا رموز تعبيرية: كانت
+// الواجهة تخلط الإيموجي بأيقونات الخطوط فيتفاوت حجمها ولونها بين الأنظمة.
+// النووي بلون الخطر الأصفر (لون رمز الإشعاع)، والإشعاعي بالأرجواني التقليدي
+// لعلامات الإشعاع — مجالا الرصد الأساسيان بلونين لا يستعملهما غيرهما.
 export const CATEGORIES = {
-  military: { icon: '💥', color: '#f87171', bg: 'bg-red-500/20', text: 'text-red-300' },
-  diplomatic: { icon: '🤝', color: '#60a5fa', bg: 'bg-blue-500/20', text: 'text-blue-300' },
-  humanitarian: { icon: '🆘', color: '#fb923c', bg: 'bg-orange-500/20', text: 'text-orange-300' },
-  nuclear: { icon: '☣️', color: '#facc15', bg: 'bg-yellow-500/20', text: 'text-yellow-300' },
-  economic: { icon: '📊', color: '#34d399', bg: 'bg-emerald-500/20', text: 'text-emerald-300' },
-  general: { icon: '📰', color: '#94a3b8', bg: 'bg-slate-500/20', text: 'text-slate-300' },
+  nuclear: { icon: 'atom', color: '#f2c230' },
+  radiological: { icon: 'radiation', color: '#e0609c' },
+  military: { icon: 'swords', color: '#f87171' },
+  diplomatic: { icon: 'handshake', color: '#60a5fa' },
+  humanitarian: { icon: 'heart', color: '#fb923c' },
+  economic: { icon: 'trend', color: '#34d399' },
+  general: { icon: 'news', color: '#94a3b8' },
 };
 
 export const SEVERITIES = {
-  critical: { color: '#f87171', bg: 'bg-red-500', dot: '🔴' },
-  high: { color: '#fb923c', bg: 'bg-orange-500', dot: '🟠' },
-  medium: { color: '#facc15', bg: 'bg-yellow-500', dot: '🟡' },
-  low: { color: '#34d399', bg: 'bg-emerald-500', dot: '🟢' },
+  critical: { color: '#f4585d' },
+  high: { color: '#f08a3c' },
+  medium: { color: '#e8c547' },
+  low: { color: '#5fb38a' },
 };
 
+/** الموضوعات النووية/الإشعاعية (backend/app/processors/nuclear.TOPICS). */
+export const NUCLEAR_TOPICS = {
+  radiation_release: { category: 'radiological', base: 80 },
+  military_threat: { category: 'nuclear', base: 75 },
+  radioactive_source: { category: 'radiological', base: 62 },
+  trafficking_security: { category: 'nuclear', base: 60 },
+  safety_incident: { category: 'nuclear', base: 55 },
+  weapons_program: { category: 'nuclear', base: 50 },
+  safeguards_iaea: { category: 'nuclear', base: 35 },
+  diplomacy_sanctions: { category: 'nuclear', base: 30 },
+  emergency_preparedness: { category: 'radiological', base: 20 },
+  regulatory: { category: 'nuclear', base: 15 },
+  medical_industrial: { category: 'radiological', base: 12 },
+  energy_program: { category: 'nuclear', base: 10 },
+};
+
+/** نطاقات درجة الخطر 0-100 — تطابق severity_from_score في الخلفية. */
+export const RISK_BANDS = [
+  { key: 'low', from: 0, to: 30 },
+  { key: 'medium', from: 30, to: 55 },
+  { key: 'high', from: 55, to: 75 },
+  { key: 'critical', from: 75, to: 100 },
+];
+
+export function riskLevel(score) {
+  const v = score || 0;
+  if (v >= 75) return 'critical';
+  if (v >= 55) return 'high';
+  if (v >= 30) return 'medium';
+  return 'low';
+}
+
+export const riskColor = (score) => SEVERITIES[riskLevel(score)].color;
+
+/** اسم أقرب نقطة سعودية بلغة الواجهة (الخادم يعيد العربي و`_en`). */
+export const ksaPlace = (obj, lang) =>
+  (lang === 'ar' ? obj?.nearest_ksa_point : obj?.nearest_ksa_point_en || obj?.nearest_ksa_point) || '';
+
 export const COUNTRIES = {
+  SA: { flag: '🇸🇦' },
+  AE: { flag: '🇦🇪' },
+  QA: { flag: '🇶🇦' },
+  KW: { flag: '🇰🇼' },
+  BH: { flag: '🇧🇭' },
+  OM: { flag: '🇴🇲' },
   PS: { flag: '🇵🇸' },
   IL: { flag: '🇮🇱' },
   YE: { flag: '🇾🇪' },
@@ -54,28 +103,33 @@ export const COUNTRIES = {
   LB: { flag: '🇱🇧' },
   IR: { flag: '🇮🇷' },
   IQ: { flag: '🇮🇶' },
-  SA: { flag: '🇸🇦' },
   EG: { flag: '🇪🇬' },
   JO: { flag: '🇯🇴' },
   TR: { flag: '🇹🇷' },
   LY: { flag: '🇱🇾' },
   SD: { flag: '🇸🇩' },
+  UA: { flag: '🇺🇦' },
+  RU: { flag: '🇷🇺' },
+  KP: { flag: '🇰🇵' },
+  PK: { flag: '🇵🇰' },
+  IN: { flag: '🇮🇳' },
+  JP: { flag: '🇯🇵' },
 };
 
 // Iran OSINT - تصنيف الثقة
 export const CONFIDENCE = {
-  HIGH: { color: '#4ade80', icon: '🟢', bg: 'bg-green-500/20', text: 'text-green-300' },
-  MEDIUM: { color: '#facc15', icon: '🟡', bg: 'bg-yellow-500/20', text: 'text-yellow-300' },
-  LOW: { color: '#60a5fa', icon: '🔵', bg: 'bg-blue-500/20', text: 'text-blue-300' },
+  HIGH: { color: '#4ade80' },
+  MEDIUM: { color: '#facc15' },
+  LOW: { color: '#60a5fa' },
 };
 
-// أنواع أحداث إيران
+// أنواع أحداث إيران — الأيقونات أسماء من utils/icons.jsx
 export const IRAN_EVENT_TYPES = {
-  strike: { icon: '💥', color: '#f87171' },
-  launch: { icon: '🚀', color: '#fb923c' },
-  movement: { icon: '🪖', color: '#a78bfa' },
-  nuclear: { icon: '☢️', color: '#facc15' },
-  diplomatic: { icon: '🤝', color: '#60a5fa' },
+  strike: { icon: 'flame', color: '#f87171' },
+  launch: { icon: 'rocket', color: '#fb923c' },
+  movement: { icon: 'shield', color: '#a78bfa' },
+  nuclear: { icon: 'atom', color: '#f2c230' },
+  diplomatic: { icon: 'handshake', color: '#60a5fa' },
 };
 
 // النوافذ الزمنية المتاحة (بالساعات) — مصدر واحد للوحة الأخبار والخط الزمني،
@@ -113,7 +167,7 @@ export function scoreColor(score) {
 }
 
 // المصادر المتاحة للفلترة (تطابق قيم Event.source في الخلفية)
-export const SOURCES = ['gdelt', 'newsapi', 'rss', 'ucdp', 'iran_osint'];
+export const SOURCES = ['nuclear_watch', 'rss', 'gdelt', 'newsapi', 'ucdp', 'iran_osint'];
 
 /** بحث آمن عن تصنيف — يقع على "general" للقيم غير المعروفة. */
 export const categoryOf = (key) => CATEGORIES[key] || CATEGORIES.general;

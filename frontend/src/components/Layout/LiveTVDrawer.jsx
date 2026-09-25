@@ -169,6 +169,10 @@ export default function LiveTVDrawer() {
                 className="w-full h-full"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
+                // الصفحة كلها no-referrer (خصوصية روابط الأخبار)، لكن YouTube يرفض
+                // التضمين بلا Referer ويعرض «Video player configuration error»
+                // (الخطأ 153). نستثني المشغّل وحده ونرسل الأصل فقط لا المسار.
+                referrerPolicy="strict-origin-when-cross-origin"
               />
             </div>
 

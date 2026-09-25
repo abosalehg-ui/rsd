@@ -57,8 +57,8 @@ export default defineConfig({
             },
           },
           {
-            // طبقة بلاطات OpenStreetMap / CartoDB — تخزين مؤقت لمدة شهر
-            urlPattern: /^https:\/\/[a-d]\.basemaps\.cartocdn\.com\/.*\.png/,
+            // بلاطات الخريطة الأساس (Esri، أو CARTO إن ضُبط مفتاح) — تخزين شهر
+            urlPattern: /^https:\/\/(server\.arcgisonline\.com\/ArcGIS\/rest\/services\/Canvas\/|[a-d]\.basemaps\.cartocdn\.com\/)/,
             handler: 'CacheFirst',
             options: {
               cacheName: 'rsd-tiles',

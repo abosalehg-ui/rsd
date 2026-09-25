@@ -8,6 +8,7 @@
  */
 import React, { useCallback, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Icon } from '../../utils/icons';
 import { getIranLeaders, getIranStats } from '../../utils/api';
 import { CONFIDENCE, IRAN_EVENT_TYPES, timeAgo } from '../../utils/constants';
 import { safeUrl } from '../../utils/security';
@@ -175,13 +176,13 @@ export default function IranPanel({ strikes = [], onSelectStrike }) {
                             className="text-2xs px-1.5 py-0.5 rounded border font-bold"
                             style={{ color: conf.color, borderColor: conf.color + '40', background: conf.color + '15' }}
                           >
-                            {conf.icon} {t(`confidence.${strike.confidence}`, { defaultValue: t('confidence.LOW') })}
+                            <span className="inline-block w-2 h-2 rounded-full me-1" style={{ background: conf.color }} aria-hidden="true" />{t(`confidence.${strike.confidence}`, { defaultValue: t('confidence.LOW') })}
                           </span>
                           <span
                             className="text-2xs px-1.5 py-0.5 rounded"
                             style={{ color: evType.color, background: evType.color + '20' }}
                           >
-                            {evType.icon} {t(`iranEventTypes.${strike.event_type}`, { defaultValue: t('iranEventTypes.strike') })}
+                            <Icon name={evType.icon} className="inline w-3 h-3 -mt-0.5 me-0.5" style={{ color: evType.color }} />{t(`iranEventTypes.${strike.event_type}`, { defaultValue: t('iranEventTypes.strike') })}
                           </span>
                           {videoLink && (
                             <a

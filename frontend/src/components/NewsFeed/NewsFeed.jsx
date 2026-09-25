@@ -8,16 +8,15 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   CATEGORIES, SEVERITIES, COUNTRIES, SOURCES, TIME_WINDOWS,
-  categoryOf, severityOf, timeAgo,
 } from '../../utils/constants';
-import { safeUrl } from '../../utils/security';
-import { Newspaper, ExternalLink, Filter, Search, X, RotateCcw } from 'lucide-react';
+import { Icon } from '../../utils/icons';
+import StoryList from '../Events/StoryList';
+import { Newspaper, Filter, Search, X, RotateCcw } from 'lucide-react';
 
 const SEARCH_DEBOUNCE_MS = 400;
 
-export default function NewsFeed({ events = [], error, loading = false, onSelectEvent, filters, onFilterChange, onResetFilters }) {
+export default function NewsFeed({ events = [], error, loading = false, onSelectEvent, activeId = null, filters, onFilterChange, onResetFilters }) {
   const { t } = useTranslation();
-  const [expandedId, setExpandedId] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   // مسودة البحث محلية ثم تُدفع للفلتر بعد سكون — كي لا نطلق طلباً لكل حرف
   const [searchDraft, setSearchDraft] = useState(filters?.search || '');
@@ -95,7 +94,7 @@ export default function NewsFeed({ events = [], error, loading = false, onSelect
                 aria-pressed={filters?.category === key}
                 className={`text-xs px-2 py-1 rounded focus-ring ${filters?.category === key ? 'text-white' : 'bg-rasad-border text-slate-300'}`}
                 style={filters?.category === key ? { background: cat.color + '30', color: cat.color } : {}}>
-                {cat.icon} {t(`categories.${key}`)}
+                <Icon name={cat.icon} className="inline w-3.5 h-3.5 -mt-0.5" /> {t(`categories.${key}`)}
               </button>
             ))}
           </div>
@@ -106,7 +105,8 @@ export default function NewsFeed({ events = [], error, loading = false, onSelect
                 aria-pressed={filters?.severity === key}
                 className={`text-xs px-2 py-1 rounded focus-ring ${filters?.severity === key ? 'text-white' : 'bg-rasad-border text-slate-300'}`}
                 style={filters?.severity === key ? { background: sev.color + '30', color: sev.color } : {}}>
-                {sev.dot} {t(`severity.${key}`)}
+                <span className="inline-block w-2 h-2 rounded-full me-1" style={{ background: sev.color }} aria-hidden="true" />
+                {t(`severity.${key}`)}
               </button>
             ))}
           </div>
@@ -181,64 +181,7 @@ export default function NewsFeed({ events = [], error, loading = false, onSelect
         ) : events.length === 0 ? (
           <div className="flex items-center justify-center h-32 text-sm text-slate-300">{t('news.noEvents')}</div>
         ) : (
-          events.map(event => {
-            const cat = categoryOf(event.category);
-            const sev = severityOf(event.severity);
-            const flag = COUNTRIES[event.country_code]?.flag || '';
-            const isExpanded = expandedId === event.id;
-            const link = safeUrl(event.url);
-
-            return (
-              <div
-                key={event.id}
-                role="button"
-                tabIndex={0}
-                aria-expanded={isExpanded}
-                className={`border-b border-rasad-border/50 px-3 py-2 cursor-pointer transition-colors hover:bg-rasad-border/30 focus-ring ${isExpanded ? 'bg-rasad-border/20' : ''}`}
-                onClick={() => { setExpandedId(isExpanded ? null : event.id); onSelectEvent?.(event); }}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedId(isExpanded ? null : event.id); onSelectEvent?.(event); } }}
-              >
-                {/* الشريط العلوي */}
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="text-xs" aria-hidden="true">{cat.icon}</span>
-                  <span className="text-2xs px-1.5 py-0.5 rounded" style={{ background: cat.color + '20', color: cat.color }}>
-                    {t(`categories.${event.category}`, { defaultValue: t('categories.general') })}
-                  </span>
-                  <span className="text-2xs px-1.5 py-0.5 rounded" style={{ background: sev.color + '20', color: sev.color }}>
-                    {t(`severity.${event.severity}`, { defaultValue: t('severity.low') })}
-                  </span>
-                  <span className="flex-1" />
-                  <span className="text-2xs text-slate-300">{timeAgo(event.event_date, t)}</span>
-                </div>
-
-                {/* العنوان */}
-                <h4 className="text-sm font-semibold text-slate-100 leading-relaxed mb-1 line-clamp-2">{event.title}</h4>
-
-                {/* التفاصيل */}
-                <div className="flex items-center gap-2 text-2xs text-slate-300">
-                  {flag && <span>{flag} {t(`countries.${event.country_code}`, { defaultValue: event.country || '' })}</span>}
-                  {/* bdi يعزل اسم المصدر اللاتيني فلا تقفز النقطة في سياق RTL */}
-                  <span>• <bdi>{event.source}</bdi></span>
-                </div>
-
-                {/* التوسع */}
-                {isExpanded && (
-                  <div className="mt-2 pt-2 border-t border-rasad-border/50">
-                    {event.description && (
-                      <p className="text-xs text-slate-300 leading-relaxed mb-2">{event.description}</p>
-                    )}
-                    {link && (
-                      <a href={link} target="_blank" rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1 text-xs text-cyan-300 hover:underline focus-ring rounded">
-                        <ExternalLink className="w-3 h-3" aria-hidden="true" /> {t('news.sourceLink')}
-                      </a>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })
+          <StoryList events={events} activeId={activeId} onOpen={onSelectEvent} />
         )}
       </div>
     </div>

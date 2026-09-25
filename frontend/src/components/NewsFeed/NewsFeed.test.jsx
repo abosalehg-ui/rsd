@@ -25,7 +25,14 @@ describe('<NewsFeed>', () => {
     render(<NewsFeed events={sampleEvents} filters={baseFilters} />);
     expect(screen.getByText('Strike on a depot')).toBeInTheDocument();
     expect(screen.getByText('Talks resume')).toBeInTheDocument();
-    expect(screen.getByText('2')).toBeInTheDocument();
+    // العدّاد في رأس اللوحة (رؤوس المجموعات الزمنية تحمل أعدادها أيضًا)
+    const heading = screen.getByText(/^(Events|الأحداث)$/).parentElement;
+    expect(heading).toHaveTextContent('2');
+  });
+
+  it('groups stories under time headings', () => {
+    render(<NewsFeed events={sampleEvents} filters={baseFilters} />);
+    expect(screen.getByRole('region', { name: /Last hour|آخر ساعة/ })).toBeInTheDocument();
   });
 
   it('shows an error state instead of "no events" when loading failed', () => {
@@ -62,14 +69,11 @@ describe('<NewsFeed>', () => {
     expect(screen.getByRole('searchbox')).toHaveAttribute('maxlength', '100');
   });
 
-  it('renders a safe source link and drops a javascript: URL', () => {
-    render(<NewsFeed events={sampleEvents} filters={baseFilters} />);
-
+  it('opens the story instead of expanding inline (links live in the details drawer)', () => {
+    const onSelectEvent = vi.fn();
+    render(<NewsFeed events={sampleEvents} filters={baseFilters} onSelectEvent={onSelectEvent} />);
     fireEvent.click(screen.getByText('Strike on a depot'));
-    const link = screen.getByRole('link');
-    expect(link).toHaveAttribute('href', 'https://example.com/a');
-
-    fireEvent.click(screen.getByText('Talks resume'));
+    expect(onSelectEvent).toHaveBeenCalledWith(sampleEvents[0]);
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 

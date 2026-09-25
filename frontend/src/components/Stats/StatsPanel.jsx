@@ -6,6 +6,9 @@ import { useTranslation } from 'react-i18next';
 import { CATEGORIES, COUNTRIES, formatNumber, escalationColor } from '../../utils/constants';
 import { BarChart3, TrendingUp, Globe, AlertTriangle } from 'lucide-react';
 import CountryIndex from './CountryIndex';
+import { Icon } from '../../utils/icons';
+import Sparkline from '../Nuclear/Sparkline';
+import { TrendNote } from '../Nuclear/RiskGauge';
 
 export default function StatsPanel({ stats, countryIndex, countryLoading = false }) {
   const { t } = useTranslation();
@@ -23,11 +26,15 @@ export default function StatsPanel({ stats, countryIndex, countryLoading = false
           <span className="text-xs font-bold text-slate-200">{t('stats.escalationIndex')}</span>
         </div>
         <div className="flex items-end gap-3">
-          <span className="text-3xl font-bold font-mono" style={{ color: escColor }}>{escalation}%</span>
-          <div className="flex-1 h-2 bg-rasad-border rounded-full overflow-hidden">
-            <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${Math.min(escalation, 100)}%`, background: escColor }} />
-          </div>
+          <span className="text-3xl font-semibold font-mono tabular-nums" style={{ color: escColor }}>{escalation}%</span>
+          <TrendNote delta={stats.escalation_delta} className="text-xs mb-1" />
         </div>
+        {stats.escalation_series?.length > 1 && (
+          <div className="mt-2">
+            <Sparkline points={stats.escalation_series.map(p => p.value)} color={escColor} label={t('stats.escalationIndex')} />
+          </div>
+        )}
+        <p className="mt-2 text-xs text-slate-400">{t('app.escalationHelp')}</p>
       </div>
 
       {/* إحصائيات سريعة */}
@@ -57,8 +64,8 @@ export default function StatsPanel({ stats, countryIndex, countryLoading = false
             const pct = stats.total ? Math.round((count / stats.total) * 100) : 0;
             return (
               <div key={key} className="flex items-center gap-2">
-                <span className="text-xs w-5">{cat.icon}</span>
-                <span className="text-2xs text-slate-300 w-16">{t(`categories.${key}`)}</span>
+                <Icon name={cat.icon} className="w-3.5 h-3.5 shrink-0" style={{ color: cat.color }} />
+                <span className="text-xs text-slate-300 w-20 truncate">{t(`categories.${key}`)}</span>
                 <div className="flex-1 h-1.5 bg-rasad-border rounded-full overflow-hidden">
                   <div className="h-full rounded-full" style={{ width: `${pct}%`, background: cat.color }} />
                 </div>

@@ -7,6 +7,7 @@ from sqlalchemy import and_, desc, func, select
 
 from ..models.database import Event, get_session_factory
 from ._serializers import serialize_event
+from ._stories import collapse
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 
@@ -18,11 +19,18 @@ async def get_events(
     country_code: Optional[str] = Query(default=None, max_length=10),
     source: Optional[str] = Query(default=None, max_length=50),
     search: Optional[str] = Query(default=None, max_length=100),
+    topic: Optional[str] = Query(default=None, max_length=40),
     hours: int = Query(default=24, ge=1, le=720),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
+    collapse_stories: bool = Query(default=True, alias="collapse"),
 ):
-    """الحصول على الأحداث مع فلاتر"""
+    """الحصول على الأحداث مع فلاتر.
+
+    `collapse=true` (الافتراضي) يطوي الأخبار المتشابهة في قصة واحدة مع قائمة
+    مصادرها؛ `total` يبقى عدد الأحداث الخام و`stories` عدد القصص المُعادة.
+    `category=nuclear` يشمل الإشعاعي أيضًا (الرصد النووي والإشعاعي وحدة واحدة).
+    """
     session_factory = get_session_factory()
     async with session_factory() as session:
         query = select(Event)
@@ -32,8 +40,12 @@ async def get_events(
         since = datetime.now(timezone.utc) - timedelta(hours=hours)
         conditions.append(Event.event_date >= since)
 
-        if category:
+        if category == "nuclear":
+            conditions.append(Event.category.in_(["nuclear", "radiological"]))
+        elif category:
             conditions.append(Event.category == category)
+        if topic:
+            conditions.append(Event.topic == topic)
         if severity:
             conditions.append(Event.severity == severity)
         if country_code:
@@ -51,17 +63,21 @@ async def get_events(
         if conditions:
             query = query.where(and_(*conditions))
 
-        query = query.order_by(desc(Event.event_date)).offset(offset).limit(limit)
+        # عند الطيّ نجلب أكثر من الحدّ كي يبقى بعد الطيّ `limit` قصة تقريبًا
+        fetch = min(limit * 3, 1500) if collapse_stories else limit
+        query = query.order_by(desc(Event.event_date)).offset(offset).limit(fetch)
         result = await session.execute(query)
-        events = result.scalars().all()
+        events = list(result.scalars().all())
 
         # العدد الإجمالي
         count_query = select(func.count(Event.id)).where(and_(*conditions))
         total = (await session.execute(count_query)).scalar()
 
+        items = collapse(events, limit) if collapse_stories else [serialize_event(e) for e in events]
         return {
             "total": total,
-            "events": [serialize_event(e) for e in events],
+            "stories": len(items),
+            "events": items,
         }
 
 
@@ -149,13 +165,13 @@ async def get_stats(hours: int = Query(default=24, ge=1, le=720)):
         )
         sources = dict((await session.execute(source_query)).all())
 
-        # مؤشر التصعيد (نسبة الأحداث العسكرية الحرجة)
-        critical_military = (await session.execute(
-            select(func.count(Event.id)).where(
-                and_(base_filter, Event.category == "military", Event.severity.in_(["critical", "high"]))
-            )
-        )).scalar()
-        escalation_index = round((critical_military / max(total, 1)) * 100, 1)
+        # مؤشر التصعيد = نسبة الأحداث العسكرية عالية/حرجة الخطورة من الإجمالي.
+        # نُعيد معه قيمة الفترة السابقة المماثلة وسلسلة زمنية، كي يُقرأ الرقم
+        # باتجاهه لا كرقم معزول بلا مرجع.
+        escalation_index = await _escalation(session, since, datetime.now(timezone.utc))
+        prev_since = since - timedelta(hours=hours)
+        escalation_prev = await _escalation(session, prev_since, since)
+        series = await _escalation_series(session, since, hours)
 
         return {
             "total": total,
@@ -164,8 +180,38 @@ async def get_stats(hours: int = Query(default=24, ge=1, le=720)):
             "countries": countries,
             "sources": sources,
             "escalation_index": escalation_index,
+            "escalation_prev": escalation_prev,
+            "escalation_delta": round(escalation_index - escalation_prev, 1),
+            "escalation_series": series,
             "period_hours": hours,
         }
+
+
+_SERIES_BUCKETS = 8
+
+
+async def _escalation(session, start, end) -> float:
+    window = and_(Event.event_date >= start, Event.event_date < end)
+    total = (await session.execute(select(func.count(Event.id)).where(window))).scalar() or 0
+    hot = (await session.execute(
+        select(func.count(Event.id)).where(and_(
+            window, Event.category == "military", Event.severity.in_(["critical", "high"]),
+        ))
+    )).scalar() or 0
+    return round((hot / max(total, 1)) * 100, 1)
+
+
+async def _escalation_series(session, since, hours: int) -> list[dict]:
+    """قيمة المؤشر في شرائح زمنية متساوية عبر النافذة (للمخطط المصغّر)."""
+    step = timedelta(hours=hours) / _SERIES_BUCKETS
+    out = []
+    for i in range(_SERIES_BUCKETS):
+        start = since + step * i
+        out.append({
+            "t": (start + step).isoformat(),
+            "value": await _escalation(session, start, start + step),
+        })
+    return out
 
 
 @router.get("/timeline")

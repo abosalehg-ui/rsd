@@ -43,9 +43,12 @@ class TestGeolocateIran:
         _, _, _, code = _geolocate_iran("explosions reported in gaza")
         assert code == "PS"
 
-    def test_red_sea_maps_to_yemen(self):
-        _, _, _, code = _geolocate_iran("shipping attacked in the red sea")
-        assert code == "YE"
+    def test_red_sea_is_a_maritime_region_not_a_country(self):
+        """كان البحر الأحمر يُنسب لليمن فيضخّم مؤشرها بأحداث ملاحية دولية."""
+        lat, _, name, code = _geolocate_iran("shipping attacked in the red sea")
+        assert code == ""
+        assert name == "البحر الأحمر"
+        assert lat is not None
 
     def test_defaults_to_tehran_when_nothing_matches(self):
         lat, lon, name, code = _geolocate_iran("unspecified regional tension")

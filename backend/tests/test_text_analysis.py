@@ -4,7 +4,11 @@ from app.processors.text_analysis import classify, geolocate
 
 class TestClassify:
     def test_nuclear_base_category_forced(self):
-        assert classify("anything", base_category="nuclear") == ("nuclear", "high")
+        """المصدر النووي المتخصص يفرض التصنيف النووي، لكن الخطورة من الدرجة:
+        خبر صناعي عادي لم يعد "high" تلقائيًا."""
+        cat, sev = classify("anything", base_category="nuclear")
+        assert cat == "nuclear"
+        assert sev == "low"
 
     def test_nuclear_keyword(self):
         cat, sev = classify("Iran uranium enrichment at Natanz")

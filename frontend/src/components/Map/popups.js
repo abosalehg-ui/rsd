@@ -10,10 +10,11 @@
  * موثوقة، فكل قيمة تمرّ عبر `esc()` وكل رابط عبر `safeUrl()` قبل الحقن.
  */
 import {
-  CATEGORIES, CONFIDENCE, COUNTRIES, IRAN_EVENT_TYPES, THEME,
-  categoryOf, severityOf, timeAgo,
+  CONFIDENCE, COUNTRIES, IRAN_EVENT_TYPES, THEME,
+  categoryOf, ksaPlace, riskColor, severityOf, timeAgo,
 } from '../../utils/constants';
 import { esc, safeUrl } from '../../utils/security';
+import { iconSvg } from '../../utils/icons';
 
 /** غلاف موحّد — الاتجاه يتبع لغة الواجهة لا قيمة ثابتة. */
 export function popupShell(inner, dir, minWidth = 220) {
@@ -22,7 +23,7 @@ export function popupShell(inner, dir, minWidth = 220) {
 
 /** شارة ملوّنة صغيرة (تصنيف/خطورة/ثقة/نوع). */
 function badge(label, color, icon = '') {
-  const prefix = icon ? `${icon} ` : '';
+  const prefix = icon ? `<span style="display:inline-flex;vertical-align:-2px;margin-inline-end:3px">${iconSvg(icon, { size: 12, color })}</span>` : '';
   return `<span style="font-size:11px;padding:2px 6px;border-radius:4px;background:${color}20;color:${color}">${prefix}${esc(label)}</span>`;
 }
 
@@ -51,20 +52,27 @@ export function eventPopup(ev, { t, dir }) {
   const sev = severityOf(ev.severity);
   const catLabel = t(`categories.${ev.category}`, { defaultValue: t('categories.general') });
   const sevLabel = t(`severity.${ev.severity}`, { defaultValue: t('severity.low') });
-  const flag = COUNTRIES[ev.country_code]?.flag || '🌍';
+  const flag = COUNTRIES[ev.country_code]?.flag || '';
   const country = t(`countries.${ev.country_code}`, { defaultValue: ev.country || '' });
+  const topicLabel = ev.topic ? t(`topics.${ev.topic}`) : catLabel;
+  const risk = ev.risk_score != null
+    ? `<span style="margin-inline-start:auto;font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:12px;color:${riskColor(ev.risk_score)}">${esc(Math.round(ev.risk_score))}</span>`
+    : '';
+  const approx = ev.geo_precision === 'country'
+    ? `<div style="font-size:11px;color:${THEME.textMuted};margin-top:4px">${esc(t('events.precision.country'))}</div>` : '';
 
   return popupShell(`
-    <div style="display:flex;gap:4px;margin-bottom:6px">
-      <span style="font-size:16px">${cat.icon}</span>
-      ${badge(catLabel, cat.color)}
+    <div style="display:flex;gap:4px;margin-bottom:6px;align-items:center;flex-wrap:wrap">
+      ${badge(topicLabel, cat.color, cat.icon)}
       ${badge(sevLabel, sev.color)}
+      ${risk}
     </div>
     <h3 style="font-size:13px;font-weight:700;margin-bottom:4px;line-height:1.5">${esc(ev.title)}</h3>
     <p style="font-size:11px;color:${THEME.textSecondary};margin-bottom:6px">${esc((ev.description || '').substring(0, 100))}</p>
     <div style="display:flex;justify-content:space-between;font-size:11px;color:${THEME.textMuted}">
       <span>${flag} ${esc(country)}</span><span>${esc(timeAgo(ev.event_date, t))}</span>
     </div>
+    ${approx}
     ${sourceLink(ev.url, t)}
   `, dir);
 }
@@ -77,7 +85,7 @@ export function clusterPopup(cluster, { t, dir }) {
   const count = cluster.events.length;
   const listHtml = cluster.events.slice(0, CLUSTER_LIST_LIMIT).map(ev => {
     const cat = categoryOf(ev.category);
-    return `<div class="rasad-cluster-item" data-id="${esc(ev.id)}" tabindex="0" role="button" style="padding:4px 0;border-bottom:1px solid ${THEME.border};font-size:11px;line-height:1.5;cursor:pointer;color:${THEME.textSecondary}">${cat.icon} ${esc((ev.title || '').substring(0, 60))}</div>`;
+    return `<div class="rasad-cluster-item" data-id="${esc(ev.id)}" tabindex="0" role="button" style="display:flex;gap:6px;align-items:flex-start;padding:5px 0;border-bottom:1px solid ${THEME.border};font-size:12px;line-height:1.5;cursor:pointer;color:${THEME.textSecondary}"><span style="flex-shrink:0;margin-top:2px">${iconSvg(cat.icon, { size: 12, color: cat.color })}</span><span>${esc((ev.title || '').substring(0, 80))}</span></div>`;
   }).join('');
 
   const moreText = count > CLUSTER_LIST_LIMIT
@@ -106,7 +114,7 @@ export function flightPopup(f, { t, dir }) {
 
   return popupShell(`
     <div style="font-weight:700;font-family:monospace">${esc(f.callsign || f.icao24)}</div>
-    ${isMil ? `<span style="font-size:11px;color:${THEME.violetSoft}">⚔️ ${esc(t('map.military'))}</span>` : ''}
+    ${isMil ? badge(t('map.military'), THEME.violetSoft, 'shield') : ''}
     <div style="font-size:11px;color:${THEME.textSecondary};margin-top:4px">
       ${esc(f.origin_country || '')}<br/>
       ${esc(t('map.altitude'))}: ${altitude}<br/>
@@ -131,7 +139,7 @@ export function iranPopup(strike, { t, dir }) {
   return popupShell(`
     <div style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap">
       <span style="font-size:11px;padding:2px 6px;border-radius:4px;background:${conf.color}20;color:${conf.color};border:1px solid ${conf.color}40">
-        ${conf.icon} ${esc(confLabel)}
+        <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${conf.color};margin-inline-end:4px"></span>${esc(confLabel)}
       </span>
       ${badge(typeLabel, evType.color, evType.icon)}
       ${videoBadge}
@@ -139,7 +147,7 @@ export function iranPopup(strike, { t, dir }) {
     <h3 style="font-size:13px;font-weight:700;margin-bottom:4px;line-height:1.5">${esc(strike.title)}</h3>
     <p style="font-size:11px;color:${THEME.textSecondary};margin-bottom:6px">${esc((strike.description || '').substring(0, 120))}</p>
     <div style="font-size:11px;color:${THEME.textMuted};display:flex;justify-content:space-between;gap:8px">
-      <span>📍 ${esc(strike.location_name || strike.country || '')}</span>
+      <span>${esc(strike.location_name || strike.country || '')}</span>
       <span>${esc(strike.feed_name || '')}</span>
     </div>
     ${sourceLink(strike.url, t)}
@@ -148,7 +156,13 @@ export function iranPopup(strike, { t, dir }) {
 
 // ===== منشأة نووية =====
 
-export function nuclearPopup(fac, { t, dir, typeColor, statusColor }) {
+export function nuclearPopup(fac, { t, dir, typeColor, statusColor, lang = 'ar' }) {
+  const distance = fac.distance_to_ksa_km != null
+    ? row(t('events.distanceKsa'), t('facilities.distance', { km: Math.round(fac.distance_to_ksa_km), place: ksaPlace(fac, lang) }), THEME.highlight)
+    : '';
+  const zones = (fac.planning_zones || []).length
+    ? `<div style="margin-top:6px;font-size:11px;color:${THEME.textMuted}">${esc(t('facilities.zones'))}: ${fac.planning_zones.map(z => `${esc(z.key)} ${esc(z.km)}`).join(' · ')} ${esc(t('map.kmShort'))}</div>`
+    : '';
   const typeLabel = t(`nuclearTypes.${fac.type}`, { defaultValue: fac.type || '-' });
   const statusLabel = t(`nuclearStatus.${fac.status}`, { defaultValue: fac.status || '-' });
   const name = fac.name_ar || fac.name_en || '';
@@ -161,7 +175,7 @@ export function nuclearPopup(fac, { t, dir, typeColor, statusColor }) {
   return popupShell(`
     <div style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap">
       <span style="font-size:11px;padding:2px 6px;border-radius:4px;background:${typeColor}20;color:${typeColor};border:1px solid ${typeColor}40">
-        ☢️ ${esc(typeLabel)}
+        <span style="display:inline-flex;vertical-align:-2px;margin-inline-end:3px">${iconSvg('radiation', { size: 12, color: typeColor })}</span>${esc(typeLabel)}
       </span>
       ${badge(statusLabel, statusColor)}
     </div>
@@ -173,7 +187,9 @@ export function nuclearPopup(fac, { t, dir, typeColor, statusColor }) {
       ${capacity}
       ${firstGrid}
       ${operator}
+      ${distance}
     </div>
+    ${zones}
     ${notes(fac.notes)}
     <div style="font-size:11px;color:${THEME.textMuted};margin-top:6px;font-family:monospace">
       ${fac.latitude.toFixed(3)}, ${fac.longitude.toFixed(3)}
@@ -204,7 +220,7 @@ export function pipelinePopup(p, { t, dir, color }) {
     : p.capacity_bcm ? `${p.capacity_bcm} ${t('map.bcm')}` : '-';
 
   return popupShell(`
-    <div style="font-size:13px;font-weight:700;color:${color};margin-bottom:4px">${p.type === 'oil' ? '🛢️' : '🔥'} ${esc(p.name_ar || p.name_en || '')}</div>
+    <div style="font-size:13px;font-weight:700;color:${color};margin-bottom:4px;display:flex;gap:4px;align-items:center">${iconSvg(p.type === 'oil' ? 'droplets' : 'flame', { size: 13, color })} ${esc(p.name_ar || p.name_en || '')}</div>
     <div style="font-size:11px;color:${THEME.textSecondary};margin-bottom:6px">${esc(p.name_en || '')}</div>
     <div style="font-size:12px;color:${THEME.text};line-height:1.7">
       ${row(t('map.length'), `${p.length_km || '-'} ${t('map.kmShort')}`, THEME.accent)}

@@ -1,8 +1,8 @@
 """رصد - جامع خلاصات RSS
-يجمع الأخبار من مصادر RSS عربية ودولية
-مع دعم خاص لأخبار النووي ☣️
+يجمع الأخبار من مصادر RSS عربية ودولية. الأخبار النووية/الإشعاعية التي
+تظهر هنا تُقيَّم تلقائيًا (التحليل مشترك)، والخلاصات النووية المتخصصة في
+`nuclear_watch.py`.
 """
-import json
 import logging
 from typing import Dict
 
@@ -11,8 +11,15 @@ import httpx
 from ..config import get_settings
 from ..models.database import get_session_factory, insert_event_if_new
 from ..processors.dates import parse_entry_date
-from ..processors.text_analysis import classify, geolocate
-from ._feed_base import clean_html, make_source_id, parse_feed_async, process_feeds
+from ._feed_base import (
+    FEED_HEADERS,
+    analyzed_fields,
+    clean_html,
+    clean_title,
+    make_source_id,
+    parse_feed_async,
+    process_feeds,
+)
 
 logger = logging.getLogger("rasad.rss")
 
@@ -22,27 +29,8 @@ _DESC_CAP = 500
 # ===== خلاصات RSS =====
 
 RSS_FEEDS = {
-    # ☣️ أخبار نووية
-    "nuclear": [
-        {
-            "name": "World Nuclear News",
-            "url": "https://www.world-nuclear-news.org/rss",
-            "category": "nuclear",
-            "icon": "☣️",
-        },
-        {
-            "name": "IAEA News",
-            "url": "https://www.iaea.org/feeds/topnews",
-            "category": "nuclear",
-            "icon": "☣️",
-        },
-        {
-            "name": "Arms Control Association",
-            "url": "https://www.armscontrol.org/rss.xml",
-            "category": "nuclear",
-            "icon": "☣️",
-        },
-    ],
+    # الخلاصات النووية المتخصصة انتقلت إلى `nuclear_watch.py` (جامع مستقل
+    # بفاصل خاص ومعاملة "specialist" في درجة الخطر).
     # 📰 أخبار عربية
     "arabic_news": [
         {
@@ -146,7 +134,7 @@ async def collect_rss_feeds() -> int:
 
     all_feeds = _all_feeds()
 
-    async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=20.0, follow_redirects=True, headers=FEED_HEADERS) as client:
         count = await process_feeds(client, all_feeds, _process_feed, label="RSS")
 
     logger.info(f"RSS: تم جمع {count} خبر جديد من {len(all_feeds)} خلاصة")
@@ -183,16 +171,24 @@ async def _process_feed(client: httpx.AsyncClient, feed_config: Dict) -> int:
 
 async def _store_entry(session, entry, feed_config: Dict) -> bool:
     """يحوّل إدخال خلاصة إلى حدث ويُدرجه ذرّياً؛ يعيد True إن أُدرِج فعلاً."""
-    title = entry.get("title", "").strip()
+    title, _ = clean_title(entry.get("title", ""))
     if not title:
         return False
 
     link = entry.get("link", "")
     description = clean_html(entry.get("summary", entry.get("description", "")), _DESC_CAP)
-
     base_category = feed_config.get("category", "general")
-    category, severity = classify(title, description, base_category)
-    country_code, country_name, lat, lon = geolocate(title, description)
+
+    fields, analysis = analyzed_fields(
+        title, description,
+        base_category=base_category,
+        source_kind=feed_config.get("source_kind", "news"),
+        extra={
+            "feed_name": feed_config["name"],
+            "source_name": feed_config["name"],
+            "feed_category": base_category,
+        },
+    )
 
     image_url = ""
     if hasattr(entry, "media_content") and entry.media_content:
@@ -200,29 +196,17 @@ async def _store_entry(session, entry, feed_config: Dict) -> bool:
     elif hasattr(entry, "enclosures") and entry.enclosures:
         image_url = entry.enclosures[0].get("href", "")
 
-    icon = feed_config.get("icon", "")
-    display_title = f"{icon} {title}" if icon else title
-
+    # الأيقونة كانت تُلصق في بداية العنوان المخزَّن ("☣️ …")، فتُفسد البحث
+    # والتجميع وتكرّر معلومة يعرضها التصنيف أصلًا. التصنيف يكفي.
     return await insert_event_if_new(
         session,
         source="rss",
         source_id=make_source_id("rss", link),
-        title=display_title,
+        title=title,
         description=description,
         url=link,
         image_url=image_url,
-        category=category,
-        severity=severity,
-        latitude=lat,
-        longitude=lon,
-        country=country_name,
-        country_code=country_code,
-        location_name=feed_config["name"],
+        location_name=analysis.location.place_name or feed_config["name"],
         event_date=parse_entry_date(entry),
-        extra_data=json.dumps({
-            "feed_name": feed_config["name"],
-            "feed_category": base_category,
-            "is_nuclear": category == "nuclear",
-        }),
+        **fields,
     )
-

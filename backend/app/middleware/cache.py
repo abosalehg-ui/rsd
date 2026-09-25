@@ -19,7 +19,11 @@ from starlette.responses import Response
 # مدد التخزين المؤقت (ثواني) — مرتّبة بالأطول أولاً للحصول على المطابقة الأكثر تحديداً
 _CACHE_RULES: list[tuple[str, str]] = [
     ("/api/infrastructure/", "public, max-age=3600, stale-while-revalidate=300"),
+    # الرصد الحي قبل قاعدة المنشآت الثابتة: البادئة الأطول أولًا
+    ("/api/nuclear/facilities/watch", "public, max-age=60, stale-while-revalidate=30"),
     ("/api/nuclear/facilities", "public, max-age=3600, stale-while-revalidate=300"),
+    ("/api/nuclear/topics", "public, max-age=3600"),
+    ("/api/nuclear/", "public, max-age=30, must-revalidate"),
     ("/api/sources", "public, max-age=3600"),
     ("/api/events/country-index", "public, max-age=60, stale-while-revalidate=30"),
     ("/api/events/stats", "public, max-age=60, stale-while-revalidate=30"),

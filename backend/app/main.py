@@ -8,6 +8,7 @@
 مصنع التطبيق فقط: دورة الحياة، توصيل الطبقات، تسجيل المسارات، وتخديم الواجهة
 المبنية. المسارات نفسها تعيش في `api/`.
 """
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -27,7 +28,7 @@ from .config import Settings, get_settings
 from .middleware.cache import ETagCacheMiddleware
 from .middleware.ratelimit import RateLimitMiddleware
 from .middleware.security_headers import SecurityHeadersMiddleware
-from .models.database import init_db
+from .models.database import backfill_analysis, init_db
 from .scheduler import start_scheduler, stop_scheduler
 
 # إعداد السجل
@@ -41,6 +42,22 @@ logger = logging.getLogger("rasad")
 _LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost", ""}
 
 
+async def _initial_collection() -> None:
+    logger.info("📡 جمع البيانات الأولي...")
+    try:
+        summary, total = await run_all_collectors()
+        for name, result in summary.items():
+            if result["status"] == "ok":
+                logger.info(f"✅ {name}: {result['new_events']} حدث")
+            else:
+                logger.warning(f"⚠️ {name}: {result['message']}")
+        logger.info(f"📊 الجمع الأولي: {total} حدث جديد")
+    except asyncio.CancelledError:
+        raise
+    except Exception as e:  # noqa: BLE001 - فشل الجمع الأولي لا يُسقط الخادم
+        logger.error(f"خطأ في الجمع الأولي: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """إدارة دورة حياة التطبيق"""
@@ -49,6 +66,10 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     await init_db(settings.database_url)
     logger.info("✅ قاعدة البيانات جاهزة")
+    try:
+        await backfill_analysis()
+    except Exception as e:  # noqa: BLE001 - الترقية تحسين؛ فشلها لا يمنع الإقلاع
+        logger.warning("تعذّرت إعادة تحليل الأحداث القديمة: %s", e)
 
     # تحذير من سوء إعداد صامت: خادم مكشوف على الشبكة بلا مفتاح API يعني
     # واجهة مفتوحة بالكامل. نُبرز هذا بدل تركه fail-open صامتاً.
@@ -59,23 +80,17 @@ async def lifespan(app: FastAPI):
             settings.backend_host,
         )
 
-    logger.info("📡 جمع البيانات الأولي...")
-    try:
-        summary, total = await run_all_collectors()
-        for name, result in summary.items():
-            if result["status"] == "ok":
-                logger.info(f"✅ {name}: {result['new_events']} حدث")
-            else:
-                logger.warning(f"⚠️ {name}: {result['message']}")
-        logger.info(f"📊 الجمع الأولي: {total} حدث جديد")
-    except Exception as e:
-        logger.error(f"خطأ في الجمع الأولي: {e}")
+    # الجمع الأولي في الخلفية: كان يسبق `yield` فلا يقبل الخادم أي طلب قبل أن
+    # تنتهي كل المصادر (30-60 ثانية)، فتفتح الواجهة على «تعذّر الاتصال بالخادم».
+    # الآن يستجيب الخادم فورًا بما في قاعدة البيانات وتصل الأخبار الجديدة تباعًا.
+    initial = asyncio.create_task(_initial_collection())
 
     start_scheduler()
     logger.info("✅ رصد يعمل الآن!")
 
     yield
 
+    initial.cancel()
     stop_scheduler()
     logger.info("⏹️ تم إيقاف رصد")
 

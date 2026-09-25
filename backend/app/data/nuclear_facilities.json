@@ -1,9 +1,13 @@
 {
   "_meta": {
     "description": "Curated list of nuclear facilities in the Middle East and nearby regions",
-    "sources": ["IAEA PRIS (public)", "Wikipedia", "OSINT — open public records"],
+    "sources": [
+      "IAEA PRIS (public)",
+      "Wikipedia",
+      "OSINT — open public records"
+    ],
     "license": "Factual data — not copyrightable",
-    "last_updated": "2026-05"
+    "last_updated": "2026-09"
   },
   "facilities": [
     {
@@ -355,6 +359,36 @@
       "capacity_mw": 4000,
       "status": "operational",
       "operator": "Rosenergoatom"
+    },
+    {
+      "id": "eg-inshas",
+      "name_ar": "مفاعل أنشاص البحثي (ETRR-2)",
+      "name_en": "Inshas ETRR-2 Research Reactor",
+      "country": "Egypt",
+      "country_code": "EG",
+      "latitude": 30.388,
+      "longitude": 31.446,
+      "type": "research",
+      "reactor_type": "Open-pool MTR",
+      "capacity_mw": 22,
+      "status": "operational",
+      "operator": "Egyptian Atomic Energy Authority",
+      "notes": "Egypt's main research reactor and isotope production site"
+    },
+    {
+      "id": "iq-tuwaitha",
+      "name_ar": "مركز التويثة النووي (سابقًا)",
+      "name_en": "Al-Tuwaitha Nuclear Research Center (former)",
+      "country": "Iraq",
+      "country_code": "IQ",
+      "latitude": 33.208,
+      "longitude": 44.522,
+      "type": "research",
+      "reactor_type": "Former research reactors (Osirak/Tammuz, IRT-5000)",
+      "capacity_mw": null,
+      "status": "shutdown",
+      "operator": "Iraqi Ministry of Science and Technology",
+      "notes": "Legacy radiological site under decommissioning; relevant for orphan-source and contamination risk"
     }
   ]
 }

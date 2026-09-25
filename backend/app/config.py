@@ -75,6 +75,11 @@ class Settings(BaseSettings):
     ucdp_interval: int = 86400
     adsb_interval: int = 10
     iran_osint_interval: int = 1800  # مصدر واحد للفاصل بدل تكراره في scheduler/main
+    # الرصد النووي والإشعاعي: خلاصات متخصصة + بحث Google News (نصف ساعة يكفي
+    # ولا يُثقل Google News بطلبات متقاربة)
+    nuclear_interval: int = 1800
+    # تجميع الأخبار المتشابهة في قصص — عملية محلية رخيصة
+    clustering_interval: int = 180
 
     @property
     def effective_adsb_interval(self) -> int:

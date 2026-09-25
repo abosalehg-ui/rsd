@@ -11,12 +11,12 @@
        script-src بلا 'unsafe-inline' ولا 'unsafe-eval': بناء Vite الإنتاجي لا
        يُنتج سكربتات مضمّنة، ولا تستدعي three/globe.gl/leaflet eval ولا
        new Function — مُتحقَّق منه بالفحص على الحزم المبنية. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://unpkg.com; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https:; frame-src https://www.youtube-nocookie.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'" />
-  <title>رصد | Rasad - OSINT Dashboard</title>
-  <meta name="description" content="منصة استخبارات المصادر المفتوحة للشرق الأوسط — OSINT Dashboard for the Middle East" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: https://server.arcgisonline.com https://*.basemaps.cartocdn.com https://unpkg.com; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https:; frame-src https://www.youtube-nocookie.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'" />
+  <title>رصد | الرصد النووي والإشعاعي</title>
+  <meta name="description" content="رصد المخاطر النووية والإشعاعية والتطورات السياسية المرتبطة بها في المنطقة — Nuclear &amp; radiological risk watch" />
 
   <!-- PWA -->
-  <meta name="theme-color" content="#0d1117" />
+  <meta name="theme-color" content="#0b1016" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="رصد" />
@@ -25,12 +25,11 @@
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!-- ثلاثة أوزان فقط: الكود يستعمل font-medium/semibold/bold (500/600/700)
-       والأوزان 300 و800 و900 كانت حمولة ثلاثة ملفات woff2 بلا استعمال. -->
-  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <!-- الأوزان المستعملة فقط: 400/500/600/700 للعربية، 400/600 للأرقام. -->
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
   <!-- leaflet.css مُضمَّن في الحزمة عبر import في RasadMap.jsx — لا حاجة لنسخة CDN -->
 </head>
-<body class="bg-[#0a0e17] text-white font-arabic">
+<body class="bg-[#0b1016] text-white font-arabic">
   <div id="root"></div>
   <script type="module" src="/src/main.jsx"></script>
 </body>
