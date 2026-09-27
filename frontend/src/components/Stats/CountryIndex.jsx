@@ -35,7 +35,7 @@ export default function CountryIndex({ data, loading = false }) {
   return (
     <div className="bg-rasad-bg rounded-lg border border-rasad-border p-3">
       <div className="flex items-center gap-2 mb-1">
-        <Activity className="w-3.5 h-3.5 text-cyan-400" />
+        <Activity className="w-3.5 h-3.5 text-cyan-400" aria-hidden="true" />
         <span className="text-xs font-bold text-slate-300">{t('stats.countryIndex')}</span>
       </div>
       <div className="text-2xs text-slate-300 mb-3">{t('stats.countryIndexDesc')}</div>

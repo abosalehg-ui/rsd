@@ -18,12 +18,23 @@ from .models.database import prune_old_data, run_story_clustering
 
 logger = logging.getLogger("rasad.scheduler")
 
-scheduler = AsyncIOScheduler()
+# misfire_grace_time: الافتراضي ثانية واحدة، فحين تنشغل الحلقة (الجمع الأولي
+# لسبعة مصادر عند الإقلاع، أو إعادة تحليل قاعدة سطح مكتب) تفوّت وظيفة RSS
+# موعدها بأكثر من ثانية فتُسقَط. دقيقة كاملة مع دمج التشغيلات الفائتة في واحد.
+JOB_DEFAULTS = {"misfire_grace_time": 60, "coalesce": True}
+
+scheduler = AsyncIOScheduler(job_defaults=JOB_DEFAULTS)
 
 
 def start_scheduler():
     """بدء جدولة جمع البيانات"""
-    settings = get_settings()
+    register_jobs(scheduler, get_settings())
+    scheduler.start()
+    logger.info("✅ تم بدء جدولة جمع البيانات")
+
+
+def register_jobs(scheduler: AsyncIOScheduler, settings) -> None:
+    """يسجّل كل الوظائف الدورية على `scheduler` دون تشغيله (قابل للاختبار)."""
 
     # الفواصل كلها من الإعدادات (قابلة للضبط عبر .env) — لا نُعلّق قيماً حرفية
     # هنا كي لا تنحرف التعليقات عن القيم الفعلية.
@@ -122,8 +133,6 @@ def start_scheduler():
         max_instances=1,
     )
 
-    scheduler.start()
-    logger.info("✅ تم بدء جدولة جمع البيانات")
 
 
 def stop_scheduler():

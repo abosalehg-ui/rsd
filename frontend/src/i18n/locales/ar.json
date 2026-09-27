@@ -127,7 +127,10 @@
     },
     "zonesNote": "مسافات استرشادية وفق IAEA EPR-NPP 2013 — ليست مناطق معتمدة",
     "approx": "حدّ متقطّع = موقع تقريبي",
-    "nuclearEvents": "أخبار نووية وإشعاعية"
+    "nuclearEvents": "أخبار نووية وإشعاعية",
+    "flightsStale": "بيانات الطيران قديمة — آخر لقطة ناجحة {{time}}",
+    "emergency": "طوارئ (سكواك {{squawk}})",
+    "flightsLive": "طيران حيّ"
   },
   "globe": {
     "clusterZoomHint": "اضغط للتقريب وفكّ التجميع"

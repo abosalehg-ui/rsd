@@ -6,8 +6,7 @@ import './styles/index.css';
 import './i18n';
 
 // تسجيل Service Worker (v1.4) — autoUpdate يُفعّل النسخة الجديدة تلقائياً.
-// نتخطّاه في وضع dev (كان يُسجَّل هناك فيُخبّئ التغييرات خلف الكاش — سبب شائع
-// لـ"تعديلاتي لا تظهر").
+// نتخطّاه في وضع dev كي لا يُخبّئ التغييرات خلف الكاش ("تعديلاتي لا تظهر").
 if (!import.meta.env.DEV) {
   registerSW({
     immediate: true,

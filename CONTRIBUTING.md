@@ -55,7 +55,13 @@ npm run build                  # تأكيد نجاح البناء
 - **الترجمة:** أي نص معروض للمستخدم يمرّ عبر `t()` — لا نصوص مضمّنة. أضف
   المفتاح إلى `locales/ar.json` و`locales/en.json` معاً.
 - **الجامعون:** استخدم أدوات `processors/text_analysis.py` المشتركة للتصنيف
-  والجغرافيا بدل تكرار المنطق، و`insert_event_if_new` لتفادي التكرار.
+  والجغرافيا بدل تكرار المنطق، و`insert_event_if_new` لتفادي التكرار. لا
+  مطابقة نصية بـ `kw in text` — استعمل `processors.matching.KeywordSet`
+  (حدود كلمة)، ولا تسجّل الخلاصة نفسها في جامعين.
+- **التعليقات:** اشرح السبب الحالي («لماذا هكذا») لا تاريخ الإصلاح («كان…»)؛
+  مكان السرد التاريخي رسالة الـ commit وسجل `docs/reviews/`.
+- **الألوان:** من `utils/constants.js::THEME` وحده (يولّد رموز Tailwind
+  ومتغيّرات `--rsd-*`)؛ لا hex يدوي في المكوّنات أو القوالب.
 - **الرسائل:** رسائل commit وصفية. أنشئ فرعاً لكل تغيير ولا تدفع إلى `main`
   مباشرة.
 
@@ -63,16 +69,18 @@ npm run build                  # تأكيد نجاح البناء
 
 ```
 backend/app/
-  ├── api/          نقاط FastAPI (events, flights, iran, nuclear, infrastructure)
-  ├── collectors/   جامعو المصادر (gdelt, news_api, rss_feeds, ucdp, adsb, iran_osint)
-  ├── processors/   منطق مشترك (text_analysis)
-  ├── models/       نماذج SQLAlchemy + الاحتفاظ بالبيانات
-  ├── middleware/   ETag/Cache-Control
+  ├── api/          نقاط FastAPI (system, events, flights, iran, nuclear, infrastructure) + _stories/_serializers
+  ├── collectors/   جامعو المصادر (gdelt, news_api, rss_feeds, ucdp, adsb, iran_osint, nuclear_watch) + _feed_base
+  ├── processors/   منطق نقي (matching, normalize, gazetteer, nuclear, text_analysis, clustering, dates)
+  ├── models/       نماذج SQLAlchemy + ترقية الأعمدة + الاحتفاظ بالبيانات
+  ├── middleware/   cache (ETag) · ratelimit · security_headers
+  ├── data/         بيانات ثابتة JSON (منشآت، قواعد، أنابيب، قادة)
+  ├── auth.py       حارس CSRF + مفتاح API
   ├── config.py     الإعدادات (pydantic-settings)
-  └── scheduler.py  جدولة الجمع + التنظيف
+  └── scheduler.py  جدولة الجمع + التجميع + التنظيف
 frontend/src/
-  ├── components/   مكوّنات الواجهة (Map, Stats, Iran, Layout, …)
+  ├── components/   مكوّنات الواجهة (Map, Nuclear, Events, Report, Stats, Iran, Layout, …)
   ├── hooks/        usePolling, useAudioAlert
-  ├── utils/        api, constants, security
-  └── i18n/         الترجمة (ar/en)
+  ├── utils/        api, constants (THEME = مصدر الألوان الواحد), security, icons, report
+  └── i18n/         الترجمة (ar/en) — أي نص معروض يمرّ عبر t()
 ```

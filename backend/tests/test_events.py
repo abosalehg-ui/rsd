@@ -78,3 +78,52 @@ async def test_country_index_validation(client):
     """hours out of range → 422"""
     r = await client.get("/api/events/country-index", params={"hours": 9999})
     assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_stats_escalation_trend_in_one_query(client, seed_events):
+    """الفترة السابقة والسلسلة الزمنية تأتيان مع المؤشر من استعلام واحد."""
+    r = await client.get("/api/events/stats", params={"hours": 24})
+    assert r.status_code == 200
+    data = r.json()
+    assert "escalation_prev" in data and "escalation_delta" in data
+    series = data["escalation_series"]
+    assert len(series) == 8
+    assert all(0 <= p["value"] <= 100 for p in series)
+    assert series == sorted(series, key=lambda p: p["t"]), "الشرائح بترتيب زمني تصاعدي"
+    # seed_events: حدثان عسكريان (حرج + مرتفع) من ثلاثة خلال 24 ساعة
+    assert data["escalation_index"] == 66.7
+    assert round(data["escalation_index"] - data["escalation_prev"], 1) == data["escalation_delta"]
+
+
+@pytest.mark.asyncio
+async def test_map_respects_limit_and_collapses_stories(client, seed_events):
+    r = await client.get("/api/events/map", params={"limit": 2})
+    assert r.status_code == 200
+    arr = r.json()
+    assert len(arr) <= 2
+    assert len({e["cluster_id"] for e in arr}) == len(arr), "ممثّل واحد لكل قصة"
+
+
+@pytest.mark.asyncio
+async def test_map_rejects_out_of_range_limit(client):
+    r = await client.get("/api/events/map", params={"limit": 5000})
+    assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_latest_returns_newest_first(client, seed_events):
+    r = await client.get("/api/events/latest", params={"limit": 5})
+    assert r.status_code == 200
+    arr = r.json()
+    assert len(arr) <= 5
+    dates = [e["event_date"] for e in arr]
+    assert dates == sorted(dates, reverse=True)
+
+
+@pytest.mark.asyncio
+async def test_timeline_bounds_limit(client, seed_events):
+    r = await client.get("/api/events/timeline", params={"hours": 48, "limit": 2})
+    assert r.status_code == 200
+    assert len(r.json()) <= 2
+    assert (await client.get("/api/events/timeline", params={"limit": 0})).status_code == 422

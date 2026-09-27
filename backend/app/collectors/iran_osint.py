@@ -1,5 +1,14 @@
 """رصد - جامع أحداث إيران OSINT
-يجمع الضربات والإطلاقات والتحركات العسكرية مع تصنيف الثقة HIGH/MEDIUM/LOW
+يجمع الضربات والإطلاقات والتحركات العسكرية مع تصنيف الثقة HIGH/MEDIUM/LOW.
+
+المطابقة كلها بحدود الكلمة (`processors.matching.KeywordSet`) والموقع من
+المعجم المشترك (`processors.gazetteer`) — لا بحث عن جزء نص: «Barakah» تحوي
+«arak» و«الإسلامية» تحوي «إسلامي»، فالبحث بجزء النص يضع محطة براكة الإماراتية
+في أراك ويُنسب كل خبر عن الجمهورية الإسلامية لرئيس منظمة الطاقة الذرية.
+
+الخلاصات التي تحمل `category` إقليمية عامة مسجّلة هنا وحدها (لا في جامع RSS
+أيضًا، وإلا خُزّن مقالها مرتين بمعرّفين): ما يُصنَّف حدثًا إيرانيًا يُخزَّن
+بثقته ونوعه، وما لا يُصنَّف يُخزَّن خبر RSS عاديًا بتصنيف الخلاصة.
 """
 import json
 import logging
@@ -14,6 +23,7 @@ from ..processors.gazetteer import locate
 from ..processors.matching import KeywordSet
 from ..processors.normalize import normalize_for_match
 from ..processors.text_analysis import analyze, event_fields
+from ..static_data import iranian_leaders
 from ._feed_base import (
     FEED_HEADERS,
     clean_html,
@@ -22,6 +32,7 @@ from ._feed_base import (
     parse_feed_async,
     process_feeds,
 )
+from .rss_feeds import store_rss_entry
 
 logger = logging.getLogger("rasad.iran_osint")
 
@@ -29,96 +40,80 @@ _ENTRY_CAP = 15
 _DESC_CAP = 600
 
 # ===== تصنيف الثقة بالمصادر =====
-# HIGH = مصادر موثوقة ومتخصصة
-# MEDIUM = صحفيون ومصادر دفاعية
-# LOW = أخبار عامة أو غير موثقة
+# HIGH = مصادر OSINT متخصصة موثوقة
+# MEDIUM = صحافة دفاعية
+# LOW = أخبار عامة
+#
+# `category` = الخلاصة تُغطّي المنطقة عمومًا لا إيران وحدها؛ ما لا يُصنَّف
+# حدثًا إيرانيًا يُخزَّن خبر RSS عاديًا بهذا التصنيف بدل إسقاطه.
+#
+# الروابط مُتحقَّق من حيويّتها في 2026-09 (يفحصها CI أسبوعيًا:
+# .github/workflows/feed-health.yml).
 
 IRAN_OSINT_FEEDS = [
     # HIGH CONFIDENCE - مصادر OSINT متخصصة
     {
-        "name": "ISW - Institute for the Study of War",
-        "url": "https://www.understandingwar.org/rss.xml",
+        "name": "The War Zone (TWZ)",
+        "url": "https://www.twz.com/feed",
+        "confidence": "HIGH",
+        "icon": "🎯",
+        "category": "military",
+    },
+    {
+        "name": "Bellingcat",
+        "url": "https://www.bellingcat.com/feed/",
         "confidence": "HIGH",
         "icon": "🎯",
     },
     {
-        "name": "Calibre Obscura",
-        "url": "https://calibreobscura.com/feed/",
+        "name": "FDD's Long War Journal",
+        "url": "https://www.longwarjournal.org/feed",
         "confidence": "HIGH",
         "icon": "🎯",
     },
     {
-        "name": "The Drive - War Zone",
-        "url": "https://www.thedrive.com/the-war-zone/rss",
-        "confidence": "HIGH",
-        "icon": "🎯",
-    },
-    {
-        "name": "OSINTdefender (via Nitter RSS)",
-        "url": "https://nitter.poast.org/OSINTdefender/rss",
+        "name": "Oryx",
+        "url": "https://www.oryxspioenkop.com/feeds/posts/default",
         "confidence": "HIGH",
         "icon": "🎯",
     },
     # MEDIUM CONFIDENCE - صحافة دفاعية
+    # (Al-Monitor يردّ 403 لعملاء بايثون — جدار حماية ببصمة TLS — وIran
+    #  International تعيد صفحة HTML لا RSS؛ أُزيلا حتى يعود لهما مسار خلاصة.)
     {
         "name": "Breaking Defense",
         "url": "https://breakingdefense.com/feed/",
         "confidence": "MEDIUM",
         "icon": "📡",
+        "category": "military",
     },
     {
         "name": "Defense One",
         "url": "https://www.defenseone.com/rss/all/",
         "confidence": "MEDIUM",
         "icon": "📡",
-    },
-    {
-        "name": "Al-Monitor - Iran",
-        "url": "https://www.al-monitor.com/rss",
-        "confidence": "MEDIUM",
-        "icon": "📡",
-    },
-    {
-        "name": "Iran International",
-        "url": "https://www.iranintl.com/en/rss",
-        "confidence": "MEDIUM",
-        "icon": "📡",
+        "category": "military",
     },
     # LOW CONFIDENCE - أخبار عامة
-    {
-        "name": "Reuters - Middle East",
-        "url": "https://feeds.reuters.com/Reuters/worldNews",
-        "confidence": "LOW",
-        "icon": "📰",
-    },
     {
         "name": "BBC - Middle East",
         "url": "https://feeds.bbci.co.uk/news/world/middle_east/rss.xml",
         "confidence": "LOW",
         "icon": "📰",
+        "category": "general",
     },
 ]
 
-# قائمة القادة الإيرانيين للمتابعة
-# مُحدَّثة حتى 2026-07: علي خامنئي اغتيل (شباط/فبراير 2026) وخلفه ابنه مجتبى؛
-# سلامي وباقري قُتلا في حرب الـ12 يوماً (حزيران/يونيو 2025) وخلفاهما باكبور
-# وعبد الرحيم موسوي قُتلا بدورهما في ضربات شباط/فبراير 2026 — القيادة الحالية
-# وحيدي (الحرس) وسياري (الأركان). حاجي زاده قُتل 2025 وخلفه ماجد موسوي.
-IRANIAN_LEADERS = [
-    {"id": 1, "name": "مجتبى خامنئي", "name_en": "Mojtaba Khamenei", "role": "المرشد الأعلى", "role_en": "Supreme Leader", "icon": "👤", "keywords": ["mojtaba", "khamenei", "خامنئي", "مجتبى"]},
-    {"id": 2, "name": "مسعود بزشكيان", "name_en": "Masoud Pezeshkian", "role": "الرئيس", "role_en": "President", "icon": "👤", "keywords": ["pezeshkian", "بزشكيان"]},
-    {"id": 3, "name": "أحمد وحيدي", "name_en": "Ahmad Vahidi", "role": "قائد الحرس الثوري", "role_en": "IRGC Commander", "icon": "⚔️", "keywords": ["vahidi", "وحيدي", "irgc commander"]},
-    {"id": 4, "name": "حبيب الله سياري", "name_en": "Habibollah Sayyari", "role": "رئيس الأركان", "role_en": "Chief of Staff", "icon": "⚔️", "keywords": ["sayyari", "سياري", "chief of staff iran"]},
-    {"id": 5, "name": "ماجد موسوي", "name_en": "Majid Mousavi", "role": "قائد الفضاء IRGC", "role_en": "IRGC Aerospace", "icon": "🚀", "keywords": ["majid mousavi", "ماجد موسوي", "irgc aerospace"]},
-    {"id": 6, "name": "عباس عراقچي", "name_en": "Abbas Araghchi", "role": "وزير الخارجية", "role_en": "Foreign Minister", "icon": "🤝", "keywords": ["araghchi", "عراقچي", "iran foreign minister"]},
-    {"id": 7, "name": "إسماعيل قاآني", "name_en": "Ismail Qaani", "role": "قائد قوة القدس", "role_en": "Quds Force Commander", "icon": "⚔️", "keywords": ["qaani", "قاآني", "quds force"]},
-    {"id": 8, "name": "محمد إسلامي", "name_en": "Mohammad Eslami", "role": "رئيس منظمة الطاقة الذرية", "role_en": "AEOI Chief", "icon": "☢️", "keywords": ["eslami", "إسلامي", "atomic energy iran"]},
-    {"id": 9, "name": "عزيز نصيرزاده", "name_en": "Aziz Nasirzadeh", "role": "وزير الدفاع", "role_en": "Defense Minister", "icon": "✈️", "keywords": ["nasirzadeh", "نصيرزاده", "iran defense minister"]},
-    {"id": 10, "name": "علي شمخاني", "name_en": "Ali Shamkhani", "role": "مستشار المرشد", "role_en": "Supreme Leader Advisor", "icon": "👤", "keywords": ["shamkhani", "شمخاني"]},
+#: قائمة القادة الإيرانيين — من `data/iranian_leaders.json` (مصدر واحد مع الـ API)
+IRANIAN_LEADERS: List[Dict] = iranian_leaders()
+
+#: مطابقات القادة بحدود الكلمة، مُترجمة مرة واحدة
+_LEADER_MATCHERS: list[tuple[Dict, KeywordSet]] = [
+    (leader, KeywordSet(leader["keywords"])) for leader in IRANIAN_LEADERS
 ]
 
-# الكلمات المفتاحية للضربات والإطلاقات — بحدود كلمة (matching.KeywordSet).
-# كانت `kw in text`، فتطابق "test" كلمتي "latest" و"protest".
+# الكلمات المفتاحية للضربات والإطلاقات — بحدود كلمة (matching.KeywordSet)،
+# فلا تطابق "test" كلمتي "latest" و"protest".
 STRIKE_KEYWORDS = KeywordSet([
     "strike", "airstrike", "missile", "bomb", "explosion", "attack", "launch",
     "drone attack", "ballistic", "cruise missile", "rocket", "shahab", "fateh",
@@ -147,20 +142,8 @@ _DIPLOMATIC_KEYWORDS = KeywordSet([
     "sanction*", "negotiat*", "deal", "talks", "ceasefire", "عقوبات", "مفاوضات", "محادثات",
 ])
 
-# مواقع إيران الرئيسية للأحداث
-IRAN_LOCATIONS = {
-    "tehran": (35.6892, 51.3890, "طهران", "IR"),
-    "isfahan": (32.6539, 51.6660, "أصفهان", "IR"),
-    "natanz": (33.7265, 51.7269, "نطنز", "IR"),
-    "fordow": (34.8846, 50.5765, "فردو", "IR"),
-    "bushehr": (28.9684, 50.8385, "بوشهر", "IR"),
-    "arak": (34.0954, 49.6890, "أراك", "IR"),
-    "tabriz": (38.0800, 46.2919, "تبريز", "IR"),
-    "ahvaz": (31.3183, 48.6706, "الأهواز", "IR"),
-    "bandar abbas": (27.1832, 56.2666, "بندر عباس", "IR"),
-    "strait of hormuz": (26.5667, 56.2500, "مضيق هرمز", "IR"),
-    "persian gulf": (26.0000, 54.0000, "الخليج العربي", "IR"),
-}
+# الافتراضي عند تعذّر استخلاص أي موقع: طهران، بدقة «دولة» لأن الموقع مفترض لا مستخلص
+_TEHRAN = (35.6892, 51.3890, "إيران", "IR")
 
 
 async def collect_iran_osint() -> int:
@@ -183,8 +166,8 @@ async def _process_iran_feed(client: httpx.AsyncClient, feed_config: Dict) -> in
 
     response = await client.get(feed_config["url"])
     if response.status_code != 200:
-        # كما في جامع RSS: نرفع كي يعدّها `process_feeds` فشلًا. كانت تُبتلَع
-        # بلا حتى سطر سجل، فخلاصة ماتت منذ أسابيع لا أثر لها في أي مكان.
+        # نرفع كي يعدّها `process_feeds` فشلًا — خطأ HTTP أشيع أشكال العطل،
+        # وابتلاعه يجعل خلاصة ماتت منذ أسابيع بلا أثر في أي مكان.
         raise RuntimeError(f"Iran OSINT {feed_config['name']}: HTTP {response.status_code}")
 
     feed = await parse_feed_async(response.text)
@@ -203,7 +186,11 @@ async def _process_iran_feed(client: httpx.AsyncClient, feed_config: Dict) -> in
 
 
 async def _store_iran_entry(session, entry, feed_config: Dict) -> bool:
-    """يحوّل إدخال خلاصة إيران إلى حدث ويُدرجه؛ يعيد True إن أُدرِج فعلاً."""
+    """يحوّل إدخال خلاصة إيران إلى حدث ويُدرجه؛ يعيد True إن أُدرِج فعلاً.
+
+    ما لا يُصنَّف حدثًا إيرانيًا يُخزَّن خبر RSS عاديًا إن حملت الخلاصة
+    `category` (خلاصة إقليمية عامة)، وإلا يُتجاهل.
+    """
     title, _ = clean_title(entry.get("title", ""))
     if not title:
         return False
@@ -212,15 +199,14 @@ async def _store_iran_entry(session, entry, feed_config: Dict) -> bool:
     text = normalize_for_match(f"{title} {description}")
 
     # تصفية: فقط الأحداث المتعلقة بإيران أو الشرق الأوسط
-    if not _REGION_KEYWORDS.matches(text):
-        return False
-
-    event_subtype, category = _classify_iran_event(text)
+    event_subtype, category = (None, None)
+    if _REGION_KEYWORDS.matches(text):
+        event_subtype, category = _classify_iran_event(text)
     if not event_subtype:
-        return False
+        return await _store_fallback(session, entry, feed_config)
 
     link = entry.get("link", "")
-    lat, lon, location_name, country_code = _geolocate_iran(f"{title} {description}")
+    lat, lon, location_name, country_code, precision = _locate_iran(f"{title} {description}")
     event_date = parse_entry_date(entry)
 
     video_url = ""
@@ -255,7 +241,7 @@ async def _store_iran_entry(session, entry, feed_config: Dict) -> bool:
         category, severity = derived["category"], derived["severity"]
         nuclear_fields = {k: derived[k] for k in ("topic", "risk_score", "facility_id")}
         extra.update(analysis.extra)
-    extra.setdefault("geo_precision", "facility" if location_name in _SITE_NAMES else "city")
+    extra["geo_precision"] = precision
 
     inserted = await insert_event_if_new(
         session,
@@ -275,7 +261,7 @@ async def _store_iran_entry(session, entry, feed_config: Dict) -> bool:
         country_code=country_code,
         location_name=location_name,
         event_date=event_date,
-        geo_precision=extra.get("geo_precision"),
+        geo_precision=precision,
         extra_data=json.dumps(extra, ensure_ascii=False),
         **nuclear_fields,
     )
@@ -286,6 +272,18 @@ async def _store_iran_entry(session, entry, feed_config: Dict) -> bool:
     # خبرِ قائدٍ إدراجَ الحدث نفسه.
     await _check_leader_mentions(session, title, description, link, event_date)
     return True
+
+
+async def _store_fallback(session, entry, feed_config: Dict) -> bool:
+    """خلاصة إقليمية عامة: المقال غير الإيراني يُخزَّن خبر RSS بتصنيف الخلاصة."""
+    if not feed_config.get("category"):
+        return False
+    return await store_rss_entry(session, entry, {
+        "name": feed_config["name"],
+        "url": feed_config["url"],
+        "category": feed_config["category"],
+        "source_kind": "specialist" if feed_config["confidence"] == "HIGH" else "news",
+    })
 
 
 def _classify_iran_event(text: str) -> Tuple[Optional[str], Optional[str]]:
@@ -306,49 +304,50 @@ def _classify_iran_event(text: str) -> Tuple[Optional[str], Optional[str]]:
     return None, None
 
 
-_SITE_NAMES = {name for _, _, name, _ in IRAN_LOCATIONS.values()}
+def _locate_iran(text: str) -> Tuple[float, float, str, str, str]:
+    """(lat, lon, الاسم، رمز الدولة، الدقة) عبر المعجم المشترك.
+
+    المعجم يعرف المواقع الإيرانية الدقيقة (نطنز، فوردو، بوشهر، بارشين…) بحدود
+    كلمة، ويعيد رمز دولة فارغًا للمسطّحات المائية (هرمز، الخليج، البحر الأحمر)
+    كي لا تُنسب لإيران فتضخّم مؤشرها. الافتراضي طهران بدقة «دولة».
+    """
+    loc = locate(text)
+    if loc.lat is not None:
+        return loc.lat, loc.lon, loc.place_name or loc.country_name, loc.country_code, loc.precision
+    lat, lon, name, code = _TEHRAN
+    return lat, lon, name, code, "country"
 
 
 def _geolocate_iran(text: str) -> Tuple[float, float, str, str]:
-    """تحديد الموقع الجغرافي للحدث الإيراني (lat, lon, الاسم، رمز الدولة).
+    """(lat, lon, الاسم، رمز الدولة) — واجهة التوافق الخلفي فوق `_locate_iran`."""
+    lat, lon, name, code, _ = _locate_iran(text)
+    return lat, lon, name, code
 
-    المواقع الإيرانية أدق من مستوى الدولة (نطنز/فردو/بوشهر…) فتُفحَص أولاً؛
-    ثم المعجم المشترك (مدن، مسطّحات مائية، دول). الافتراضي طهران عند تعذّر
-    كل ما سبق. المسطّح المائي (البحر الأحمر، هرمز) يعيد رمز دولة فارغًا —
-    كان يُنسب لليمن أو لإيران فيضخّم مؤشرها.
-    """
-    lowered = text.lower()
-    for loc_key, (lat, lon, name_ar, code) in IRAN_LOCATIONS.items():
-        if loc_key in lowered:
-            return lat, lon, name_ar, code
 
-    loc = locate(text)
-    if loc.lat is not None:
-        return loc.lat, loc.lon, loc.place_name or loc.country_name, loc.country_code
-
-    return 35.6892, 51.3890, "إيران", "IR"
+def leaders_mentioned(title: str, description: str = "") -> List[Dict]:
+    """القادة المذكورون بالاسم في النص — مطابقة بحدود الكلمة."""
+    norm = normalize_for_match(f"{title} {description}")
+    return [leader for leader, matcher in _LEADER_MATCHERS if matcher.matches(norm)]
 
 
 async def _check_leader_mentions(session, title: str, description: str, url: str, event_date: datetime):
-    """تحقق من ذكر القادة الإيرانيين في الخبر.
+    """يربط الخبر بالقادة المذكورين فيه.
 
     نُدرج داخل savepoint (`begin_nested`) — session.add لا يرفع شيئاً، والفشل
     الفعلي يقع عند التنفيذ/commit؛ فالـsavepoint هو ما يحمي الحدث الأصلي من
-    السقوط بسبب خبر قائد معطوب (بدل try حول add الذي لا يلتقط شيئاً)."""
-    text = f"{title} {description}".lower()
-    for leader in IRANIAN_LEADERS:
-        if any(kw in text for kw in leader["keywords"]):
-            try:
-                async with session.begin_nested():
-                    session.add(IranianLeaderNews(
-                        leader_id=leader["id"],
-                        leader_name=leader["name_en"],
-                        title=title[:300],
-                        url=url,
-                        news_date=event_date,
-                    ))
-            except Exception as e:  # noqa: BLE001 - لا نُسقط الحدث بسبب خبر قائد
-                logger.warning(f"تعذّر ربط خبر بالقائد {leader['name_en']}: {e}")
+    السقوط بسبب خبر قائد معطوب."""
+    for leader in leaders_mentioned(title, description):
+        try:
+            async with session.begin_nested():
+                session.add(IranianLeaderNews(
+                    leader_id=leader["id"],
+                    leader_name=leader["name_en"],
+                    title=title[:300],
+                    url=url,
+                    news_date=event_date,
+                ))
+        except Exception as e:  # noqa: BLE001 - لا نُسقط الحدث بسبب خبر قائد
+            logger.warning(f"تعذّر ربط خبر بالقائد {leader['name_en']}: {e}")
 
 
 def get_leaders_list() -> List[Dict]:

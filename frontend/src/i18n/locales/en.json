@@ -127,7 +127,10 @@
     },
     "zonesNote": "Reference distances per IAEA EPR-NPP 2013 — not designated zones",
     "approx": "Dashed outline = approximate location",
-    "nuclearEvents": "Nuclear & radiological news"
+    "nuclearEvents": "Nuclear & radiological news",
+    "flightsStale": "Flight data is stale — last successful snapshot {{time}}",
+    "emergency": "Emergency (squawk {{squawk}})",
+    "flightsLive": "Live flights"
   },
   "globe": {
     "clusterZoomHint": "Click to zoom in and expand"

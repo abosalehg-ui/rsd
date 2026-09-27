@@ -6,7 +6,7 @@
  * دون اتصال ويُرفق في بريد كما هو. كل قيمة من المصادر تمرّ عبر esc().
  */
 import { esc, safeUrl } from './security';
-import { ksaPlace } from './constants';
+import { ksaPlace, riskLevel } from './constants';
 
 const LEVEL_COLORS = { low: '#2f8a5f', medium: '#a8860f', high: '#c2610f', critical: '#c4262b' };
 
@@ -90,7 +90,7 @@ function htmlStories(items, t) {
   if (!items.length) return `<p class="none">${esc(t('report.none'))}</p>`;
   return `<ol>${items.map(s => {
     const link = safeUrl(s.url);
-    const level = s.risk_score >= 75 ? 'critical' : s.risk_score >= 55 ? 'high' : s.risk_score >= 30 ? 'medium' : 'low';
+    const level = riskLevel(s.risk_score);
     const title = link ? `<a href="${esc(link)}">${esc(s.title)}</a>` : esc(s.title);
     return `<li><span class="score" style="color:${LEVEL_COLORS[level]}">${esc(Math.round(s.risk_score ?? 0))}</span>
       <div><div class="t">${title}</div><div class="m">${esc(storyMeta(s, t))}</div></div></li>`;

@@ -165,3 +165,28 @@ async def test_api_responses_do_not_carry_page_security_headers(main_client):
     async with main_client as c:
         r = await c.get("/api/health")
     assert "x-frame-options" not in {k.lower() for k in r.headers}
+
+
+def test_scheduler_registers_a_job_for_every_collector():
+    """`_collector_intervals` في system.py و`register_jobs` في scheduler.py قائمتان
+    متوازيتان — هذا الحارس يربطهما: كل جامع دوري له وظيفة بفاصله من الإعدادات."""
+    from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+    from app import scheduler as sched_module
+
+    fresh = AsyncIOScheduler(job_defaults=sched_module.JOB_DEFAULTS)
+    settings = get_settings()
+    sched_module.register_jobs(fresh, settings)
+    jobs = {job.id: job for job in fresh.get_jobs()}
+
+    for name, interval in system._collector_intervals(settings).items():
+        job = jobs.get(f"{name}_collector")
+        assert job is not None, f"لا وظيفة مجدولة للجامع {name}"
+        assert job.trigger.interval.total_seconds() == interval
+
+    assert "adsb_collector" in jobs and "story_clustering" in jobs and "data_pruner" in jobs
+    assert jobs["adsb_collector"].trigger.interval.total_seconds() >= 30, "حماية حصة adsb.lol"
+    # الوظائف المعلّقة تأخذ الافتراضات عند التشغيل — نتحقق منها على المجدول نفسه
+    assert sched_module.JOB_DEFAULTS == {"misfire_grace_time": 60, "coalesce": True}
+    assert sched_module.scheduler._job_defaults["misfire_grace_time"] == 60
+    assert sched_module.scheduler._job_defaults["coalesce"] is True

@@ -6,8 +6,8 @@ from typing import Optional
 from fastapi import APIRouter, Query
 from sqlalchemy import and_, desc, func, select
 
-from ..collectors.iran_osint import get_leaders_list
 from ..models.database import Event, IranianLeaderNews, get_session_factory
+from ..static_data import iranian_leaders
 from ._serializers import serialize_iran_event
 
 router = APIRouter(prefix="/api/iran", tags=["iran"])
@@ -69,13 +69,13 @@ async def get_iran_strikes(
 @router.get("/leaders")
 async def get_iranian_leaders(hours: int = Query(default=72, ge=1, le=720)):
     """قائمة القادة الإيرانيين مع آخر الأخبار"""
-    leaders = get_leaders_list()
+    leaders = iranian_leaders()
     session_factory = get_session_factory()
 
     async with session_factory() as session:
         since = datetime.now(timezone.utc) - timedelta(hours=hours)
 
-        # استعلام واحد لكل القادة بدل استعلام لكل قائد (كان N+1 بعشرة استعلامات).
+        # استعلام واحد لكل القادة بدل استعلام لكل قائد (N+1).
         # نقصّ إلى آخر 3 أخبار لكل قائد في بايثون — عدد الصفوف صغير ومحدود.
         rows = (await session.execute(
             select(IranianLeaderNews)

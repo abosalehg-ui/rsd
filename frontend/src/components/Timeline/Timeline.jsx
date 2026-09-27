@@ -1,8 +1,8 @@
 /**
  * رصد - الخط الزمني التفاعلي
  *
- * النافذة الزمنية مرفوعة إلى App وموصولة بـ filters.hours: كانت محلية هنا
- * فتُظهر أزرار 48س بلا أثر، لأن الأحداث المجلوبة محدودة أصلاً بـ filters.hours.
+ * النافذة الزمنية مرفوعة إلى App وموصولة بـ filters.hours: الأحداث المجلوبة
+ * محدودة بها أصلاً، فنافذة محلية هنا تُظهر أزرارًا بلا أثر.
  */
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -42,7 +42,7 @@ export default function Timeline({ events = [], loading = false, hours = 24, onH
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-rasad-border gap-2">
+      <div className="flex items-center justify-between px-3 py-1 border-b border-rasad-border gap-2">
         <div className="flex items-center gap-2">
           <Clock className="w-4 h-4 text-cyan-300" aria-hidden="true" />
           <span className="text-sm font-bold">{t('timeline.title')}</span>
@@ -51,7 +51,7 @@ export default function Timeline({ events = [], loading = false, hours = 24, onH
           {TIME_WINDOWS.map(h => (
             <button key={h} onClick={() => onHoursChange?.(h)}
               aria-pressed={hours === h}
-              className={`text-2xs px-1.5 py-1 rounded focus-ring ${hours === h ? 'bg-cyan-400/20 text-cyan-200' : 'text-slate-300 hover:text-white'}`}>
+              className={`text-2xs min-h-11 px-2 rounded focus-ring ${hours === h ? 'bg-cyan-400/20 text-cyan-200' : 'text-slate-300 hover:text-white'}`}>
               {t('time.hoursShort', { count: h })}
             </button>
           ))}
@@ -59,10 +59,10 @@ export default function Timeline({ events = [], loading = false, hours = 24, onH
       </div>
 
       {/* فلتر التصنيف */}
-      <div className="flex gap-1 px-3 py-1.5 border-b border-rasad-border/50 overflow-x-auto">
+      <div className="flex gap-1 px-3 py-0.5 border-b border-rasad-border/50 overflow-x-auto">
         <button onClick={() => setSelectedCategory('')}
           aria-pressed={!selectedCategory}
-          className={`text-2xs px-2 py-1 rounded whitespace-nowrap focus-ring ${!selectedCategory ? 'bg-cyan-400/20 text-cyan-200' : 'text-slate-300'}`}>
+          className={`text-2xs min-h-11 px-2 rounded whitespace-nowrap focus-ring ${!selectedCategory ? 'bg-cyan-400/20 text-cyan-200' : 'text-slate-300'}`}>
           {t('timeline.all')}
         </button>
         {Object.entries(CATEGORIES).map(([k, c]) => (
@@ -70,7 +70,7 @@ export default function Timeline({ events = [], loading = false, hours = 24, onH
             aria-pressed={selectedCategory === k}
             aria-label={t(`categories.${k}`)}
             title={t(`categories.${k}`)}
-            className={`text-2xs px-2 py-1 rounded whitespace-nowrap focus-ring ${selectedCategory === k ? 'text-white' : 'text-slate-300'}`}
+            className={`text-2xs min-h-11 min-w-11 flex items-center justify-center rounded whitespace-nowrap focus-ring ${selectedCategory === k ? 'text-white' : 'text-slate-300'}`}
             style={selectedCategory === k ? { background: c.color + '20', color: c.color } : {}}>
             <Icon name={c.icon} className="w-3.5 h-3.5" />
           </button>

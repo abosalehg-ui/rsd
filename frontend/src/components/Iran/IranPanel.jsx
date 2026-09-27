@@ -2,17 +2,20 @@
  * رصد - لوحة متابعة إيران OSINT
  * مستوحاة من: iranstrikemap.com + live-iran-map.com
  *
- * الضربات تصل كـ prop من `App` (الاستطلاع المشترك مع الخريطة). كانت اللوحة
- * تجلبها بنفسها بحدّ مختلف (50 مقابل 100) فتعرض قائمة تخالف ما على الخريطة،
- * مع طلب شبكة مكرّر. تبقى هنا القادة والإحصائيات فقط.
+ * الضربات تصل كـ prop من `App` (الاستطلاع المشترك مع الخريطة) كي تطابق
+ * اللوحة ما على الخريطة. القادة والإحصائيات تُجلب هنا عبر `usePolling` كبقية
+ * اللوحات: توقّف عند إخفاء التبويب، جلب عند العودة، وحارس تسلسل.
  */
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '../../utils/icons';
+import { usePolling } from '../../hooks/usePolling';
 import { getIranLeaders, getIranStats } from '../../utils/api';
 import { CONFIDENCE, IRAN_EVENT_TYPES, timeAgo } from '../../utils/constants';
 import { safeUrl } from '../../utils/security';
-import { Target, Users, RefreshCw } from 'lucide-react';
+import { Target, Users, RefreshCw, ChevronLeft } from 'lucide-react';
+
+const LEADERS_INTERVAL_MS = 300000;
 
 const TABS = [
   { id: 'strikes', labelKey: 'iranPanel.strikes', Icon: Target },
@@ -29,35 +32,16 @@ export default function IranPanel({ strikes = [], onSelectStrike }) {
   ];
   const [tab, setTab] = useState('strikes');
   const [confFilter, setConfFilter] = useState('all');
-  const [leaders, setLeaders] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [leadersData, statsData] = await Promise.all([
-        getIranLeaders(72),
-        getIranStats(72),
-      ]);
-      setLeaders(leadersData?.leaders || []);
-      setStats(statsData);
-      setError(null);
-    } catch (e) {
-      // كان الخطأ يُبتلَع فيظهر "لا توجد بيانات" رغم أن الخادم غير متاح
-      console.error('Iran panel error:', e);
-      setError(e?.message || 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // تأجيل الاستدعاء خارج دورة العرض (تفادي setState متزامن داخل التأثير)
-  useEffect(() => {
-    const id = setTimeout(loadData, 0);
-    return () => clearTimeout(id);
-  }, [loadData]);
+  const { data, loading, error, refetch: loadData } = usePolling(
+    useCallback(async () => {
+      const [leadersData, statsData] = await Promise.all([getIranLeaders(72), getIranStats(72)]);
+      return { leaders: leadersData?.leaders || [], stats: statsData };
+    }, []),
+    LEADERS_INTERVAL_MS,
+  );
+  const leaders = data?.leaders || [];
+  const stats = data?.stats || null;
 
   const filteredStrikes = confFilter === 'all'
     ? strikes
@@ -96,7 +80,7 @@ export default function IranPanel({ strikes = [], onSelectStrike }) {
         </div>
       )}
 
-      {/* تبويبات — أدوار ARIA كما في تبويبات App الرئيسية (كانت أزراراً عادية) */}
+      {/* تبويبات — أدوار ARIA كما في تبويبات App الرئيسية */}
       <div className="flex border-b border-rasad-border" role="tablist" aria-label={t('iranPanel.title')}>
         {TABS.map(({ id, labelKey, Icon }) => {
           const active = tab === id;
@@ -266,12 +250,16 @@ export default function IranPanel({ strikes = [], onSelectStrike }) {
                           href={link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="block text-2xs text-slate-300 hover:text-cyan-400 truncate focus-ring rounded"
+                          className="flex items-center gap-1 text-2xs text-slate-300 hover:text-cyan-400 truncate focus-ring rounded"
                         >
-                          → {n.title}
+                          <ChevronLeft className="w-3 h-3 shrink-0 rtl:rotate-0 ltr:rotate-180" aria-hidden="true" />
+                          <span className="truncate">{n.title}</span>
                         </a>
                       ) : (
-                        <span key={i} className="block text-2xs text-slate-300 truncate">→ {n.title}</span>
+                        <span key={i} className="flex items-center gap-1 text-2xs text-slate-300 truncate">
+                          <ChevronLeft className="w-3 h-3 shrink-0 rtl:rotate-0 ltr:rotate-180" aria-hidden="true" />
+                          <span className="truncate">{n.title}</span>
+                        </span>
                       );
                     })}
                   </div>

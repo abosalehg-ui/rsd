@@ -1,10 +1,8 @@
 /**
  * رصد - قوالب نوافذ الخريطة.
  *
- * كانت خمسة قوالب HTML طويلة مكتوبة كسلاسل داخل تأثيرات `RasadMap.jsx`،
- * بألوان hex يدوية مكرّرة في كل واحد، فبلغ الملف 629 سطرًا وتعذّر اختبار
- * القوالب وحدها. هنا دوال نقيّة تأخذ بيانات وتُعيد HTML — قابلة للاختبار
- * مباشرة، وألوانها من `THEME` وحده.
+ * دوال نقيّة تأخذ بيانات وتُعيد HTML — قابلة للاختبار مباشرة، وألوانها من
+ * `THEME` وحده (لا hex يدوي في القوالب).
  *
  * قاعدة ثابتة: بيانات الأحداث/الضربات/المنشآت تأتي من مصادر خارجية غير
  * موثوقة، فكل قيمة تمرّ عبر `esc()` وكل رابط عبر `safeUrl()` قبل الحقن.
@@ -112,8 +110,13 @@ export function flightPopup(f, { t, dir }) {
     ? `${esc(Math.round(f.velocity * 3.6))} ${esc(t('map.kmhShort'))}`
     : '—';
 
+  const emergency = f.is_emergency
+    ? badge(t('map.emergency', { squawk: f.squawk || '' }), THEME.emergency, 'crosshair')
+    : '';
+
   return popupShell(`
     <div style="font-weight:700;font-family:monospace">${esc(f.callsign || f.icao24)}</div>
+    ${emergency}
     ${isMil ? badge(t('map.military'), THEME.violetSoft, 'shield') : ''}
     <div style="font-size:11px;color:${THEME.textSecondary};margin-top:4px">
       ${esc(f.origin_country || '')}<br/>

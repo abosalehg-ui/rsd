@@ -113,11 +113,18 @@ async def facilities_watch(hours: int = Query(default=168, ge=1, le=720)):
     """المنشآت التي ورد ذكرها في الأخبار خلال الفترة، الأعلى خطرًا أولًا."""
     since = datetime.now(timezone.utc) - timedelta(hours=hours)
     async with get_session_factory()() as session:
-        events = [e for e in await _nuclear_events(session, since) if e.facility_id]
+        events = await _nuclear_events(session, since)
+    return {"period_hours": hours, "facilities": _facility_watch(events)}
 
+
+def _facility_watch(events: list[Event]) -> list[dict]:
+    """المنشآت المذكورة بالاسم في `events` مرتّبة بالخطر — منطق مشترك بين
+    `/facilities/watch` و`/brief` (الأخير يمرّر أحداثًا محمّلة مسبقًا بدل أن
+    يستدعي مسارًا كدالة)."""
     by_fac: dict[str, list[Event]] = {}
     for e in events:
-        by_fac.setdefault(e.facility_id, []).append(e)
+        if e.facility_id:
+            by_fac.setdefault(e.facility_id, []).append(e)
 
     facilities = {f["id"]: f for f in _facilities()}
     watch = []
@@ -145,7 +152,7 @@ async def facilities_watch(hours: int = Query(default=168, ge=1, le=720)):
             "top_event": serialize_event(top),
         })
     watch.sort(key=lambda w: (w["max_risk"], w["stories"]), reverse=True)
-    return {"period_hours": hours, "facilities": watch}
+    return watch
 
 
 @router.get("/facilities/{facility_id}")
@@ -154,7 +161,7 @@ async def get_facility(facility_id: str):
     for facility in _facilities():
         if facility.get("id") == facility_id:
             return facility
-    # كان يعيد {"error": ...} بحالة 200 فيظنّها العميل نجاحاً
+    # 404 صريح لا {"error": ...} بحالة 200 يظنّها العميل نجاحاً
     raise HTTPException(status_code=404, detail=f"منشأة غير موجودة: {facility_id}")
 
 
@@ -244,14 +251,24 @@ def risk_snapshot(events: list[Event]) -> dict:
     }
 
 
-async def build_risk(hours: int) -> dict:
-    now = datetime.now(timezone.utc)
+async def _load_windows(hours: int, now: datetime) -> tuple[list[Event], list[Event]]:
+    """أحداث الفترة الحالية والسابقة — تُحمَّل مرة ويتشاركها المؤشر والتقرير."""
     since = now - timedelta(hours=hours)
     prev_since = since - timedelta(hours=hours)
     async with get_session_factory()() as session:
         current = await _nuclear_events(session, since)
         previous = await _nuclear_events(session, prev_since, until=since)
+    return current, previous
 
+
+async def build_risk(hours: int) -> dict:
+    now = datetime.now(timezone.utc)
+    current, previous = await _load_windows(hours, now)
+    return risk_from_windows(current, previous, hours, now)
+
+
+def risk_from_windows(current: list[Event], previous: list[Event], hours: int, now: datetime) -> dict:
+    since = now - timedelta(hours=hours)
     snap = risk_snapshot(current)
     prev = risk_snapshot(previous)
 
@@ -316,10 +333,10 @@ async def nuclear_risk(hours: int = Query(default=24, ge=1, le=720)):
 async def nuclear_brief(hours: int = Query(default=24, ge=1, le=168)):
     """تقرير الرصد النووي والإشعاعي للفترة — بيانات منظّمة؛ الواجهة تعرضه
     وتصدّره (طباعة/PDF، HTML، Markdown)."""
-    risk = await build_risk(hours)
-    since = datetime.now(timezone.utc) - timedelta(hours=hours)
-    async with get_session_factory()() as session:
-        events = await _nuclear_events(session, since)
+    # تحميل واحد لأحداث الفترة يتشاركه المؤشر والأقسام ورصد المنشآت
+    now = datetime.now(timezone.utc)
+    events, previous = await _load_windows(hours, now)
+    risk = risk_from_windows(events, previous, hours, now)
 
     def _section(topics) -> list[dict]:
         subset = [e for e in events if (e.topic or "") in topics]
@@ -327,7 +344,7 @@ async def nuclear_brief(hours: int = Query(default=24, ge=1, le=168)):
         stories.sort(key=lambda s: s.get("risk_score") or 0, reverse=True)
         return stories[:10]
 
-    watch = (await facilities_watch(hours=hours))["facilities"][:8]
+    watch = _facility_watch(events)[:8]
     sources: dict[str, int] = {}
     for e in events:
         name = serialize_event(e)["source_name"]

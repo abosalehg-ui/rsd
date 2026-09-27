@@ -7,7 +7,7 @@ from sqlalchemy import and_, desc, func, select
 
 from ..models.database import Event, get_session_factory
 from ._serializers import serialize_event
-from ._stories import collapse
+from ._stories import collapse, representatives
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 
@@ -93,8 +93,15 @@ async def get_latest_events(limit: int = Query(default=20, ge=1, le=100)):
 
 
 @router.get("/map")
-async def get_map_events(hours: int = Query(default=24, ge=1, le=720)):
-    """أحداث الخريطة (فقط التي لها إحداثيات)"""
+async def get_map_events(
+    hours: int = Query(default=24, ge=1, le=720),
+    limit: int = Query(default=200, ge=1, le=1000),
+):
+    """أحداث الخريطة (التي لها إحداثيات) — ممثّل واحد لكل قصة.
+
+    `limit` يعدّ القصص لا الصفوف الخام كما في `GET /api/events/`، فتعرض
+    الخريطة والقائمة المجموعة نفسها عند الحدّ نفسه.
+    """
     session_factory = get_session_factory()
     async with session_factory() as session:
         since = datetime.now(timezone.utc) - timedelta(hours=hours)
@@ -108,11 +115,11 @@ async def get_map_events(hours: int = Query(default=24, ge=1, le=720)):
                 )
             )
             .order_by(desc(Event.event_date))
-            .limit(200)
+            .limit(min(limit * 3, 3000))
         )
         result = await session.execute(query)
-        events = result.scalars().all()
-        return [serialize_event(e) for e in events]
+        events = list(result.scalars().all())
+        return [serialize_event(e) for e in representatives(events)[:limit]]
 
 
 @router.get("/stats")
@@ -168,10 +175,7 @@ async def get_stats(hours: int = Query(default=24, ge=1, le=720)):
         # مؤشر التصعيد = نسبة الأحداث العسكرية عالية/حرجة الخطورة من الإجمالي.
         # نُعيد معه قيمة الفترة السابقة المماثلة وسلسلة زمنية، كي يُقرأ الرقم
         # باتجاهه لا كرقم معزول بلا مرجع.
-        escalation_index = await _escalation(session, since, datetime.now(timezone.utc))
-        prev_since = since - timedelta(hours=hours)
-        escalation_prev = await _escalation(session, prev_since, since)
-        series = await _escalation_series(session, since, hours)
+        escalation_index, escalation_prev, series = await _escalation_trend(session, since, hours)
 
         return {
             "total": total,
@@ -188,30 +192,53 @@ async def get_stats(hours: int = Query(default=24, ge=1, le=720)):
 
 
 _SERIES_BUCKETS = 8
+_HOT_SEVERITIES = ("critical", "high")
 
 
-async def _escalation(session, start, end) -> float:
-    window = and_(Event.event_date >= start, Event.event_date < end)
-    total = (await session.execute(select(func.count(Event.id)).where(window))).scalar() or 0
-    hot = (await session.execute(
-        select(func.count(Event.id)).where(and_(
-            window, Event.category == "military", Event.severity.in_(["critical", "high"]),
-        ))
-    )).scalar() or 0
+def _aware(dt: datetime) -> datetime:
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def _ratio(hot: int, total: int) -> float:
     return round((hot / max(total, 1)) * 100, 1)
 
 
-async def _escalation_series(session, since, hours: int) -> list[dict]:
-    """قيمة المؤشر في شرائح زمنية متساوية عبر النافذة (للمخطط المصغّر)."""
+async def _escalation_trend(session, since: datetime, hours: int) -> tuple[float, float, list[dict]]:
+    """(المؤشر الحالي، مؤشر الفترة السابقة، السلسلة الزمنية) من استعلام واحد.
+
+    استعلامان لكل نافذة (الفترتان + ثماني شرائح) = عشرون رحلة إلى القاعدة لطلب واحد.
+    نجلب تاريخ كل حدث في النافذتين مع علَم «ساخن» ونوزّعه على 16 شريحة في
+    بايثون — عمودان لبضعة آلاف صف أرخص من عشرين رحلة إلى القاعدة، ومحايد
+    للهجة SQL (لا `julianday` ولا `date_trunc`).
+    """
+    now = datetime.now(timezone.utc)
+    prev_since = since - timedelta(hours=hours)
     step = timedelta(hours=hours) / _SERIES_BUCKETS
-    out = []
-    for i in range(_SERIES_BUCKETS):
-        start = since + step * i
-        out.append({
-            "t": (start + step).isoformat(),
-            "value": await _escalation(session, start, start + step),
-        })
-    return out
+    buckets = 2 * _SERIES_BUCKETS
+
+    rows = (await session.execute(
+        select(Event.event_date, Event.category, Event.severity)
+        .where(and_(Event.event_date >= prev_since, Event.event_date < now))
+    )).all()
+
+    total = [0] * buckets
+    hot = [0] * buckets
+    for date, category, severity in rows:
+        if date is None:
+            continue
+        idx = min(int((_aware(date) - prev_since) / step), buckets - 1)
+        total[idx] += 1
+        if category == "military" and severity in _HOT_SEVERITIES:
+            hot[idx] += 1
+
+    half = _SERIES_BUCKETS
+    current = _ratio(sum(hot[half:]), sum(total[half:]))
+    previous = _ratio(sum(hot[:half]), sum(total[:half]))
+    series = [
+        {"t": (since + step * (i + 1)).isoformat(), "value": _ratio(hot[half + i], total[half + i])}
+        for i in range(_SERIES_BUCKETS)
+    ]
+    return current, previous, series
 
 
 @router.get("/timeline")

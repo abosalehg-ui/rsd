@@ -9,7 +9,7 @@ import httpx
 from ..models.database import get_session_factory, insert_event_if_new
 from ..processors.dates import parse_compact
 from ..processors.gazetteer import COUNTRY_BY_CODE, COUNTRY_COORDS
-from ._feed_base import analyzed_fields, clean_title
+from ._feed_base import analyzed_fields, clean_title, make_source_id
 
 logger = logging.getLogger("rasad.gdelt")
 
@@ -45,7 +45,7 @@ async def collect_gdelt_events() -> int:
 
             if response.status_code != 200:
                 # نرفع ولا نعيد 0: GDELT يردّ 429 عند تجاوز الحصة، وابتلاعه
-                # كان يجعل جامعًا مخنوقًا يبدو "بلا أخبار جديدة" في
+                # يجعل جامعًا مخنوقًا يبدو "بلا أخبار جديدة" في
                 # /api/collectors/status و/api/refresh معًا.
                 raise RuntimeError(f"GDELT: HTTP {response.status_code}")
 
@@ -55,7 +55,9 @@ async def collect_gdelt_events() -> int:
             async with session_factory() as session:
                 for article in articles:
                     try:
-                        source_id = f"gdelt_{(article.get('url') or '')[:200]}"
+                        # بصمة الرابط كبقية الجامعين — اقتطاعه إلى 200 حرف يجعل
+                        # رابطين طويلين متشابهي البداية مقالًا واحدًا
+                        source_id = make_source_id("gdelt", article.get("url") or "")
                         title, _ = clean_title(article.get("title") or "")
                         if not title:
                             continue
@@ -96,7 +98,7 @@ async def collect_gdelt_events() -> int:
 
     except Exception as e:
         # نرفع بعد التسجيل كي يُميّز /api/collectors/status و/api/refresh فشلاً
-        # حقيقياً من "لا جديد" (كان يُعيد 0 صامتاً فيبدو الجامع المعطّل هادئاً).
+        # حقيقياً من "لا جديد" — إعادة 0 صامتًا تجعل الجامع المعطّل يبدو هادئًا.
         logger.error(f"خطأ في جمع بيانات GDELT: {e}")
         raise
 
@@ -104,8 +106,8 @@ async def collect_gdelt_events() -> int:
     return count
 
 
-# اسم الدولة كما يكتبه GDELT في sourcecountry → رمز ISO. كان الرمز يُشتقّ
-# بأول حرفين من الاسم ("Israel" → "IS" = آيسلندا، "Iran" → "IR" صدفةً).
+# اسم الدولة كما يكتبه GDELT في sourcecountry → رمز ISO. لا اشتقاق بأول
+# حرفين من الاسم: "Israel" → "IS" هي آيسلندا.
 _GDELT_COUNTRY_CODES = {c.name_en.lower(): c.code for c in COUNTRY_BY_CODE.values()}
 _GDELT_COUNTRY_CODES.update({"turkey": "TR", "west bank": "PS", "gaza strip": "PS"})
 

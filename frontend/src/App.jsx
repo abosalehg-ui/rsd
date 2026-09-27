@@ -24,7 +24,7 @@ import {
 import {
   getEvents, getMapEvents, getStats, getLiveFlights, refreshSources,
   getIranStrikes, getNuclearFacilities, getNuclearRisk,
-  getCountryIndex, getMilitaryBases, getPipelines,
+  getCountryIndex, getMilitaryBases, getPipelines, getLatestEvents,
 } from './utils/api';
 
 // تحميل كسول للكرة الأرضية — Three.js كبير الحجم
@@ -39,10 +39,9 @@ const TABS = [
   { id: 'iran', labelKey: 'tabs.iran', icon: Crosshair },
 ];
 
-// حالة الطبقات مرفوعة إلى App كي تتشارك الخريطة 2D والكرة 3D الإعدادات نفسها
-// (كان لكل منهما افتراضات مختلفة، والكرة بلا أزرار تحكّم أصلاً).
-// الطيران مطفأ افتراضيًا: مئات الطائرات المدنية كانت تغطي نصف الخريطة
-// وتطغى على الطبقات النووية. مسافات التخطيط حول محطات القوى ظاهرة افتراضيًا.
+// حالة الطبقات مرفوعة إلى App كي تتشارك الخريطة 2D والكرة 3D الإعدادات نفسها.
+// الطيران مطفأ افتراضيًا: مئات الطائرات المدنية تغطي نصف الخريطة وتطغى على
+// الطبقات النووية. مسافات التخطيط حول محطات القوى ظاهرة افتراضيًا.
 const DEFAULT_LAYERS = {
   events: true,
   nuclear: true,
@@ -79,9 +78,17 @@ export default function App() {
     30000, [filters]
   );
 
+  // الحدّ نفسه الذي تطلبه القائمة (200 قصة) كي تعرض الخريطة والقائمة المجموعة نفسها
   const { data: mapEvents } = usePolling(
-    useCallback(() => getMapEvents(filters.hours), [filters.hours]),
+    useCallback(() => getMapEvents(filters.hours, 200), [filters.hours]),
     30000, [filters.hours]
+  );
+
+  // تيار التنبيهات مستقل عن فلاتر العرض: فلتر «اقتصادي» أو بحث عن «غزة» لا
+  // يُسكت الضربات العسكرية خارج الفلتر بلا إشارة.
+  const { data: latestEvents } = usePolling(
+    useCallback(() => getLatestEvents(50), []),
+    30000
   );
 
   const { data: stats, error: statsError, refetch: refetchStats, lastFetchedAt: statsFetchedAt } = usePolling(
@@ -149,7 +156,7 @@ export default function App() {
     clearRecent,
     testSound,
     requestDesktopPermission,
-  } = useAudioAlert(events, filters);
+  } = useAudioAlert(useMemo(() => latestEvents || [], [latestEvents]));
 
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -178,7 +185,7 @@ export default function App() {
       refetchStats();
       setToast({ kind: 'ok', text: t('app.refreshDone') });
     } catch (e) {
-      // الخادم يعيد 429 مع Retry-After عند التحديث المتقارب — كان يُبتلَع صامتاً
+      // الخادم يعيد 429 مع Retry-After عند التحديث المتقارب — نعرضه بدل ابتلاعه
       setToast(
         e?.status === 429 && e?.retryAfter
           ? { kind: 'error', text: t('app.refreshThrottled', { seconds: e.retryAfter }) }
@@ -276,7 +283,9 @@ export default function App() {
               }`}
             >
               <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
-              <span className={`truncate ${active ? '' : 'hidden xl:inline'}`}>{label}</span>
+              {/* النص ظاهر من lg: أيقونتا Crosshair وRadiation لا تكفيان وحدهما،
+                  والـ title لا يصل مستخدم اللمس */}
+              <span className={`truncate ${active ? '' : 'hidden lg:inline'}`}>{label}</span>
             </button>
           );
         })}
@@ -326,8 +335,7 @@ export default function App() {
           <StatsPanel stats={stats} countryIndex={countryIndex} countryLoading={countryLoading} />
         )}
         {activeTab === 'iran' && (
-          // الضربات تأتي من الاستطلاع المشترك في App: كانت اللوحة تجلبها
-          // مستقلّةً بحدّ مختلف (50 مقابل 100) فتعرض قائمة تخالف الخريطة.
+          // الضربات من الاستطلاع المشترك في App كي تطابق اللوحة الخريطة
           <IranPanel strikes={iranStrikes} onSelectStrike={handleSelectEvent} />
         )}
         <EventDrawer
@@ -458,7 +466,7 @@ export default function App() {
         </div>
 
         {/* اللوحة الجانبية — main + tabIndex كي ينقل رابط التخطّي التركيز فعلاً
-            (كان div غير قابل للتركيز فيفشل التخطّي في Safari/Firefox) */}
+            في Safari/Firefox (div بلا tabIndex لا يقبل التركيز) */}
         <main
           id="rsd-panel"
           tabIndex={-1}

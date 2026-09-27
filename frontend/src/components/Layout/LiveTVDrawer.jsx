@@ -1,9 +1,8 @@
 /**
  * رصد - نافذة البث المباشر العائمة
  *
- * قابلة للسحب بالماوس **واللمس** (كانت mousemove فقط فتتعذّر على الجوال)،
- * وتتحوّل على الشاشات الصغيرة إلى لوحة سفلية بعرض كامل بدل صندوق 360px
- * مثبّت على إحداثيات تُحسب من عرض النافذة لحظة التركيب.
+ * قابلة للسحب بالماوس واللمس، وتتحوّل على الشاشات الصغيرة إلى لوحة سفلية
+ * بعرض كامل بدل صندوق 360px عائم.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -42,13 +41,24 @@ export default function LiveTVDrawer() {
     y: Math.max(0, Math.min(window.innerHeight - PANEL_H, y)),
   }), []);
 
-  // تُفتح النافذة على جهة الخريطة (يمين في RTL، يسار في LTR) كي لا تغطي
-  // حاوية الأحداث — كانت مثبّتة على اليمين فتحجب اللوحة في الوضع الإنجليزي.
-  const open = useCallback(() => {
+  // موضع جهة الخريطة (يمين في RTL، يسار في LTR) كي لا تغطي حاوية الأحداث
+  const mapSidePosition = useCallback(() => {
     const mapSideX = i18n.dir() === 'rtl' ? window.innerWidth - PANEL_W - 20 : 20;
-    setPosition(clamp(mapSideX, window.innerHeight - PANEL_H - 40));
-    setIsOpen(true);
+    return clamp(mapSideX, window.innerHeight - PANEL_H - 40);
   }, [clamp, i18n]);
+
+  const open = useCallback(() => {
+    setPosition(mapSidePosition());
+    setIsOpen(true);
+  }, [mapSidePosition]);
+
+  // تبديل اللغة والنافذة مفتوحة يقلب الجهات: نعيد وضعها على جهة الخريطة
+  // الجديدة بدل تركها فوق اللوحة (اشتراك في حدث i18n، لا setState في التأثير).
+  useEffect(() => {
+    const onLanguageChanged = () => setPosition(prev => (prev ? mapSidePosition() : prev));
+    i18n.on('languageChanged', onLanguageChanged);
+    return () => i18n.off('languageChanged', onLanguageChanged);
+  }, [i18n, mapSidePosition]);
 
   // نقطة الحدث من الماوس أو اللمس
   const pointOf = (e) => (e.touches?.[0]
@@ -106,7 +116,7 @@ export default function LiveTVDrawer() {
     : {
       width: `${PANEL_W}px`,
       // `left` فيزيائي (لا insetInlineStart المنطقي): العنصر يُسحب بإحداثيات
-      // مؤشر فيزيائية أصلها اليسار، فالخلط مع خاصية منطقية كان يعكس السحب في RTL.
+      // مؤشر فيزيائية أصلها اليسار، والخلط مع خاصية منطقية يعكس السحب في RTL.
       left: `${position.x}px`,
       top: `${position.y}px`,
       cursor: isDragging ? 'grabbing' : 'default',
@@ -115,8 +125,8 @@ export default function LiveTVDrawer() {
   return (
     <>
       {/* ===== زر فتح النافذة =====
-          start-0 = حافة الخريطة في الاتجاهين (يمين بالعربية، يسار بالإنجليزية)
-          — كان end-0 فيلتصق بحافة حاوية الأحداث ويغطي عناصرها في اللغتين. */}
+          start-0 = حافة الخريطة في الاتجاهين (يمين بالعربية، يسار بالإنجليزية)،
+          لا حافة حاوية الأحداث. */}
       {!isOpen && (
         <button
           onClick={open}
@@ -152,7 +162,7 @@ export default function LiveTVDrawer() {
               <button
                 onClick={() => setIsOpen(false)}
                 aria-label={t('tv.close')}
-                className="p-1 rounded hover:bg-rasad-border text-slate-300 hover:text-white transition-colors focus-ring"
+                className="tap-target -my-2 -me-1 flex items-center justify-center rounded hover:bg-rasad-border text-slate-300 hover:text-white transition-colors focus-ring"
               >
                 <X className="w-3.5 h-3.5" aria-hidden="true" />
               </button>

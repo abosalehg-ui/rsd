@@ -42,7 +42,7 @@ export default function NewsFeed({ events = [], error, loading = false, onSelect
         </div>
         <button
           onClick={() => setShowFilters(!showFilters)}
-          className="relative p-1.5 rounded hover:bg-rasad-border text-slate-300 hover:text-white focus-ring"
+          className="relative tap-target flex items-center justify-center rounded hover:bg-rasad-border text-slate-300 hover:text-white focus-ring"
           aria-label={t('news.toggleFilters')}
           aria-expanded={showFilters}
         >

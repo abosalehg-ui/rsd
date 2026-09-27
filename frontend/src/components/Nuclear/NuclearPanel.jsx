@@ -64,7 +64,7 @@ export default function NuclearPanel({
           <button
             onClick={() => setTopic('')}
             aria-pressed={!topic}
-            className={`rounded-full px-2.5 py-1 text-xs focus-ring ${!topic ? 'bg-hazard-dim text-hazard-soft' : 'bg-rasad-raised text-slate-300 hover:text-white'}`}
+            className={`rounded-full min-h-11 px-3 text-xs focus-ring ${!topic ? 'bg-hazard-dim text-hazard-soft' : 'bg-rasad-raised text-slate-300 hover:text-white'}`}
           >
             {t('risk.allTopics')}
           </button>
@@ -73,18 +73,18 @@ export default function NuclearPanel({
               key={k}
               onClick={() => setTopic(topic === k ? '' : k)}
               aria-pressed={topic === k}
-              className={`rounded-full px-2.5 py-1 text-xs focus-ring ${topic === k ? 'bg-hazard-dim text-hazard-soft' : 'bg-rasad-raised text-slate-300 hover:text-white'}`}
+              className={`rounded-full min-h-11 px-3 text-xs focus-ring ${topic === k ? 'bg-hazard-dim text-hazard-soft' : 'bg-rasad-raised text-slate-300 hover:text-white'}`}
             >
               {t(`topics.${k}`)} <span className="font-mono text-slate-500">{risk.by_topic[k].stories}</span>
             </button>
           ))}
         </div>
-        <label className="mt-2 flex items-center gap-2 text-xs text-slate-300 cursor-pointer w-fit">
+        <label className="mt-1 min-h-11 flex items-center gap-2 text-xs text-slate-300 cursor-pointer w-fit">
           <input
             type="checkbox"
             checked={nearKsa}
             onChange={(e) => setNearKsa(e.target.checked)}
-            className="w-4 h-4 accent-yellow-400 focus-ring"
+            className="w-5 h-5 accent-yellow-400 focus-ring"
           />
           {t('risk.nearKsaOnly')}
         </label>

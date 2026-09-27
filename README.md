@@ -57,7 +57,7 @@
 | 🇸🇦 **المسافة إلى المملكة** | لكل منشأة وخبر: المسافة إلى أقرب نقطة سعودية، وفلتر «قرب المملكة» |
 | 🏭 **رصد المنشآت** | المنشآت المذكورة بالاسم في الأخبار مرتّبة بالخطر |
 | ⭕ **مسافات التخطيط للطوارئ** | دوائر PAZ/UPZ/EPD/ICPD الاسترشادية (IAEA EPR-NPP) حول محطات القوى |
-| 📡 **جامع نووي متخصص** | IAEA، World Nuclear News، NucNet، ANS، NEI، ACA، Arms Control Wonk + بحث Google News بالعربية والإنجليزية (بما فيه الجهات الرقابية الإقليمية) |
+| 📡 **جامع نووي متخصص** | IAEA، World Nuclear News، NucNet، ANS، ACA، Arms Control Wonk + بحث Google News بالعربية والإنجليزية (بما فيه الجهات الرقابية الإقليمية) |
 | 🧩 **تجميع القصص** | الخبر نفسه من عدة مصادر قصة واحدة بعدد مصادرها |
 | 📄 **التقرير الدوري** | 24 ساعة / 3 أيام / أسبوع — طباعة/PDF، HTML مستقل، Markdown |
 
@@ -231,9 +231,9 @@ packaging\build_installer.bat
 
 | المستوى | الرمز | المعنى | أمثلة المصادر |
 |---------|-------|--------|--------------|
-| **HIGH** | 🟢 | موثوق - مصادر OSINT متخصصة | ISW, Calibre Obscura, The Drive War Zone |
-| **MEDIUM** | 🟡 | متوسط - صحافة دفاعية | Breaking Defense, Defense One, Iran International |
-| **LOW** | 🔵 | غير مؤكد - أخبار عامة | Reuters, BBC |
+| **HIGH** | 🟢 | موثوق - مصادر OSINT متخصصة | The War Zone, Bellingcat, Long War Journal, Oryx |
+| **MEDIUM** | 🟡 | متوسط - صحافة دفاعية | Breaking Defense, Defense One |
+| **LOW** | 🔵 | غير مؤكد - أخبار عامة | BBC |
 
 ### أنواع الأحداث المرصودة
 
@@ -260,9 +260,11 @@ packaging\build_installer.bat
 <details>
 <summary>📚 مصادر Iran OSINT (اضغط للعرض)</summary>
 
-**HIGH:** ISW · Calibre Obscura · The Drive (War Zone) · OSINTdefender
-**MEDIUM:** Breaking Defense · Defense One · Al-Monitor · Iran International
-**LOW:** Reuters (Middle East) · BBC (Middle East)
+**HIGH:** The War Zone (TWZ) · Bellingcat · FDD's Long War Journal · Oryx
+**MEDIUM:** Breaking Defense · Defense One
+**LOW:** BBC (Middle East)
+
+الخلاصات الإقليمية العامة (TWZ، Breaking Defense، Defense One، BBC) تُجمع هنا وحدها: ما يُصنَّف حدثًا إيرانيًا يُخزَّن بثقته ونوعه، وما عداه يُخزَّن خبر RSS عاديًا. حيويّة الخلاصات تُفحص أسبوعيًا في CI (`feed-health.yml`).
 
 </details>
 
@@ -296,8 +298,8 @@ packaging\build_installer.bat
 <details>
 <summary>📰 مصادر RSS المدعومة (اضغط للعرض)</summary>
 
-**أخبار عربية:** الجزيرة (عربي + English) · العربية · BBC Arabic/Middle East · France24 Arabic · Sky News Arabia · RT Arabic
-**تحليلات دولية:** Al-Monitor · Defense One · War on the Rocks · The Drive (War Zone) · Breaking Defense
+**أخبار عربية:** الجزيرة (عربي + English) · BBC Arabic/Middle East · France24 Arabic · Sky News Arabia · RT Arabic
+**تحليلات دولية:** War on the Rocks (بقية المصادر الدفاعية — Breaking Defense · Defense One · The War Zone — في جامع إيران OSINT)
 **أخبار نووية:** World Nuclear News · IAEA News · Arms Control Association
 **Google Alerts:** تُضبَط عبر `GOOGLE_ALERT_FEEDS` في `.env` (روابط الخلاصات شخصية بحسابك ولا تُوضع في المستودع). أمثلة مقترحة: Middle East Airstrikes · Gaza/Yemen/Syria · Houthi/حوثي · Red Sea · Iran Nuclear/تخصيب يورانيوم · Ceasefire/هدنة · Humanitarian Crisis
 
@@ -311,30 +313,38 @@ packaging\build_installer.bat
 rsd/
 ├── 📂 backend/
 │   ├── 📂 app/
-│   │   ├── 📄 main.py              # نقطة الدخول + API (+ تخديم الواجهة في وضع سطح المكتب)
+│   │   ├── 📄 main.py              # مصنع التطبيق: دورة الحياة، الطبقات، تخديم الواجهة في وضع سطح المكتب
 │   │   ├── 📄 config.py            # الإعدادات (.env) + مسارات قابلة للكتابة عند التجميد
 │   │   ├── 📄 scheduler.py         # جدولة جمع البيانات (APScheduler)
-│   │   ├── 📂 collectors/          # gdelt · news_api · rss_feeds · ucdp · adsb · iran_osint
-│   │   ├── 📂 api/                 # events (+country-index) · flights · iran · nuclear · infrastructure
-│   │   ├── 📂 data/                # nuclear_facilities · military_bases · pipelines (JSON)
-│   │   ├── 📂 middleware/          # cache.py (ETag + Cache-Control)
-│   │   └── 📂 models/database.py   # SQLite + SQLAlchemy
-│   ├── 📄 run_desktop.py           # 🖥️ نقطة دخول تطبيق سطح المكتب (v1.5)
-│   └── 📄 requirements.txt
+│   │   ├── 📄 auth.py              # حارس CSRF + مفتاح API للنقاط المكلفة
+│   │   ├── 📄 static_data.py       # قراءة ملفات data/*.json المشتركة
+│   │   ├── 📂 collectors/          # gdelt · news_api · rss_feeds · ucdp · adsb · iran_osint · nuclear_watch (+ _feed_base)
+│   │   ├── 📂 processors/          # matching · normalize · gazetteer · nuclear · text_analysis · clustering · dates
+│   │   ├── 📂 api/                 # system · events (+country-index) · flights · iran · nuclear · infrastructure (+ _stories/_serializers)
+│   │   ├── 📂 data/                # nuclear_facilities · military_bases · pipelines · iranian_leaders (JSON)
+│   │   ├── 📂 middleware/          # cache (ETag) · ratelimit · security_headers
+│   │   └── 📂 models/database.py   # SQLite + SQLAlchemy + ترقية الأعمدة + الاحتفاظ
+│   ├── 📂 tests/                   # pytest (تغطية ≥ 75% في CI)
+│   ├── 📂 scripts/check_feeds.py   # فحص حيويّة الخلاصات (يشغّله CI أسبوعيًا)
+│   ├── 📄 run_desktop.py           # 🖥️ نقطة دخول التشغيل بنقرة واحدة وتطبيق سطح المكتب
+│   └── 📄 requirements.txt · requirements-dev.txt
 │
 ├── 📂 frontend/
 │   ├── 📂 src/
 │   │   ├── 📄 App.jsx
 │   │   ├── 📂 components/
 │   │   │   ├── 📂 Layout/          # Header · LiveTVDrawer · AlertSettings
-│   │   │   ├── 📂 Map/             # RasadMap.jsx (2D) · RasadGlobe.jsx (3D، lazy)
+│   │   │   ├── 📂 Map/             # RasadMap (2D) · RasadGlobe (3D، lazy) · popups · globeSprites · LayerToggles
+│   │   │   ├── 📂 Nuclear/         # NuclearPanel · RiskGauge · FacilityWatch · Sparkline
+│   │   │   ├── 📂 Events/          # EventCard · StoryList · EventDrawer
+│   │   │   ├── 📂 Report/          # ReportView (طباعة / HTML / Markdown)
 │   │   │   ├── 📂 NewsFeed/        # NewsFeed.jsx
 │   │   │   ├── 📂 Timeline/        # Timeline.jsx
 │   │   │   ├── 📂 Stats/           # StatsPanel.jsx · CountryIndex.jsx
 │   │   │   └── 📂 Iran/            # IranPanel.jsx
 │   │   ├── 📂 hooks/               # usePolling.js · useAudioAlert.js
 │   │   ├── 📂 i18n/                # index.js + locales/{ar,en}.json
-│   │   └── 📂 utils/               # api.js · constants.js
+│   │   └── 📂 utils/               # api · constants (THEME) · security · icons · report
 │   ├── 📂 public/                  # favicon.ico + أيقونات PWA
 │   └── 📄 vite.config.js · index.html · package.json
 │
@@ -346,8 +356,9 @@ rsd/
 │   ├── 🖼️ rasad.ico                # الأيقونة الجاهزة
 │   └── 📄 README.md                # دليل البناء
 │
-├── 📂 .github/workflows/           # ci.yml (lint+tests+build) · deploy-frontend.yml
-├── 📄 docker-compose.yml
+├── 📂 docs/                        # nuclear-risk-methodology.md · reviews/ (سجل المراجعات)
+├── 📂 .github/workflows/           # ci.yml (lint+tests+build) · deploy-frontend.yml · feed-health.yml (فحص الخلاصات أسبوعيًا)
+├── 📄 docker-compose.yml · docker-compose.prod.yml
 ├── 📄 Rasad.bat                          # تشغيل بنقرة واحدة (Windows) — عملية واحدة للواجهة والبيانات
 └── 📄 README.md
 ```
@@ -361,10 +372,10 @@ rsd/
 
 | المسار | الوصف |
 |--------|-------|
-| `GET /api/events/` | الأحداث مع فلاتر (category, severity, country_code, hours, limit) |
-| `GET /api/events/latest` | أحدث 20 حدث |
-| `GET /api/events/map` | أحداث الخريطة (التي لها إحداثيات) |
-| `GET /api/events/stats` | إحصائيات شاملة |
+| `GET /api/events/` | الأحداث مطويّة في قصص مع فلاتر (category, severity, country_code, source, search, topic, hours, limit, collapse) |
+| `GET /api/events/latest?limit=20` | أحدث الأحداث الخام (تيار التنبيهات) |
+| `GET /api/events/map?hours=24&limit=200` | أحداث الخريطة (ممثّل واحد لكل قصة، بإحداثيات) |
+| `GET /api/events/stats` | إحصائيات شاملة + مؤشر التصعيد باتجاهه وسلسلته |
 | `GET /api/events/timeline` | بيانات الخط الزمني |
 | `GET /api/events/country-index?hours=72&top=20` | ترتيب الدول حسب درجة 0-100 |
 
@@ -387,10 +398,15 @@ rsd/
 | `GET /api/iran/leaders` | القادة الإيرانيون مع آخر أخبارهم |
 | `GET /api/iran/stats` | إحصائيات حسب النوع والثقة |
 
-**المنشآت النووية ☢️**
+**الرصد النووي والإشعاعي ☢️**
 | المسار | الوصف |
 |--------|-------|
-| `GET /api/nuclear/facilities` | قائمة المنشآت (country, facility_type, status) |
+| `GET /api/nuclear/risk?hours=24` | مؤشر المخاطر النووية والإشعاعية (0-100) مع مكوّناته واتجاهه وسلسلته |
+| `GET /api/nuclear/events` | الأخبار النووية/الإشعاعية مطويّة في قصص (topic, min_risk, near_ksa_km) |
+| `GET /api/nuclear/brief?hours=24` | التقرير الدوري (بيانات منظّمة تصدّرها الواجهة) |
+| `GET /api/nuclear/topics` | الموضوعات وأوزان أساسها |
+| `GET /api/nuclear/facilities` | قائمة المنشآت + المسافة إلى المملكة + مسافات التخطيط (country, facility_type, status) |
+| `GET /api/nuclear/facilities/watch` | المنشآت المذكورة في الأخبار مرتّبة بالخطر |
 | `GET /api/nuclear/facilities/{id}` | تفاصيل منشأة |
 | `GET /api/nuclear/stats` | إحصائيات حسب الدولة/النوع/الحالة |
 
