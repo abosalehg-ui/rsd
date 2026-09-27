@@ -1,6 +1,6 @@
 # ===== رصد Frontend — صورة تطوير (Vite dev server + HMR) =====
 # للإنتاج استخدم Dockerfile.prod (بناء ثابت + nginx). راجع docker-compose.prod.yml.
-FROM node:20-alpine
+FROM node:22-alpine
 WORKDIR /app
 # نسخ ملفّي التبعيات أولاً للاستفادة من طبقة الكاش، وnpm ci لبناء قابل للتكرار
 COPY package.json package-lock.json ./

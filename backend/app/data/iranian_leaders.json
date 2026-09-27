@@ -1,0 +1,19 @@
+{
+  "_meta": {
+    "description": "القادة الإيرانيون المتابَعون في لوحة إيران OSINT. الكلمات المفتاحية تُطابَق بحدود الكلمة (processors/matching.KeywordSet) فتُكتب أسماء كاملة لا أجزاء ملتبسة: «إسلامي» وحدها تطابق «الإسلامية».",
+    "last_updated": "2026-09",
+    "note": "مُحدَّثة حتى 2026-07: علي خامنئي اغتيل (شباط/فبراير 2026) وخلفه ابنه مجتبى؛ سلامي وباقري قُتلا في حرب الـ12 يوماً (حزيران/يونيو 2025) وخلفاهما باكبور وعبد الرحيم موسوي قُتلا بدورهما في ضربات شباط/فبراير 2026 — القيادة الحالية وحيدي (الحرس) وسياري (الأركان). حاجي زاده قُتل 2025 وخلفه ماجد موسوي."
+  },
+  "leaders": [
+    {"id": 1, "name": "مجتبى خامنئي", "name_en": "Mojtaba Khamenei", "role": "المرشد الأعلى", "role_en": "Supreme Leader", "icon": "👤", "keywords": ["mojtaba khamenei", "khamenei", "supreme leader", "مجتبى خامنئي", "خامنئي", "المرشد الأعلى"]},
+    {"id": 2, "name": "مسعود بزشكيان", "name_en": "Masoud Pezeshkian", "role": "الرئيس", "role_en": "President", "icon": "👤", "keywords": ["pezeshkian", "بزشكيان"]},
+    {"id": 3, "name": "أحمد وحيدي", "name_en": "Ahmad Vahidi", "role": "قائد الحرس الثوري", "role_en": "IRGC Commander", "icon": "⚔️", "keywords": ["vahidi", "وحيدي", "irgc commander"]},
+    {"id": 4, "name": "حبيب الله سياري", "name_en": "Habibollah Sayyari", "role": "رئيس الأركان", "role_en": "Chief of Staff", "icon": "⚔️", "keywords": ["sayyari", "سياري"]},
+    {"id": 5, "name": "ماجد موسوي", "name_en": "Majid Mousavi", "role": "قائد الفضاء IRGC", "role_en": "IRGC Aerospace", "icon": "🚀", "keywords": ["majid mousavi", "ماجد موسوي", "irgc aerospace"]},
+    {"id": 6, "name": "عباس عراقچي", "name_en": "Abbas Araghchi", "role": "وزير الخارجية", "role_en": "Foreign Minister", "icon": "🤝", "keywords": ["araghchi", "araqchi", "عراقچي", "عراقجي"]},
+    {"id": 7, "name": "إسماعيل قاآني", "name_en": "Ismail Qaani", "role": "قائد قوة القدس", "role_en": "Quds Force Commander", "icon": "⚔️", "keywords": ["qaani", "ghaani", "قاآني", "قاآني", "quds force"]},
+    {"id": 8, "name": "محمد إسلامي", "name_en": "Mohammad Eslami", "role": "رئيس منظمة الطاقة الذرية", "role_en": "AEOI Chief", "icon": "☢️", "keywords": ["eslami", "محمد إسلامي", "aeoi chief"]},
+    {"id": 9, "name": "عزيز نصيرزاده", "name_en": "Aziz Nasirzadeh", "role": "وزير الدفاع", "role_en": "Defense Minister", "icon": "✈️", "keywords": ["nasirzadeh", "نصيرزاده"]},
+    {"id": 10, "name": "علي شمخاني", "name_en": "Ali Shamkhani", "role": "مستشار المرشد", "role_en": "Supreme Leader Advisor", "icon": "👤", "keywords": ["shamkhani", "شمخاني"]}
+  ]
+}

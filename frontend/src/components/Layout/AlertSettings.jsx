@@ -33,7 +33,7 @@ export default function AlertSettings({
   const lastFocusedRef = useRef(null);
 
   // إدارة تركيز النافذة: حفظ العنصر النشط، نقل التركيز للنافذة، Escape للإغلاق،
-  // واستعادة التركيز عند الإغلاق (كان لا شيء من ذلك، فيتسرّب Tab خلف الباكدروب).
+  // واستعادة التركيز عند الإغلاق — وإلا يتسرّب Tab خلف الباكدروب.
   useEffect(() => {
     if (!isOpen) return undefined;
     lastFocusedRef.current = document.activeElement;
@@ -82,7 +82,7 @@ export default function AlertSettings({
             <Bell className="w-5 h-5 text-cyan-400" aria-hidden="true" />
             <h2 id="rsd-alerts-title" className="text-base font-bold text-cyan-400">{t('alerts.title')}</h2>
           </div>
-          <button onClick={onClose} aria-label={t('alerts.close')} className="p-1 hover:bg-rasad-border rounded text-slate-300 hover:text-white focus-ring">
+          <button onClick={onClose} aria-label={t('alerts.close')} className="tap-target -me-2 flex items-center justify-center hover:bg-rasad-border rounded text-slate-300 hover:text-white focus-ring">
             <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>

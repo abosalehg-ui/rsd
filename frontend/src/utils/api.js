@@ -77,7 +77,9 @@ export async function postAPI(endpoint) {
 
 // Events
 export const getEvents = (params) => fetchAPI('/events/', params);
-export const getMapEvents = (hours = 24) => fetchAPI('/events/map', { hours });
+export const getMapEvents = (hours = 24, limit = 200) => fetchAPI('/events/map', { hours, limit });
+// تيار غير مفلتر لمحرّك التنبيهات — لا يتأثر بفلاتر العرض
+export const getLatestEvents = (limit = 50) => fetchAPI('/events/latest', { limit });
 export const getStats = (hours = 24) => fetchAPI('/events/stats', { hours });
 
 // Flights

@@ -7,9 +7,8 @@ import { TIME_WINDOWS } from '../utils/constants';
 /**
  * خطاف جلب البيانات مع تحديث تلقائي.
  *
- * يعيد `lastFetchedAt` أيضاً: كان الهيدر يشتقّ "وقت آخر فحص" من تغيّر هوية
- * كائن البيانات داخل تأثير مع `setTimeout(…, 0)` للالتفاف على دورة عرض
- * متتالية. الوقت معلومة يملكها هذا الخطاف أصلاً، فنُعيدها صراحةً.
+ * يعيد `lastFetchedAt` أيضاً: وقت آخر استجابة معلومة يملكها هذا الخطاف، فيعرضه
+ * الهيدر منها بدل اشتقاقه من تغيّر هوية كائن البيانات.
  */
 export function usePolling(fetchFn, interval = 30000, deps = []) {
   const [data, setData] = useState(null);
@@ -122,9 +121,9 @@ function writeFiltersToUrl(filters) {
 /**
  * خطاف الفلاتر — الحالة منعكسة في عنوان الصفحة.
  *
- * كان ضبط "عسكري + إيران + 72 ساعة" يضيع مع أول إعادة تحميل ولا يمكن مشاركته.
+ * ضبط "عسكري + إيران + 72 ساعة" يبقى بعد إعادة التحميل ويُشارَك برابط.
  * نقرأ من العنوان عند التركيب ونكتب بـ replaceState عند كل تغيير (لا pushState:
- * كل ضغطة مرشّح كانت ستصير خطوة في تاريخ المتصفح).
+ * وإلا صارت كل ضغطة مرشّح خطوة في تاريخ المتصفح).
  */
 export function useFilters(initialFilters = {}) {
   const [filters, setFilters] = useState(() => readFiltersFromUrl(initialFilters));

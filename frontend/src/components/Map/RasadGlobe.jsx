@@ -8,12 +8,17 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { iconSvg } from '../../utils/icons';
 import Globe from 'globe.gl';
-import { CATEGORIES, CONFIDENCE } from '../../utils/constants';
+import { CATEGORIES, CONFIDENCE, THEME } from '../../utils/constants';
+import { FlightsBadge } from './RasadMap';
 import { esc } from '../../utils/security';
 import { dotTexture, ringTexture, planeTexture, countTexture, makeSprite } from './globeSprites';
 
 const ME_LAT = 29.0;
 const ME_LNG = 42.0;
+
+// صندوق التسمية الموحّد — ألوانه من THEME كنوافذ الخريطة 2D (لا hex يدوي)
+const labelBox = (dir) =>
+  `direction:${dir};font-family:'IBM Plex Sans Arabic',Tajawal,sans-serif;background:${THEME.panel};padding:6px 8px;border-radius:6px;max-width:280px`;
 
 // https صريح — الروابط النسبية للبروتوكول (//unpkg.com) تصير http عند التقديم
 // عبر http (نشر docker المحلي) فتحجبها CSP (img-src https://unpkg.com فقط)
@@ -89,12 +94,10 @@ export default function RasadGlobe({
   layers = {},
   selectedEvent,
 }) {
-  // النصوص من i18n والاتجاه من لغة الواجهة — كان direction:rtl مثبّتاً وtooltip
-  // الثقة يطبع undefined (CONFIDENCE بلا label، نُقلت للترجمة).
+  // النصوص من i18n والاتجاه من لغة الواجهة
   const { t, i18n } = useTranslation();
   const dir = i18n.dir();
-  // الطبقات مشتركة مع الخريطة 2D عبر App — كانت هنا افتراضات مستقلة (كلها true)
-  // فتُعرض القواعد والأنابيب في وضع 3D بينما هي مُطفأة في 2D.
+  // الطبقات مشتركة مع الخريطة 2D عبر App كي يتطابق الوضعان
   const {
     events: showEvents = true,
     flights: showFlights = true,
@@ -106,8 +109,8 @@ export default function RasadGlobe({
   const containerRef = useRef(null);
   const globeRef = useRef(null);
   // توقيع محتوى الطبقات — الاستطلاع يعيد مصفوفات جديدة الهوية كل 30 ثانية حتى
-  // حين لا يتغيّر شيء، فكانت كل العلامات (Sprite + SpriteMaterial لكل واحدة)
-  // تُبنى من جديد بلا داعٍ. نفس الحارس المستخدم في الخريطة 2D.
+  // حين لا يتغيّر شيء، فبدون التوقيع تُبنى كل العلامات (Sprite + SpriteMaterial)
+  // من جديد بلا داعٍ. نفس الحارس المستخدم في الخريطة 2D.
   const objectsSigRef = useRef('');
   // ارتفاع الكاميرا (مُقسّم إلى درجات متقطعة) — يعيد بناء التجميع عند تغيّر التقريب
   const [altBucket, setAltBucket] = useState(2); // يقابل altitude≈1.6 عند البداية
@@ -175,8 +178,8 @@ export default function RasadGlobe({
   }, []);
 
   // العلامات: أقراص Sprite تواجه الكاميرا بحجم بكسلي ثابت عبر طبقة objectsData
-  // (طبقة pointsData ترسم أسطوانات بحجم جغرافي — كانت 111 كم عرضاً و96 كم
-  // ارتفاعاً فتغطي جيرانها وتُخرج الطائرات كأعمدة من الأرض)،
+  // (طبقة pointsData ترسم أسطوانات بحجم جغرافي تغطي جيرانها وتُخرج الطائرات
+  // كأعمدة من الأرض)،
   // + حلقات رادار متحرّكة (ringsData) للأحداث الحرجة/المرتفعة والضربات.
   // ما يؤثّر فعلاً على ما يُرسم. الطيران جزء منه بإحداثياته لأنه يتحرّك حقاً.
   const objectsSig = useMemo(() => [
@@ -186,7 +189,7 @@ export default function RasadGlobe({
     showBases ? bases.map(b => `${b.id ?? b.name_en}`).join(',') : '',
     showFlights
       ? (flights?.flights || [])
-        .map(f => `${f.icao24}:${f.latitude?.toFixed?.(3)}:${f.longitude?.toFixed?.(3)}:${f.heading}`)
+        .map(f => `${f.icao24}:${f.latitude?.toFixed?.(3)}:${f.longitude?.toFixed?.(3)}:${f.heading}:${f.is_emergency ? 'E' : ''}`)
         .join(',')
       : '',
     altBucket,
@@ -205,6 +208,7 @@ export default function RasadGlobe({
 
     const objects = [];
     const rings = [];
+    const LABEL_BOX = labelBox(dir);
 
     if (showEvents) {
       const alt = Math.pow(2, altBucket / 3);
@@ -215,9 +219,9 @@ export default function RasadGlobe({
           lat, lng, alt: SURFACE_ALT,
           kind: 'event', data: ev,
           sprite: { texture: dotTexture(), color, scale: markerScale(ev.severity) },
-          label: `<div style="direction:${dir};font-family:Tajawal,sans-serif;background:#111827;border:1px solid #1e293b;padding:6px 8px;border-radius:6px;max-width:280px">
+          label: `<div style="${LABEL_BOX};border:1px solid ${THEME.border}">
             <div style="color:${color};font-size:11px;font-weight:700;margin-bottom:2px">${iconSvg((CATEGORIES[ev.category]||CATEGORIES.general).icon, { size: 11, color })} ${esc(ev.title)}</div>
-            <div style="color:#94a3b8;font-size:10px">${esc(ev.country)}</div>
+            <div style="color:${THEME.textMuted};font-size:10px">${esc(ev.country)}</div>
           </div>`,
         };
       };
@@ -239,9 +243,9 @@ export default function RasadGlobe({
           });
         } else {
           // بعيد: علامة تجميع واحدة تحمل العدد — الضغط عليها يقرّب الكاميرا
-          const color = hasCritical ? '#ef4444' : '#22d3ee';
+          const color = hasCritical ? CATEGORIES.military.color : THEME.accent;
           const titles = cluster.events.slice(0, 5)
-            .map(e => `<div style="color:#cbd5e1;font-size:10px;padding:1px 0">${iconSvg((CATEGORIES[e.category]||CATEGORIES.general).icon, { size: 10, color: '#cbd5e1' })} ${esc((e.title || '').substring(0, 60))}</div>`)
+            .map(e => `<div style="color:${THEME.textSecondary};font-size:10px;padding:1px 0">${iconSvg((CATEGORIES[e.category]||CATEGORIES.general).icon, { size: 10, color: THEME.textSecondary })} ${esc((e.title || '').substring(0, 60))}</div>`)
             .join('');
           objects.push({
             lat: cluster.lat, lng: cluster.lng, alt: SURFACE_ALT,
@@ -250,10 +254,10 @@ export default function RasadGlobe({
               texture: countTexture(cluster.events.length, color),
               scale: Math.min(0.034 + cluster.events.length * 0.001, 0.046),
             },
-            label: `<div style="direction:${dir};font-family:Tajawal,sans-serif;background:#111827;border:1px solid ${color};padding:6px 8px;border-radius:6px;max-width:280px">
+            label: `<div style="${LABEL_BOX};border:1px solid ${color}">
               <div style="color:${color};font-size:11px;font-weight:700;margin-bottom:2px">${esc(t('map.clusterTitle', { count: cluster.events.length }))}</div>
               ${titles}
-              <div style="color:#64748b;font-size:9px;margin-top:2px">${esc(t('globe.clusterZoomHint'))}</div>
+              <div style="color:${THEME.textMuted};font-size:9px;margin-top:2px">${esc(t('globe.clusterZoomHint'))}</div>
             </div>`,
           });
         }
@@ -271,9 +275,9 @@ export default function RasadGlobe({
           lat: s.latitude, lng: s.longitude, alt: SURFACE_ALT,
           kind: 'iran', data: s,
           sprite: { texture: dotTexture(), color: conf.color, scale: 0.026 },
-          label: `<div style="direction:${dir};font-family:Tajawal,sans-serif;background:#111827;border:1px solid ${conf.color};padding:6px 8px;border-radius:6px;max-width:280px">
+          label: `<div style="${LABEL_BOX};border:1px solid ${conf.color}">
             <div style="color:${conf.color};font-size:10px;margin-bottom:2px">${esc(t('confidence.' + s.confidence, { defaultValue: t('confidence.LOW') }))}</div>
-            <div style="color:#fff;font-size:11px;font-weight:700">${esc(s.title)}</div>
+            <div style="color:${THEME.text};font-size:11px;font-weight:700">${esc(s.title)}</div>
           </div>`,
         });
         if (s.event_type === 'strike') {
@@ -285,6 +289,8 @@ export default function RasadGlobe({
       flights.flights.forEach(f => {
         if (typeof f.latitude !== 'number' || typeof f.longitude !== 'number') return;
         const isMil = f.is_military;
+        const isEmergency = Boolean(f.is_emergency);
+        const color = isEmergency ? THEME.emergency : isMil ? THEME.flightMilitary : THEME.textSecondary;
         // رمز طائرة يحلّق على ارتفاع الرحلة ويدور نحو اتجاه المسار — الدوران
         // بالسالب لأن دوران Sprite عكس عقارب الساعة بينما الاتجاه بوصلي.
         objects.push({
@@ -292,14 +298,15 @@ export default function RasadGlobe({
           kind: 'flight', data: f,
           sprite: {
             texture: planeTexture(),
-            color: isMil ? '#c084fc' : '#cbd5e1',
-            scale: isMil ? 0.026 : 0.019,
+            color,
+            scale: isEmergency ? 0.03 : isMil ? 0.026 : 0.019,
             rotation: -(Number(f.heading) || 0) * Math.PI / 180,
-            opacity: isMil ? 1 : 0.85,
+            opacity: isMil || isEmergency ? 1 : 0.85,
           },
-          label: `<div style="direction:${dir};font-family:monospace;background:#0d1117;border:1px solid ${isMil ? '#a855f7' : '#475569'};padding:5px 7px;border-radius:6px">
-            <div style="color:${isMil ? '#c4b5fd' : '#cbd5e1'};font-size:11px;font-weight:700">${iconSvg(isMil ? 'shield' : 'plane', { size: 11, color: isMil ? '#c4b5fd' : '#cbd5e1' })} ${esc(f.callsign || f.icao24 || '')}</div>
-            <div style="color:#94a3b8;font-size:9px">${esc(f.origin_country || '')}${f.altitude ? ` • ${esc(Math.round(f.altitude))} ${esc(t('map.metersShort'))}` : ''}</div>
+          label: `<div style="${LABEL_BOX};font-family:monospace;border:1px solid ${color}">
+            <div style="color:${color};font-size:11px;font-weight:700">${iconSvg(isEmergency ? 'crosshair' : isMil ? 'shield' : 'plane', { size: 11, color })} ${esc(f.callsign || f.icao24 || '')}</div>
+            ${isEmergency ? `<div style="color:${THEME.emergency};font-size:10px;font-weight:700">${esc(t('map.emergency', { squawk: f.squawk || '' }))}</div>` : ''}
+            <div style="color:${THEME.textMuted};font-size:9px">${esc(f.origin_country || '')}${f.altitude ? ` • ${esc(Math.round(f.altitude))} ${esc(t('map.metersShort'))}` : ''}</div>
           </div>`,
         });
       });
@@ -310,10 +317,10 @@ export default function RasadGlobe({
         objects.push({
           lat: f.latitude, lng: f.longitude, alt: SURFACE_ALT,
           kind: 'nuclear', data: f,
-          sprite: { texture: ringTexture(), color: '#facc15', scale: f.type === 'power' ? 0.026 : 0.021 },
-          label: `<div style="direction:${dir};font-family:Tajawal,sans-serif;background:#0d1117;border:1px solid #facc15;padding:6px 8px;border-radius:6px;max-width:260px">
-            <div style="color:#facc15;font-size:11px;font-weight:700">${iconSvg('radiation', { size: 11, color: '#f2c230' })} ${esc(f.name_ar || f.name_en)}</div>
-            <div style="color:#94a3b8;font-size:9px">${esc(f.country || '')} • ${f.capacity_mw ? esc(f.capacity_mw) + ' MW' : esc(f.type)}</div>
+          sprite: { texture: ringTexture(), color: THEME.hazard, scale: f.type === 'power' ? 0.026 : 0.021 },
+          label: `<div style="${LABEL_BOX};border:1px solid ${THEME.hazard}">
+            <div style="color:${THEME.hazard};font-size:11px;font-weight:700">${iconSvg('radiation', { size: 11, color: THEME.hazard })} ${esc(f.name_ar || f.name_en)}</div>
+            <div style="color:${THEME.textMuted};font-size:9px">${esc(f.country || '')} • ${f.capacity_mw ? esc(f.capacity_mw) + ' MW' : esc(f.type)}</div>
           </div>`,
         });
       });
@@ -324,10 +331,10 @@ export default function RasadGlobe({
         objects.push({
           lat: b.latitude, lng: b.longitude, alt: SURFACE_ALT,
           kind: 'base', data: b,
-          sprite: { texture: ringTexture(), color: '#a78bfa', scale: 0.019 },
-          label: `<div style="direction:${dir};font-family:Tajawal,sans-serif;background:#0d1117;border:1px solid #a78bfa;padding:6px 8px;border-radius:6px;max-width:260px">
-            <div style="color:#a78bfa;font-size:11px;font-weight:700">⚔️ ${esc(b.name_ar || b.name_en)}</div>
-            <div style="color:#94a3b8;font-size:9px">${esc(b.country || '')} • ${esc(b.operator || '')}</div>
+          sprite: { texture: ringTexture(), color: THEME.violet, scale: 0.019 },
+          label: `<div style="${LABEL_BOX};border:1px solid ${THEME.violet}">
+            <div style="color:${THEME.violet};font-size:11px;font-weight:700">${iconSvg('shield', { size: 11, color: THEME.violet })} ${esc(b.name_ar || b.name_en)}</div>
+            <div style="color:${THEME.textMuted};font-size:9px">${esc(b.country || '')} • ${esc(b.operator || '')}</div>
           </div>`,
         });
       });
@@ -368,7 +375,7 @@ export default function RasadGlobe({
     const paths = showPipelines
       ? pipelines.flatMap(p => {
           const coords = (p.coordinates || []).map(([lat, lng]) => ({ lat, lng, alt: 0.01 }));
-          return coords.length > 1 ? [{ coords, color: p.type === 'oil' ? '#fbbf24' : '#3b82f6', name: p.name_ar || p.name_en }] : [];
+          return coords.length > 1 ? [{ coords, color: p.type === 'oil' ? THEME.highlight : CATEGORIES.diplomatic.color, name: p.name_ar || p.name_en }] : [];
         })
       : [];
 
@@ -411,5 +418,10 @@ export default function RasadGlobe({
     g.pointOfView({ lat: selectedEvent.latitude, lng: selectedEvent.longitude, altitude: 0.9 }, 1200);
   }, [selectedEvent]);
 
-  return <div ref={containerRef} className="w-full h-full" />;
+  return (
+    <div className="relative w-full h-full">
+      <div ref={containerRef} className="w-full h-full" />
+      {flights && showFlights && <FlightsBadge flights={flights} t={t} />}
+    </div>
+  );
 }

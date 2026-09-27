@@ -12,7 +12,7 @@ import { TrendNote } from '../Nuclear/RiskGauge';
 
 export default function StatsPanel({ stats, countryIndex, countryLoading = false }) {
   const { t } = useTranslation();
-  if (!stats) return <div className="shimmer h-full" />;
+  if (!stats) return <div className="shimmer h-full" aria-busy="true" aria-label={t('common.loading')} />;
 
   const escalation = stats.escalation_index || 0;
   const escColor = escalationColor(escalation);

@@ -6,7 +6,7 @@
 رقيقة فوقها كي لا يتغيّر توقيع أي جامع.
 
 المطابقة كلها عبر `matching.KeywordSet` (حدود كلمة + سوابق/لواحق عربية)، لا
-`kw in text` — راجع توثيق `matching.py` لأمثلة الأخطاء التي كان يُنتجها ذلك.
+`kw in text` — راجع توثيق `matching.py` لأمثلة الأخطاء التي يُنتجها ذلك.
 """
 from __future__ import annotations
 
@@ -145,7 +145,7 @@ def classify(
     base_category: str = "general",
     escalate_on_death: bool = True,
 ) -> tuple[str, str]:
-    """(category, severity) — كما كانت، مع دعم التصنيف النووي/الإشعاعي."""
+    """(category, severity) — واجهة رقيقة فوق `analyze` مع التصنيف النووي/الإشعاعي."""
     a = analyze(title, description, base_category=base_category, escalate_on_death=escalate_on_death)
     return a.category, a.severity
 

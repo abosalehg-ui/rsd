@@ -1,5 +1,13 @@
-"""رصد - اختبارات تصنيف أحداث إيران وتحديد مواقعها."""
-from app.collectors.iran_osint import _classify_iran_event, _geolocate_iran, get_leaders_list
+"""رصد - اختبارات تصنيف أحداث إيران وتحديد مواقعها وربط القادة."""
+import pytest
+
+from app.collectors.iran_osint import (
+    _classify_iran_event,
+    _geolocate_iran,
+    _locate_iran,
+    get_leaders_list,
+    leaders_mentioned,
+)
 
 
 class TestClassifyIranEvent:
@@ -32,19 +40,48 @@ class TestGeolocateIran:
     def test_specific_iranian_site_wins_over_country(self):
         lat, lon, name, code = _geolocate_iran("enrichment resumed at natanz in iran")
         assert code == "IR"
-        assert name == "نطنز"
-        assert (round(lat, 2), round(lon, 2)) == (33.73, 51.73)
+        assert "نطنز" in name
+        assert (round(lat, 2), round(lon, 2)) == (33.72, 51.73)
 
     def test_fordow(self):
         _, _, name, code = _geolocate_iran("centrifuges at fordow")
-        assert (name, code) == ("فردو", "IR")
+        assert "فوردو" in name and code == "IR"
+
+    def test_barakah_is_in_the_uae_not_arak(self):
+        """«Barakah» تحوي «arak»: البحث بجزء النص كان يضعها في أراك/إيران."""
+        lat, lon, name, code, precision = _locate_iran(
+            "UAE Barakah nuclear plant reports drone attack, IRGC blamed"
+        )
+        assert code == "AE"
+        assert precision == "facility"
+        assert (round(lat, 1), round(lon, 1)) == (24.0, 52.2)
+
+    def test_mubarak_is_not_arak(self):
+        """«Mubarak» تحوي «arak» أيضًا — الموقع هو إيران (الدولة المذكورة) لا مدينة أراك."""
+        lat, lon, _, code, precision = _locate_iran("Mubarak-era officials comment on Iran strike")
+        assert (code, precision) == ("IR", "country")
+        assert (round(lat, 1), round(lon, 1)) != (34.1, 49.7), "ليست أراك"
+
+    @pytest.mark.parametrize("title", [
+        "Iranian navy drills in Persian Gulf near Strait of Hormuz",
+        "tanker seized in the strait of hormuz",
+    ])
+    def test_water_bodies_carry_no_country_code(self, title):
+        """المسطّحات المائية بلا رمز دولة كي لا تُنسب لإيران فتضخّم مؤشرها."""
+        _, _, _, code, precision = _locate_iran(title)
+        assert code == ""
+        assert precision == "region"
+
+    def test_default_precision_is_country(self):
+        *_, precision = _locate_iran("unspecified regional tension")
+        assert precision == "country"
 
     def test_falls_back_to_the_shared_country_matcher(self):
         _, _, _, code = _geolocate_iran("explosions reported in gaza")
         assert code == "PS"
 
     def test_red_sea_is_a_maritime_region_not_a_country(self):
-        """كان البحر الأحمر يُنسب لليمن فيضخّم مؤشرها بأحداث ملاحية دولية."""
+        """البحر الأحمر لا يُنسب لليمن كي لا يضخّم مؤشرها بأحداث ملاحية دولية."""
         lat, _, name, code = _geolocate_iran("shipping attacked in the red sea")
         assert code == ""
         assert name == "البحر الأحمر"
@@ -71,3 +108,27 @@ def test_leaders_list_shape():
         for field in ("id", "name", "name_en", "role", "keywords"):
             assert field in leader
         assert leader["keywords"], "كل قائد يحتاج كلمات مفتاحية للمطابقة"
+
+
+class TestLeaderMentions:
+    def test_full_name_matches(self):
+        ids = {lead["id"] for lead in leaders_mentioned("Mohammad Eslami says enrichment continues")}
+        assert ids == {8}
+
+    def test_arabic_name_matches_with_clitics(self):
+        ids = {lead["id"] for lead in leaders_mentioned("تصريحات لعراقجي حول المفاوضات")}
+        assert ids == {6}
+
+    @pytest.mark.parametrize("title", [
+        "الجمهورية الإسلامية الإيرانية تعلن عن مناورات عسكرية",
+        "Islamic Republic marks anniversary",
+        "iran's islamist movement protests",
+    ])
+    def test_islamic_republic_is_not_eslami(self, title):
+        """«الإسلامية» تحوي «إسلامي»: البحث بجزء النص كان يُنسب كل خبر عن
+        الجمهورية الإسلامية لرئيس منظمة الطاقة الذرية."""
+        assert leaders_mentioned(title) == []
+
+    def test_several_leaders_in_one_text(self):
+        ids = {lead["id"] for lead in leaders_mentioned("Araghchi and Shamkhani meet in Muscat")}
+        assert ids == {6, 10}

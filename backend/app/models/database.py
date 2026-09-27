@@ -75,7 +75,7 @@ class Event(Base):
         Index("idx_events_country", "country_code"),
         Index("idx_events_source", "source"),
         Index("idx_events_severity", "severity"),
-        # يستخدمه prune_old_data و/api/collectors/status — كان مسحاً كاملاً
+        # يستخدمه prune_old_data و/api/collectors/status — بدونه مسح كامل
         Index("idx_events_collected", "collected_at"),
         # مركّب: /api/collectors/status يبحث بـ (source, collected_at) معاً
         Index("idx_events_source_collected", "source", "collected_at"),
@@ -132,7 +132,7 @@ class IranianLeaderNews(Base):
     __table_args__ = (
         Index("idx_leader_news_id", "leader_id"),
         Index("idx_leader_news_date", "news_date"),
-        # تستخدمه وظيفة الاحتفاظ (prune_old_data) — كان مسحاً كاملاً للجدول
+        # تستخدمه وظيفة الاحتفاظ (prune_old_data) — بدونه مسح كامل للجدول
         Index("idx_leader_news_collected", "collected_at"),
     )
 
@@ -173,7 +173,7 @@ async def _migrate_sqlite(conn) -> None:
     """ترقية بسيطة لـSQLite: يضيف الأعمدة الناقصة على جدول قائم.
 
     `create_all` لا يضيف أعمدة لجدول موجود، فمستخدم يُرقّي تطبيق سطح المكتب
-    (قاعدته تعيش في %LOCALAPPDATA% وتبقى بين الإصدارات) كان يصطدم بـ
+    (قاعدته تعيش في %LOCALAPPDATA% وتبقى بين الإصدارات) يصطدم بـ
     'no such column: confidence'. نفحص الأعمدة الحالية ونضيف الناقص.
     """
     rows = await conn.execute(text("PRAGMA table_info(events)"))
@@ -241,8 +241,8 @@ async def insert_event_if_new(session, **fields) -> bool:
     يحل محل نمط 'SELECT ثم add' الذي يسبب سباقاً يُسقط دفعات كاملة عند التزامن،
     ويلغي استعلام SELECT لكل مقال (تحسين أداء).
 
-    كان مقفلاً على لهجة SQLite رغم أن DATABASE_URL يقبل أي محرّك؛ صار يختار
-    اللهجة من الاتصال ويسقط على SAVEPOINT + IntegrityError لما عداهما.
+    يختار اللهجة من الاتصال (DATABASE_URL يقبل أي محرّك) ويسقط على
+    SAVEPOINT + IntegrityError لما عدا SQLite وPostgreSQL.
     """
     dialect_name = session.bind.dialect.name if session.bind is not None else "sqlite"
     insert_fn = _upsert_insert(dialect_name)

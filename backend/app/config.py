@@ -69,7 +69,7 @@ class Settings(BaseSettings):
     # Intervals (seconds)
     gdelt_interval: int = 900
     # ساعة كاملة: المستوى المجاني من NewsAPI يسمح بـ100 طلب/يوم، والجامع
-    # يُرسل طلبًا لكل لغة، فالفاصل الأقصر كان يستنزف الحصة قبل الظهر.
+    # يُرسل طلبًا لكل لغة؛ فاصل أقصر يستنزف الحصة قبل الظهر.
     newsapi_interval: int = 3600
     rss_interval: int = 120
     ucdp_interval: int = 86400

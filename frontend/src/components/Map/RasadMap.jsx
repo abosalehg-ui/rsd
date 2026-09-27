@@ -1,22 +1,21 @@
 /**
  * رصد - الخريطة التفاعلية
  *
- * كل نصوص النوافذ تأتي من i18next، واتجاه النافذة يتبع لغة الواجهة (كان
- * direction:rtl مثبّتاً فتُعرض النوافذ معكوسة في الوضع الإنجليزي).
+ * كل نصوص النوافذ تأتي من i18next، واتجاه النافذة يتبع لغة الواجهة.
  * كل قيمة تأتي من مصدر خارجي تمرّ عبر esc()/safeUrl() قبل الحقن.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { CATEGORIES, CONFIDENCE, IRAN_EVENT_TYPES, categoryOf, riskColor } from '../../utils/constants';
+import { CATEGORIES, CONFIDENCE, IRAN_EVENT_TYPES, THEME, categoryOf, riskColor, timeAgo } from '../../utils/constants';
 import { esc } from '../../utils/security';
 import { Icon, iconSvg } from '../../utils/icons';
 import {
   basePopup, clusterPopup, eventPopup, flightPopup,
   iranPopup, nuclearPopup, pipelinePopup,
 } from './popups';
-import { ZoomIn, ZoomOut, Crosshair } from 'lucide-react';
+import { ZoomIn, ZoomOut, Crosshair, Clock } from 'lucide-react';
 import LayerToggles from './LayerToggles';
 
 // الخريطة الأساس: Esri World Dark Gray. صارت CARTO (dark_all) تعيد صورة
@@ -36,10 +35,10 @@ const CONTROL_BTN =
   'w-11 h-11 bg-rasad-panel border border-rasad-border rounded-lg flex items-center justify-center hover:bg-rasad-border text-cyan-300 focus-ring';
 
 // ===== تجميع النقاط القريبة =====
-// المسافة بالبكسل على الشاشة لا بالدرجات: التجميع بالدرجات كان يترك نقاطاً
-// متجاورة (أقل من درجتين) تتراكب بصرياً في كل مستويات التقريب فيتعذّر الضغط
-// على حدث بعينه. الإسقاط عبر EPSG3857 يجعل العتبة ثابتة بصرياً، وتنفكّ
-// المجموعات تلقائياً كلما كبّر المستخدم وتباعدت النقاط على الشاشة.
+// المسافة بالبكسل على الشاشة لا بالدرجات: التجميع بالدرجات يترك نقاطاً
+// متجاورة تتراكب بصرياً في كل مستويات التقريب فيتعذّر الضغط على حدث بعينه.
+// الإسقاط عبر EPSG3857 يجعل العتبة ثابتة بصرياً، وتنفكّ المجموعات تلقائياً
+// كلما كبّر المستخدم وتباعدت النقاط على الشاشة.
 const CLUSTER_PX = 42;
 
 function clusterEvents(events, zoom) {
@@ -120,7 +119,7 @@ const NUCLEAR_TYPES = {
 };
 
 const NUCLEAR_CATEGORIES = new Set(['nuclear', 'radiological']);
-const THEME_BG = '#0b1016';
+const THEME_BG = THEME.bg;
 
 const NUCLEAR_STATUS_COLORS = {
   operational: '#22c55e',
@@ -129,6 +128,27 @@ const NUCLEAR_STATUS_COLORS = {
   shutdown: '#ef4444',
   modified: '#a78bfa',
 };
+
+/**
+ * شارة الطيران: العدد الكلي والعسكري، وعند `stale` (آخر جمع فشل) أيقونة ساعة
+ * كهرمانية بوقت آخر لقطة ناجحة — كي لا تُقرأ طائرات عمرها دقائق كأنها لحظية.
+ */
+export function FlightsBadge({ flights, t }) {
+  const stale = Boolean(flights.stale);
+  const staleTitle = stale ? t('map.flightsStale', { time: timeAgo(flights.updated_at, t) || '—' }) : t('map.flightsLive');
+  return (
+    <div
+      className={`absolute top-3 end-3 z-[1000] bg-rasad-panel/95 border rounded-lg px-2.5 py-1.5 text-xs flex gap-3 ${stale ? 'border-amber-400/60' : 'border-rasad-border'}`}
+      title={staleTitle}
+      role="status"
+    >
+      {stale && <Clock className="w-3.5 h-3.5 text-amber-300" aria-hidden="true" />}
+      <span className="inline-flex items-center gap-1 text-slate-200"><Icon name="plane" className="w-3.5 h-3.5" /> <span className="font-mono text-white">{flights.total || 0}</span></span>
+      <span className="inline-flex items-center gap-1 text-purple-300"><Icon name="shield" className="w-3.5 h-3.5" /> <span className="font-mono text-purple-200">{flights.military || 0}</span></span>
+      <span className="sr-only">{staleTitle}</span>
+    </div>
+  );
+}
 
 export default function RasadMap({
   events = [],
@@ -357,11 +377,14 @@ export default function RasadMap({
     flights.flights.forEach(f => {
       if (!f.latitude || !f.longitude) return;
       const isMil = f.is_military;
-      const sz = isMil ? 18 : 10;
+      // الطوارئ (سكواك 7500/7600/7700) أبرز من العسكري: معلومة OSINT لا تُهدر
+      const isEmergency = Boolean(f.is_emergency);
+      const sz = isEmergency ? 20 : isMil ? 18 : 10;
+      const color = isEmergency ? THEME.emergency : isMil ? THEME.flightMilitary : THEME.flightCivil;
       const icon = L.divIcon({
         className: '', iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2],
         // أيقونة plane في lucide تتجه 45° — نطرحها كي يطابق الاتجاه المسار
-        html: `<div style="transform:rotate(${(Number(f.heading) || 0) - 45}deg);display:flex;opacity:${isMil ? 1 : 0.7}">${iconSvg('plane', { size: sz, color: isMil ? '#c4b5fd' : '#94a3b8' })}</div>`,
+        html: `<div style="transform:rotate(${(Number(f.heading) || 0) - 45}deg);display:flex;opacity:${isMil || isEmergency ? 1 : 0.7};${isEmergency ? `filter:drop-shadow(0 0 6px ${THEME.emergency})` : ''}">${iconSvg('plane', { size: sz, color })}</div>`,
       });
       // ترتيب رسم أدنى: الطائرات لا تحجب الضربات والمنشآت الثابتة
       L.marker([f.latitude, f.longitude], { icon, zIndexOffset: Z_OFFSET.flight })
@@ -445,7 +468,7 @@ export default function RasadMap({
         iconSize: [sz + 6, sz + 6],
         iconAnchor: [(sz + 6) / 2 - dx, (sz + 6) / 2 - dy],
         popupAnchor: [dx, dy - (sz + 6) / 2],
-        // esc() على سمة title أيضاً — كانت الوحيدة غير المهرَّبة في الملف
+        // esc() على سمة title أيضاً
         html: `<div title="${esc(name)}" style="
           width:${sz}px;height:${sz}px;
           background:${typeInfo.color}20;
@@ -583,10 +606,7 @@ export default function RasadMap({
       </div>
 
       {flights && showFlights && (
-        <div className="absolute top-3 end-3 z-[1000] bg-rasad-panel/95 border border-rasad-border rounded-lg px-2.5 py-1.5 text-xs flex gap-3">
-          <span className="inline-flex items-center gap-1 text-slate-200"><Icon name="plane" className="w-3.5 h-3.5" /> <span className="font-mono text-white">{flights.total || 0}</span></span>
-          <span className="inline-flex items-center gap-1 text-purple-300"><Icon name="shield" className="w-3.5 h-3.5" /> <span className="font-mono text-purple-200">{flights.military || 0}</span></span>
-        </div>
+        <FlightsBadge flights={flights} t={t} />
       )}
     </div>
   );

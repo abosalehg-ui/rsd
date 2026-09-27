@@ -57,8 +57,8 @@ NUCLEAR_FEEDS: list[Dict] = [
      "kind": "specialist", "force": True},
     {"name": "ANS Nuclear Newswire", "url": "https://www.ans.org/news/feed/",
      "kind": "specialist", "force": True},
-    {"name": "Nuclear Engineering International", "url": "https://www.neimagazine.com/rss/",
-     "kind": "specialist", "force": True},
+    # Nuclear Engineering International (neimagazine.com/feed) يردّ 403 لعملاء
+    # بايثون (جدار حماية ببصمة TLS) — غير مُدرج حتى يُفتح.
     # تحليل ورأي: موثوقة لكنها تناقش سيناريوهات، فمعامل ثقتها أدنى
     {"name": "Arms Control Association", "url": "https://www.armscontrol.org/rss.xml",
      "kind": "analysis", "force": True},

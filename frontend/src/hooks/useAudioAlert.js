@@ -123,8 +123,8 @@ export function shouldAlert(event, prefs) {
   return true;
 }
 
-// سقف حجم مجموعة المعرّفات المرئية — الجلسات الطويلة كانت تُراكم كل معرّف
-// شوهد منذ الإقلاع بلا حدّ. عند التجاوز نُبقي الأحدث فقط.
+// سقف حجم مجموعة المعرّفات المرئية — بدونه تُراكم الجلسة الطويلة كل معرّف
+// شوهد منذ الإقلاع. عند التجاوز نُبقي الأحدث فقط.
 const MAX_SEEN_IDS = 2000;
 
 function rememberSeen(seen, ids) {
@@ -142,8 +142,9 @@ function rememberSeen(seen, ids) {
 }
 
 /**
- * @param {Array} events - قائمة الأحداث الحالية من polling
- * @param {Object} filters - الفلاتر الفعّالة؛ تغيّرها يعيد ضبط خط الأساس
+ * @param {Array} events - تيار الأحداث المراقَب (يُفضَّل تيار غير مفلتر مثل
+ *   `/api/events/latest` كي لا تُسكت فلاتر العرض التنبيهات)
+ * @param {Object} [filters] - إن مُرّرت فلاتر، تغيّرها يعيد ضبط خط الأساس
  * @returns {{ prefs, setPrefs, lastAlertEvent, recentAlerts, mute, unmute, testSound }}
  */
 export function useAudioAlert(events, filters) {
@@ -197,7 +198,8 @@ export function useAudioAlert(events, filters) {
       try {
         new Notification(i18n.t('alerts.notificationTitle'), {
           body: top.title || '',
-          icon: '/favicon.ico',
+          // BASE_URL لا '/': على GitHub Pages الجذر هو /<repo>/
+          icon: `${import.meta.env.BASE_URL}favicon.ico`,
           tag: `rsd-${top.id}`,
         });
       } catch { /* منع الإشعار — تجاهل */ }

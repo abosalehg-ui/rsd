@@ -2,37 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ===== رصد - الأنماط الأساسية ===== */
+/* ===== رصد - الأنماط الأساسية =====
+   ألوان الثيم متغيّرات `--rsd-*` يولّدها tailwind.config.js من
+   utils/constants.js::THEME (المصدر الواحد). */
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #22303c #0b1016;
+  scrollbar-color: var(--rsd-border) var(--rsd-bg);
 }
 
 ::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #0b1016; }
-::-webkit-scrollbar-thumb { background: #22303c; border-radius: 3px; }
+::-webkit-scrollbar-track { background: var(--rsd-bg); }
+::-webkit-scrollbar-thumb { background: var(--rsd-border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #334155; }
 
 body {
-  background: #0b1016;
+  background: var(--rsd-bg);
   /* الجذر يدير التمرير بنفسه (h-dvh + overflow-hidden على الحاوية)؛ منع
-     التمرير على body كان يقفل الصفحة تماماً على الجوال. */
+     التمرير على body يقفل الصفحة تماماً على الجوال. */
   overscroll-behavior: none;
 }
 
 /* ===== إمكانية الوصول ===== */
 
-/* حلقة تركيز واضحة لكل عنصر تفاعلي — لم يكن هناك أي نمط :focus مخصّص */
+/* حلقة تركيز واضحة لكل عنصر تفاعلي */
 .focus-ring:focus-visible,
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 [tabindex]:focus-visible {
-  outline: 2px solid #67e8f9;
+  outline: 2px solid var(--rsd-accent);
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+/* مساحة لمس 44×44 (الحد الأدنى الموصى به) للأزرار الصغيرة في اللوحات */
+.tap-target {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
 }
 
 /* نص مخفي بصرياً ومقروء لقارئات الشاشة */
@@ -55,8 +63,8 @@ select:focus-visible,
   top: 0;
   z-index: 10000;
   padding: 0.5rem 1rem;
-  background: #121a22;
-  color: #67e8f9;
+  background: var(--rsd-panel);
+  color: var(--rsd-accent);
   border: 1px solid #22d3ee;
   border-radius: 0 0 0.5rem 0.5rem;
 }
@@ -78,7 +86,7 @@ select:focus-visible,
 
 /* خريطة مظلمة */
 .leaflet-container {
-  background: #0b1016 !important;
+  background: var(--rsd-bg) !important;
   font-family: 'IBM Plex Sans Arabic', 'Tajawal', sans-serif;
 }
 
@@ -87,27 +95,25 @@ select:focus-visible,
 }
 
 .leaflet-control-zoom a {
-  background: #121a22 !important;
+  background: var(--rsd-panel) !important;
   color: #22d3ee !important;
-  border-color: #22303c !important;
+  border-color: var(--rsd-border) !important;
 }
 
-/* الاتجاه يُورَّث من <html dir> الذي يضبطه i18n. كان `direction: rtl` مثبّتاً
-   هنا فيبقى غلاف النافذة وزرّ الإغلاق (×) على الجهة العربية في الوضع
-   الإنجليزي، رغم أن المحتوى الداخلي ينعكس صحيحاً. */
+/* بلا `direction` هنا: يُورَّث من <html dir> الذي يضبطه i18n، فينعكس غلاف
+   النافذة وزرّ الإغلاق (×) مع لغة الواجهة كما ينعكس محتواها. */
 .leaflet-popup-content-wrapper {
-  background: #121a22 !important;
+  background: var(--rsd-panel) !important;
   color: white !important;
-  border: 1px solid #22303c;
+  border: 1px solid var(--rsd-border);
   border-radius: 8px !important;
 }
 
 .leaflet-popup-tip {
-  background: #121a22 !important;
+  background: var(--rsd-panel) !important;
 }
 
-/* علامات الخريطة */
-/* الحركة للحرج وحده: كانت كل علامة تنبض فلا يتميّز الخطير من العادي */
+/* علامات الخريطة — الحركة للحرج وحده كي يتميّز الخطير من العادي */
 .event-marker {
   border-radius: 50%;
   border: 2px solid;
@@ -144,7 +150,7 @@ select:focus-visible,
 .bell-alert { animation: bell-shake 0.6s ease-in-out 3; }
 
 /* شريط الأخبار العاجلة — يتحرّك باتجاه القراءة: في العربية يدخل من اليسار
-   ويخرج يمينًا كي تُقرأ بداية الخبر أولًا (كان يتحرّك كالإنجليزية في اللغتين). */
+   ويخرج يمينًا كي تُقرأ بداية الخبر أولًا. */
 .ticker {
   animation: ticker-scroll 60s linear infinite;
 }
@@ -201,7 +207,7 @@ select:focus-visible,
 
 /* تأثيرات التحميل */
 .shimmer {
-  background: linear-gradient(90deg, #121a22 25%, #22303c 50%, #121a22 75%);
+  background: linear-gradient(90deg, var(--rsd-panel) 25%, var(--rsd-border) 50%, var(--rsd-panel) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }

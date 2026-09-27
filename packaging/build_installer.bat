@@ -29,6 +29,13 @@ pyinstaller packaging\rasad.spec --noconfirm --clean || goto :err
 
 echo.
 echo [4/4] بناء المثبّت (Inno Setup)...
+REM إصدار المثبّت = إصدار التطبيق (backend\app\__init__.py) — مصدر واحد
+for /f "usebackq delims=" %%v in (`python -c "import re,io;print(re.search(r'__version__\s*=\s*[\"\']([^\"\']+)', io.open('backend/app/__init__.py', encoding='utf-8').read()).group(1))"`) do set "APP_VERSION=%%v"
+if not defined APP_VERSION (
+  echo [!] تعذّر قراءة الإصدار من backend\app\__init__.py
+  goto :err
+)
+echo     الإصدار: %APP_VERSION%
 where ISCC >nul 2>nul
 if errorlevel 1 (
   echo.
@@ -38,7 +45,7 @@ if errorlevel 1 (
   echo     أو صرّف يدوياً: افتح packaging\rasad.iss في Inno Setup واضغط Compile.
   goto :err
 )
-ISCC packaging\rasad.iss || goto :err
+ISCC /DMyAppVersion=%APP_VERSION% packaging\rasad.iss || goto :err
 
 echo.
 echo ============================================================

@@ -37,9 +37,11 @@ def representatives(events: list[Event]) -> list[Event]:
 
 def serialize_story(group: list[Event]) -> dict:
     rep = max(group, key=_rank)
-    data = serialize_event(rep)
+    # تسلسل واحد لكل حدث: كل استدعاء يفكّ extra_data ويُنظّف العنوان والوصف
+    serialized = {e.id: serialize_event(e) for e in group}
+    data = serialized[rep.id]
     others = [e for e in sorted(group, key=lambda e: e.event_date or 0) if e.id != rep.id]
-    sources = {serialize_event(e)["source_name"] for e in group}
+    sources = {s["source_name"] for s in serialized.values()}
     dates = [e.event_date for e in group if e.event_date]
     data.update({
         "story_size": len(group),
@@ -48,8 +50,8 @@ def serialize_story(group: list[Event]) -> dict:
         "story_related": [
             {
                 "id": e.id,
-                "title": serialize_event(e)["title"],
-                "source_name": serialize_event(e)["source_name"],
+                "title": serialized[e.id]["title"],
+                "source_name": serialized[e.id]["source_name"],
                 "url": e.url,
                 "event_date": e.event_date.isoformat() if e.event_date else None,
             }

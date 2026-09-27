@@ -32,15 +32,12 @@ RSS_FEEDS = {
     # الخلاصات النووية المتخصصة انتقلت إلى `nuclear_watch.py` (جامع مستقل
     # بفاصل خاص ومعاملة "specialist" في درجة الخطر).
     # 📰 أخبار عربية
+    # (العربية english.alarabiya.net/feed/rss2/en.xml تردّ 403 لكل عميل غير
+    #  متصفح — جدار حماية ببصمة TLS — فلا تُدرج حتى يُفتح.)
     "arabic_news": [
         {
             "name": "الجزيرة - أخبار عاجلة",
             "url": "https://www.aljazeera.net/aljazeerarss/a7c186be-1baa-4bd4-9d80-a84db769f779/73d0e1b4-532f-45ef-b135-bfdff8b8cab9",
-            "category": "general",
-        },
-        {
-            "name": "العربية",
-            "url": "https://english.alarabiya.net/feed/rss2/en.xml",
             "category": "general",
         },
         {
@@ -51,11 +48,6 @@ RSS_FEEDS = {
         {
             "name": "Al Jazeera English",
             "url": "https://www.aljazeera.com/xml/rss/all.xml",
-            "category": "general",
-        },
-        {
-            "name": "BBC Middle East",
-            "url": "https://feeds.bbci.co.uk/news/world/middle_east/rss.xml",
             "category": "general",
         },
         {
@@ -74,31 +66,14 @@ RSS_FEEDS = {
             "category": "general",
         },
     ],
-    # 🌍 تحليلات دولية
+    # 🌍 تحليلات دولية — Breaking Defense وDefense One وAl-Monitor وThe War Zone
+    # وBBC Middle East في جامع إيران OSINT (`iran_osint.py`): يصنّفها بالثقة
+    # والنوع ويخزّن ما لا يُصنَّف خبر RSS عاديًا. تسجيلها هنا أيضًا يخزّن
+    # المقال مرتين بمعرّفين ويعدّه مرتين في مؤشر التصعيد.
     "analysis": [
-        {
-            "name": "Al-Monitor",
-            "url": "https://www.al-monitor.com/rss",
-            "category": "diplomatic",
-        },
-        {
-            "name": "Defense One",
-            "url": "https://www.defenseone.com/rss/all/",
-            "category": "military",
-        },
         {
             "name": "War on the Rocks",
             "url": "https://warontherocks.com/feed/",
-            "category": "military",
-        },
-        {
-            "name": "The Drive - War Zone",
-            "url": "https://www.thedrive.com/the-war-zone/rss",
-            "category": "military",
-        },
-        {
-            "name": "Breaking Defense",
-            "url": "https://breakingdefense.com/feed/",
             "category": "military",
         },
     ],
@@ -150,8 +125,8 @@ async def _process_feed(client: httpx.AsyncClient, feed_config: Dict) -> int:
     response = await client.get(feed_config["url"])
     if response.status_code != 200:
         # نرفع ولا نعيد 0: `process_feeds` يعدّ الاستثناءات ليقرّر هل سقطت كل
-        # الخلاصات. ابتلاع خطأ HTTP هنا كان يُبطل تلك الضمانة تمامًا — وخطأ
-        # HTTP هو أشيع أشكال العطل — فيبدو جامع ميت تمامًا "هادئًا".
+        # الخلاصات، وخطأ HTTP أشيع أشكال العطل؛ ابتلاعه يُبطل تلك الضمانة
+        # فيبدو جامع ميت تمامًا "هادئًا".
         raise RuntimeError(f"RSS {feed_config['name']}: HTTP {response.status_code}")
 
     feed = await parse_feed_async(response.text)
@@ -159,7 +134,7 @@ async def _process_feed(client: httpx.AsyncClient, feed_config: Dict) -> int:
     async with session_factory() as session:
         for entry in feed.entries[:_ENTRY_CAP]:
             try:
-                if await _store_entry(session, entry, feed_config):
+                if await store_rss_entry(session, entry, feed_config):
                     count += 1
             except Exception as e:
                 logger.error(f"خطأ في مقال RSS: {e}")
@@ -169,8 +144,12 @@ async def _process_feed(client: httpx.AsyncClient, feed_config: Dict) -> int:
     return count
 
 
-async def _store_entry(session, entry, feed_config: Dict) -> bool:
-    """يحوّل إدخال خلاصة إلى حدث ويُدرجه ذرّياً؛ يعيد True إن أُدرِج فعلاً."""
+async def store_rss_entry(session, entry, feed_config: Dict) -> bool:
+    """يحوّل إدخال خلاصة إلى حدث ويُدرجه ذرّياً؛ يعيد True إن أُدرِج فعلاً.
+
+    يستعمله جامع إيران OSINT أيضًا لتخزين مقالات خلاصاته الإقليمية التي لا
+    تُصنَّف حدثًا إيرانيًا — مسار تخزين واحد لكل خبر RSS.
+    """
     title, _ = clean_title(entry.get("title", ""))
     if not title:
         return False
@@ -196,8 +175,7 @@ async def _store_entry(session, entry, feed_config: Dict) -> bool:
     elif hasattr(entry, "enclosures") and entry.enclosures:
         image_url = entry.enclosures[0].get("href", "")
 
-    # الأيقونة كانت تُلصق في بداية العنوان المخزَّن ("☣️ …")، فتُفسد البحث
-    # والتجميع وتكرّر معلومة يعرضها التصنيف أصلًا. التصنيف يكفي.
+    # لا أيقونة في العنوان المخزَّن: تُفسد البحث والتجميع، والتصنيف يعرضها أصلًا.
     return await insert_event_if_new(
         session,
         source="rss",

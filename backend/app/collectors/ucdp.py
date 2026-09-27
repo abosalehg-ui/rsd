@@ -49,7 +49,7 @@ def _parse_ucdp_date(value) -> datetime | None:
     """تاريخ UCDP `YYYY-MM-DD[ HH:MM:SS]` → datetime واعٍ، أو None عند التعذّر.
 
     لا نقع على "الآن" عند الفشل (كما تفعل `parse_ymd` العامة): حدث بلا تاريخ
-    صالح كان يظهر كخبر عاجل هذه اللحظة.
+    صالح يظهر حينها كخبر عاجل هذه اللحظة.
     """
     if not value:
         return None

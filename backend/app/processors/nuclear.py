@@ -162,7 +162,7 @@ TOPICS: tuple[Topic, ...] = (
 
 # كلمات حركية: تُنسب لموضوع «تهديد عسكري» فقط حين يذكر النص منشأة أو موقعًا
 # نوويًا. «إيران لا تريد قنبلة نووية» أو «ترامب يستضيف شي… وسط تهديد نووي
-# إيراني» كانت تُصنَّف تهديدًا عسكريًا (75) لمجرد كلمة bomb أو threat.
+# إيراني» ليسا تهديدًا عسكريًا (75) لمجرد كلمة bomb أو threat.
 _KINETIC = KeywordSet((
     "strike", "strikes", "attack", "attacked", "attacks", "hits", "hit by", "airstrike*",
     "bombing", "bombed", "bombard*", "missile*", "drone*", "struck", "targeted", "destroy*",

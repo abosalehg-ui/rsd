@@ -22,7 +22,7 @@
 | الأداة | الإصدار | الرابط |
 |--------|---------|--------|
 | Python | 3.10+ | <https://www.python.org/downloads/> (فعّل "Add to PATH") |
-| Node.js | 18+ | <https://nodejs.org/> |
+| Node.js | 22 LTS (20 انتهى دعمه في 2026-04) | <https://nodejs.org/> |
 | Inno Setup | 6.x | <https://jrsoftware.org/isdl.php> |
 
 > بعد تثبيت Inno Setup، أضِف مجلّده إلى `PATH` (عادةً `C:\Program Files (x86)\Inno Setup 6`) ليعمل أمر `ISCC`. أو يمكنك فتح ملف `.iss` يدوياً في الواجهة والضغط Compile.

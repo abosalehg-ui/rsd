@@ -7,7 +7,11 @@
 ; أو يدوياً (راجع packaging\README.md)، ثم صرّف هذا الملف بـ Inno Setup 6.
 
 #define MyAppName "رصد Rasad"
-#define MyAppVersion "1.5.0"
+; الإصدار يُمرَّر من build_installer.bat (يقرأه من backend/app/__init__.py)
+; عبر /DMyAppVersion=… كي لا ينحرف عن إصدار التطبيق. الافتراضي للتصريف اليدوي.
+#ifndef MyAppVersion
+#define MyAppVersion "2.0.0"
+#endif
 #define MyAppPublisher "عبدالكريم العبود"
 #define MyAppURL "https://github.com/abosalehg-ui/rsd"
 #define MyAppExeName "rasad.exe"
