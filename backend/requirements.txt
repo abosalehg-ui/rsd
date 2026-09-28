@@ -10,7 +10,7 @@ uvicorn[standard]==0.51.0
 sqlalchemy==2.0.51
 aiosqlite==0.20.0
 httpx==0.28.1
-apscheduler==3.10.4
+apscheduler==3.11.3
 feedparser==6.0.14
 pydantic==2.13.4
 # يجلب python-dotenv كتبعية — لا نثبّته صراحةً
