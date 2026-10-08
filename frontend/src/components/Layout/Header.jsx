@@ -6,6 +6,9 @@
  *   ← الأفعال (التقرير، التحديث، التنبيهات، قائمة إعدادات تجمع اللغة والعرض).
  * حالة الاتصال ووقت آخر تحديث نقطة وسطر واحد بدل شارتين، وتحتها وقت آخر
  * تحليل مكتمل في الخادم وعدّاد تنازلي لدورة الجمع التالية (`/api/schedule`).
+ *
+ * تحت الصف الرئيسي شريط الطاقة والأسواق المضغوط (`Markets/MarketTicker`):
+ * قيم FRED اليومية بتاريخ بياناتها، أو تلميح تفعيل المفتاح.
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -14,6 +17,7 @@ import {
   ArrowUpRight, ArrowDownRight, Minus, Timer,
 } from 'lucide-react';
 import { SEVERITIES, escalationColor, riskLevel } from '../../utils/constants';
+import MarketTicker from '../Markets/MarketTicker';
 
 /** ثوانٍ → «m:ss» أو «h:mm:ss» (أرقام لاتينية في اللغتين كبقية العدّادات). */
 export function formatCountdown(totalSeconds) {
@@ -104,6 +108,7 @@ export default function Header({
   stats, risk, isConnected, onRefresh, refreshing, alertsEnabled = true, lastAlertEvent = null,
   recentAlertCount = 0, onOpenAlerts, viewMode = '2d', onToggleView, lastFetchedAt = null,
   onOpenReport, onOpenNuclear, schedule = null, scheduleFetchedAt = null,
+  markets = null, onOpenMarkets,
 }) {
   const { t, i18n } = useTranslation();
   const isAr = i18n.language === 'ar';
@@ -260,6 +265,7 @@ export default function Header({
           <SettingsMenu viewMode={viewMode} onToggleView={onToggleView} onOpenReport={onOpenReport} />
         </div>
       </div>
+      <MarketTicker markets={markets} onOpen={onOpenMarkets} className="mt-0.5 max-w-full" />
     </header>
   );
 }

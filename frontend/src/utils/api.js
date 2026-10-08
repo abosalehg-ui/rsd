@@ -105,6 +105,12 @@ export const getNuclearBrief = (hours = 24) => fetchAPI('/nuclear/brief', { hour
 // عدسة الأثر على المملكة
 export const getKsaImpact = (hours = 48) => fetchAPI('/impact/ksa', { hours });
 
+// الطاقة والأسواق (FRED، يومية) — تُقرأ من قاعدة الخادم فتعمل دون اتصال
+export const getMarketsLatest = () => fetchAPI('/markets/latest');
+export const getMarketSeries = (codes, days = 90) =>
+  fetchAPI('/markets/series', { codes: codes?.length ? codes.join(',') : undefined, days });
+export const getMarketsCorrelation = (days = 30) => fetchAPI('/markets/correlation', { days });
+
 // جدول المزامنة: وقت آخر تحليل وموعد التحديث القادم
 export const getSchedule = () => fetchAPI('/schedule');
 
