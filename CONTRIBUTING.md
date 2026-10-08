@@ -69,18 +69,18 @@ npm run build                  # تأكيد نجاح البناء
 
 ```
 backend/app/
-  ├── api/          نقاط FastAPI (system, events, flights, iran, nuclear, impact, markets, infrastructure) + _stories/_serializers
+  ├── api/          نقاط FastAPI (system, events, chains, flights, iran, nuclear, impact, markets, infrastructure) + _stories/_serializers
   ├── collectors/   جامعو المصادر (gdelt, news_api, rss_feeds, ucdp, adsb, iran_osint, nuclear_watch, markets) + _feed_base
-  ├── processors/   منطق نقي (matching, normalize, gazetteer, nuclear, impact, text_analysis, clustering, dates)
+  ├── processors/   منطق نقي (matching, normalize, gazetteer, nuclear, impact, text_analysis, clustering, causal, dates)
   ├── models/       نماذج SQLAlchemy + ترقية الأعمدة + الاحتفاظ بالبيانات
   ├── middleware/   cache (ETag) · ratelimit · security_headers
   ├── data/         بيانات ثابتة JSON (منشآت، قواعد، أنابيب، قادة)
   ├── auth.py       حارس CSRF + مفتاح API
   ├── config.py     الإعدادات (pydantic-settings)
-  └── scheduler.py  جدولة الجمع + التجميع + التنظيف
+  └── scheduler.py  جدولة الجمع + التجميع وربط السلاسل + التنظيف
 frontend/src/
-  ├── components/   مكوّنات الواجهة (Map, Nuclear, Impact, Markets, Events, Report, Stats, Iran, Layout, …)
+  ├── components/   مكوّنات الواجهة (Map, Nuclear, Impact, Markets, Chains, Events, Report, Stats, Iran, Layout, …)
   ├── hooks/        usePolling, useAudioAlert
-  ├── utils/        api, constants (THEME = مصدر الألوان الواحد), security, icons, report, replay, deepLink, markets
+  ├── utils/        api, constants (THEME = مصدر الألوان الواحد), security, icons, report, replay, deepLink, markets, chains
   └── i18n/         الترجمة (ar/en) — أي نص معروض يمرّ عبر t()
 ```

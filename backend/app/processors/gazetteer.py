@@ -447,6 +447,51 @@ def country_code_from_text(text: str) -> str:
     return _locate_one(text).country_code
 
 
+@dataclass(frozen=True)
+class Mentions:
+    countries: frozenset[str]
+    places: frozenset[str]        # مفاتيح PLACES من نوع city
+    waterways: frozenset[str]     # مفاتيح PLACES من نوع region (مضائق وبحار)
+    facilities: frozenset[str]
+
+
+def mentions(text: str) -> Mentions:
+    """**كل** الدول والمدن والمسطّحات والمنشآت المذكورة في النص — لا الأدق وحده
+    كما في `locate`. يستعمله ربط السبب بالأثر للبحث عن كيان مشترك بين قصتين.
+
+    المدينة والمنشأة تضيفان دولتهما: «قصف في طهران» يخصّ إيران وإن لم تُذكر
+    باسمها. أسماء القادة لا تُحسب هنا (لها معجمها في `processors/causal`)."""
+    norm = normalize_for_match(text)
+    if not norm:
+        return Mentions(frozenset(), frozenset(), frozenset(), frozenset())
+    norm, _ = strip_phrases(norm, _GEO_EXCLUDE)
+    countries_ks, places_ks, _, _ = _matchers()
+    countries = {c.code for c, ks in countries_ks if ks.matches(norm)}
+    places: set[str] = set()
+    waterways: set[str] = set()
+    for place, ks in places_ks:
+        if ks.matches(norm):
+            (waterways if place.kind == "region" else places).add(place.key)
+            if place.country_code:
+                countries.add(place.country_code)
+    facilities = set(find_facilities(norm))
+    coords = _facility_coords()
+    for fid in facilities:
+        code = coords.get(fid, {}).get("country_code")
+        if code:
+            countries.add(code)
+    return Mentions(frozenset(countries), frozenset(places), frozenset(waterways), frozenset(facilities))
+
+
+def facility_names(fid: str) -> tuple[str, str]:
+    """(الاسم العربي، الإنجليزي) لمنشأة نووية، أو المعرّف نفسه إن لم تُعرف."""
+    fac = _facility_coords().get(fid) or {}
+    return fac.get("name_ar") or fid, fac.get("name_en") or fid
+
+
+PLACE_BY_KEY: dict[str, Place] = {p.key: p for p in PLACES}
+
+
 # ===== المسافة إلى المملكة =====
 # نقاط مرجعية على امتداد المملكة (مدن حدودية وساحلية ومراكز سكانية). المسافة
 # إلى أقربها تقريب معقول لـ«المسافة إلى أراضي المملكة» دون مضلّع حدود كامل.

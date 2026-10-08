@@ -14,7 +14,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Radiation, RefreshCw, Bell, BellOff, Settings, Globe2, Box, Map as MapIcon, FileText, Radio,
-  ArrowUpRight, ArrowDownRight, Minus, Timer,
+  ArrowUpRight, ArrowDownRight, Minus, Timer, Workflow,
 } from 'lucide-react';
 import { SEVERITIES, escalationColor, riskLevel } from '../../utils/constants';
 import MarketTicker from '../Markets/MarketTicker';
@@ -107,7 +107,7 @@ function SettingsMenu({ viewMode, onToggleView, onOpenReport }) {
 export default function Header({
   stats, risk, isConnected, onRefresh, refreshing, alertsEnabled = true, lastAlertEvent = null,
   recentAlertCount = 0, onOpenAlerts, viewMode = '2d', onToggleView, lastFetchedAt = null,
-  onOpenReport, onOpenNuclear, schedule = null, scheduleFetchedAt = null,
+  onOpenReport, onOpenNuclear, onOpenChains, schedule = null, scheduleFetchedAt = null,
   markets = null, onOpenMarkets,
 }) {
   const { t, i18n } = useTranslation();
@@ -236,6 +236,16 @@ export default function Header({
             >
               <FileText className="w-4 h-4" aria-hidden="true" />
               {t('app.report')}
+            </button>
+          )}
+          {onOpenChains && (
+            <button
+              onClick={onOpenChains}
+              className={`${ICON_BTN} text-slate-300 hover:text-cyan-200 hover:bg-rasad-border`}
+              title={t('chains.open')}
+              aria-label={t('chains.open')}
+            >
+              <Workflow className="w-4 h-4" aria-hidden="true" />
             </button>
           )}
           <button

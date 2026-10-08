@@ -8,18 +8,10 @@
 from __future__ import annotations
 
 from ..models.database import Event
+from ..processors.clustering import story_rank as _rank
 from ._serializers import serialize_event
 
-_SEVERITY_RANK = {"critical": 4, "high": 3, "medium": 2, "low": 1}
 MAX_RELATED = 8
-
-
-def _rank(ev: Event) -> tuple:
-    return (
-        ev.risk_score if ev.risk_score is not None else -1,
-        _SEVERITY_RANK.get(ev.severity or "", 0),
-        ev.event_date.timestamp() if ev.event_date else 0,
-    )
 
 
 def group_stories(events: list[Event]) -> list[list[Event]]:

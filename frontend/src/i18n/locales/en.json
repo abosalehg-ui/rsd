@@ -410,7 +410,30 @@
     },
     "summaryLine": "Index {{index}} ({{level}}), {{trend}}. {{stories}} stories from {{events}} reports, {{near}} of them near the Kingdom.",
     "none": "Nothing in this period.",
-    "method": "Each report scores 0–100 = topic base + severity signals − dampeners (exercise, analysis, official reassurance, statement) ± proximity to the Kingdom, multiplied by a source trust factor. Index = 60% of the highest score + 40% of the mean of the top five stories. Weights are an initial operational estimate open to calibration; classification is automatic from open sources and needs human verification before any decision."
+    "method": "Each report scores 0–100 = topic base + severity signals − dampeners (exercise, analysis, official reassurance, statement) ± proximity to the Kingdom, multiplied by a source trust factor. Index = 60% of the highest score + 40% of the mean of the top five stories. Weights are an initial operational estimate open to calibration; classification is automatic from open sources and needs human verification before any decision.",
+    "narrative": {
+      "title": "Overview",
+      "quote": "“{{title}}”",
+      "sep": ", ",
+      "nuclear": "The nuclear & radiological risk index is {{index}} ({{level}}), {{trend}} (was {{prev}}).",
+      "ksa": "The Kingdom impact index is {{index}} ({{level}}), {{trend}} (was {{prev}}).",
+      "top": "Top nuclear & radiological stories: {{items}}.",
+      "topNone": "No notable nuclear or radiological stories in the period.",
+      "ksaTop": "Highest impact on the Kingdom: {{items}}.",
+      "rising": "Rising sectors: {{items}}.",
+      "risingNone": "No sector's impact rose clearly on the previous period.",
+      "sector": "{{name}} (+{{delta}})",
+      "chains": "Notable chains: {{items}}.",
+      "chainsNone": "No chains above the confidence threshold in the period.",
+      "chainConfidence": "({{value}} confidence)",
+      "chainSep": "; ",
+      "notes": "Event references",
+      "openEvent": "Open event E{{id}}",
+      "template": "Automatic summary built from text templates over the period's data — no AI wording. E+number is the event's Rasad ID.",
+      "trendUp": "up {{value}} on the previous period",
+      "trendDown": "down {{value}} on the previous period",
+      "trendFlat": "little changed on the previous period"
+    }
   },
   "impact": {
     "title": "Kingdom impact index",
@@ -570,5 +593,58 @@
       "brentAsOf": "Latest Brent date: {{date}}.",
       "loadFailed": "Couldn't load the synchronization chart."
     }
+  },
+  "chains": {
+    "title": "Impact chains",
+    "open": "Impact chains",
+    "drawerTitle": "Linked events",
+    "causes": "Possible causes",
+    "effects": "Possible effects",
+    "none": "No cause-and-effect links detected for this event's story.",
+    "loading": "Loading links…",
+    "loadFailed": "Couldn't load linked events: the Rasad server isn't responding.",
+    "empty": "No chains above the confidence threshold in this period.",
+    "note": "Rule-based links from explicit templates: a hypothesis to verify, not proof of causation.",
+    "confidenceTitle": "Link confidence",
+    "levels": {
+      "high": "High confidence",
+      "medium": "Medium confidence",
+      "low": "Low confidence"
+    },
+    "rule": "Rule",
+    "rules": {
+      "gulf_attack_energy_shipping": "Gulf/Yemen attack → energy or shipping",
+      "nuclear_diplomacy": "Nuclear development → diplomacy or sanctions",
+      "strike_retaliation": "Strike → retaliation",
+      "strike_launch": "Strike → missile launch",
+      "ksa_asset_aviation_markets": "Attack on a Saudi asset → aviation or markets"
+    },
+    "shared": "Shared entities",
+    "kinds": {
+      "country": "country",
+      "place": "city",
+      "waterway": "waterway",
+      "facility": "facility",
+      "leader": "leader",
+      "asset": "Saudi asset"
+    },
+    "sep": ", ",
+    "gap": "{{hours}} h later",
+    "formulaLabel": "Formula",
+    "formulaHelp": "Confidence = template weight × shared-entity factor × time factor × source trust (weaker end)",
+    "openEvent": "Open event: {{title}}",
+    "chainLength": "Links: {{count}}",
+    "chainConfidence": "Chain confidence (weakest link)",
+    "arrowDown": "↓",
+    "arrow": "→",
+    "hideLow": "Hide low-confidence links (below {{value}})",
+    "period": "Period",
+    "periods": {
+      "24": "Last 24 hours",
+      "72": "Last 3 days",
+      "168": "Last week"
+    },
+    "close": "Close chains",
+    "method": "Each link comes from an explicit relation template, not AI: the effect follows the cause by 1 to 72 hours, both headlines share an entity (country, city, facility, waterway, leader or Saudi asset), and confidence = template weight × entity × time × source trust; nothing below 40% is stored. A chain is as strong as its weakest link. A link is a hypothesis that needs human verification before any decision."
   }
 }

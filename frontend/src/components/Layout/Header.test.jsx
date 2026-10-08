@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, fireEvent } from '@testing-library/react';
 import i18n from '../../i18n';
 import Header, { formatCountdown, nextSyncAt } from './Header';
 
@@ -46,5 +46,21 @@ describe('<Header> schedule', () => {
     render(<Header isConnected schedule={{ last_analysis: null, next_sync_in_seconds: null }} />);
     expect(screen.queryByText(/Next sync/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Last analysis/)).not.toBeInTheDocument();
+  });
+});
+
+describe('<Header> chains button', () => {
+  beforeEach(async () => { await i18n.changeLanguage('en'); });
+
+  it('opens the impact chains window', () => {
+    const onOpenChains = vi.fn();
+    render(<Header isConnected onOpenChains={onOpenChains} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Impact chains' }));
+    expect(onOpenChains).toHaveBeenCalled();
+  });
+
+  it('hides the button without a handler', () => {
+    render(<Header isConnected />);
+    expect(screen.queryByRole('button', { name: 'Impact chains' })).not.toBeInTheDocument();
   });
 });

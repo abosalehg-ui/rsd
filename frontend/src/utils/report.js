@@ -1,12 +1,19 @@
 /**
- * رصد - تصدير تقرير الرصد النووي والإشعاعي (Markdown و HTML مستقل).
+ * رصد - تصدير تقرير الرصد النووي والإشعاعي (Markdown و HTML مستقل)، والموجز
+ * السردي في رأسه.
  *
  * دوال نقيّة تأخذ بيانات `/api/nuclear/brief` ودالة الترجمة وتعيد نصًّا،
  * فتُختبر وحدها. HTML المصدَّر ملف واحد بلا سكربتات ولا موارد خارجية — يُفتح
  * دون اتصال ويُرفق في بريد كما هو. كل قيمة من المصادر تمرّ عبر esc().
+ *
+ * الموجز السردي **قوالب نصية** (`report.narrative.*`) تُملأ ببيانات الفترة، لا
+ * صياغة مولَّدة. يُبنى جملًا من «مقاطع»: نص، أو استشهاد بحدث (`E<id>`). العرض
+ * في التطبيق يجعل الاستشهاد رابطًا يفتح الحدث، والتصدير يكتبه نصًّا ويسرد
+ * روابط المصادر في قائمة مراجع — فتبقى صياغة واحدة للمكانين.
  */
 import { esc, safeUrl } from './security';
 import { ksaPlace, riskLevel } from './constants';
+import { pct } from './chains';
 
 const LEVEL_COLORS = { low: '#2f8a5f', medium: '#a8860f', high: '#c2610f', critical: '#c4262b' };
 
@@ -26,6 +33,149 @@ export function summaryLine(brief, t) {
     events: brief.totals?.events ?? 0,
     near: r.near_ksa_stories ?? 0,
   });
+}
+
+// ===== الموجز السردي =====
+
+const TITLE_MAX = 90;
+const CHAIN_TITLE_MAX = 60;
+const MARK = '\u0000';
+
+export function shortTitle(title, max = TITLE_MAX) {
+  const s = String(title || '').trim();
+  return s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s;
+}
+
+const fmt1 = (v) => (Number(v) || 0).toFixed(1);
+const text = (value) => ({ type: 'text', text: value });
+
+/** يملأ قالب ترجمة؛ المعامل المصفوفة يُدرج مقاطع (استشهادات) مكانه. */
+function fill(t, key, params = {}) {
+  const segs = {};
+  const plain = {};
+  Object.entries(params).forEach(([k, v]) => {
+    if (Array.isArray(v)) {
+      segs[k] = v;
+      plain[k] = `${MARK}${k}${MARK}`;
+    } else plain[k] = v;
+  });
+  const out = [];
+  t(key, plain).split(new RegExp(`${MARK}(\\w+)${MARK}`)).forEach((part, i) => {
+    if (i % 2) out.push(...(segs[part] || []));
+    else if (part) out.push(text(part));
+  });
+  return out;
+}
+
+function joinSegs(groups, sep) {
+  return groups.flatMap((g, i) => (i ? [text(sep), ...g] : g));
+}
+
+// العنوان مقطع مستقل («title») كي يُعزل اتجاهه: عنوان إنجليزي داخل فقرة عربية
+// يتبعثر بلا عزل (<bdi> في التطبيق وHTML)
+function storyItem(t, s, max = TITLE_MAX) {
+  return [
+    ...fill(t, 'report.narrative.quote', { title: [{ type: 'title', text: shortTitle(s.title, max) }] }),
+    text(' ('),
+    { type: 'cite', id: s.id, url: s.url, title: s.title },
+    text(')'),
+  ];
+}
+
+function narrativeTrend(delta, t, trend) {
+  const d = Number(delta) || 0;
+  const dir = trend || (Math.abs(d) < 0.5 ? 'flat' : d > 0 ? 'up' : 'down');
+  if (dir === 'flat') return t('report.narrative.trendFlat');
+  return t(dir === 'up' ? 'report.narrative.trendUp' : 'report.narrative.trendDown', { value: fmt1(Math.abs(d)) });
+}
+
+function chainItem(t, chain) {
+  const nodes = chain.nodes.map(n => storyItem(t, n, CHAIN_TITLE_MAX));
+  return [
+    ...joinSegs(nodes, ` ${t('chains.arrow')} `),
+    text(` ${t('report.narrative.chainConfidence', { value: pct(chain.confidence) })}`),
+  ];
+}
+
+/**
+ * جمل الموجز: المؤشران وتغيّرهما عن الفترة السابقة، وأبرز القصص، والأعلى أثرًا
+ * على المملكة، والقطاعات الصاعدة، وأبرز سلاسل الترابط. كل جملة مصفوفة مقاطع.
+ */
+export function buildNarrative(brief, t) {
+  if (!brief) return [];
+  const N = (key, params) => fill(t, `report.narrative.${key}`, params);
+  const sep = t('report.narrative.sep');
+  const out = [];
+
+  const r = brief.risk || {};
+  out.push(N('nuclear', {
+    index: fmt1(r.index), level: t(`risk.levels.${r.level || 'low'}`),
+    trend: narrativeTrend(r.delta, t), prev: fmt1(r.prev_index),
+  }));
+
+  const k = brief.ksa_impact;
+  if (k) {
+    out.push(N('ksa', {
+      index: fmt1(k.index), level: t(`risk.levels.${k.level || 'low'}`),
+      trend: narrativeTrend(k.delta, t, k.trend), prev: fmt1(k.prev_index),
+    }));
+  }
+
+  const top = (brief.top_stories || []).slice(0, 3);
+  out.push(top.length
+    ? N('top', { items: joinSegs(top.map(s => storyItem(t, s)), sep) })
+    : N('topNone'));
+
+  const seen = new Set(top.map(s => s.id));
+  const ksaTop = (k?.top_events || []).filter(e => !seen.has(e.id)).slice(0, 2);
+  if (ksaTop.length) out.push(N('ksaTop', { items: joinSegs(ksaTop.map(e => storyItem(t, e)), sep) }));
+
+  if (k) {
+    const rising = (k.sectors || [])
+      .filter(s => s.trend === 'up' && s.delta > 0)
+      .sort((a, b) => b.delta - a.delta)
+      .slice(0, 3);
+    out.push(rising.length
+      ? N('rising', {
+        items: rising.map(s => t('report.narrative.sector', { name: t(`impact.sectors.${s.key}`), delta: fmt1(s.delta) })).join(sep),
+      })
+      : N('risingNone'));
+  }
+
+  if (Array.isArray(brief.chains)) {
+    const chains = brief.chains.slice(0, 2);
+    out.push(chains.length
+      ? N('chains', { items: joinSegs(chains.map(c => chainItem(t, c)), t('report.narrative.chainSep')) })
+      : N('chainsNone'));
+  }
+  return out;
+}
+
+/** الموجز نصًّا عاديًا: الاستشهاد يُكتب `E<id>`. */
+export function narrativeText(sentences) {
+  return sentences
+    .map(segs => segs.map(s => (s.type === 'cite' ? `E${s.id}` : s.text)).join(''))
+    .join(' ');
+}
+
+/** الموجز HTML مُهرَّبًا: العناوين معزولة الاتجاه، والاستشهاد نص `E<id>`. */
+export function narrativeHtml(sentences) {
+  return sentences
+    .map(segs => segs.map(s => {
+      if (s.type === 'cite') return `E${esc(s.id)}`;
+      if (s.type === 'title') return `<bdi>${esc(s.text)}</bdi>`;
+      return esc(s.text);
+    }).join(''))
+    .join(' ');
+}
+
+/** الأحداث المستشهَد بها بترتيب أول ظهور، مع روابطها الآمنة فقط. */
+export function narrativeNotes(sentences) {
+  const notes = new Map();
+  sentences.flat().forEach(s => {
+    if (s.type === 'cite' && !notes.has(s.id)) notes.set(s.id, { id: s.id, title: s.title, url: safeUrl(s.url) });
+  });
+  return [...notes.values()];
 }
 
 const SECTIONS = ['top', 'nearKsa', 'incidents', 'political'];
@@ -49,16 +199,31 @@ export function formatDate(iso, lang) {
 }
 
 export function toMarkdown(brief, t, lang = 'ar') {
+  const narrative = buildNarrative(brief, t);
+  const notes = narrativeNotes(narrative);
   const lines = [
     `# ${t('report.title')}`,
     '',
     `${t(`report.periods.${brief.period_hours}`, { defaultValue: `${brief.period_hours}h` })} — ${t('report.generated', { date: formatDate(brief.generated_at, lang) })}`,
     '',
+    `## ${t('report.narrative.title')}`,
+    '',
+    narrativeText(narrative),
+    '',
+    `_${t('report.narrative.template')}_`,
+    '',
+  ];
+  if (notes.length) {
+    lines.push(`### ${t('report.narrative.notes')}`, '');
+    notes.forEach((n, i) => lines.push(`${i + 1}. **E${n.id}** — ${n.title}${n.url ? ` — <${n.url}>` : ''}`));
+    lines.push('');
+  }
+  lines.push(
     `## ${t('report.sections.summary')}`,
     '',
     summaryLine(brief, t),
     '',
-  ];
+  );
 
   SECTIONS.forEach(key => {
     const items = brief[SECTION_KEYS[key]] || [];
@@ -107,6 +272,9 @@ export function toHtml(brief, t, lang = 'ar') {
       <td>${esc(t('facilities.stories', { count: f.stories }))}</td><td>${esc(Math.round(f.max_risk))}</td>
       <td>${f.distance_to_ksa_km != null ? esc(t('facilities.distance', { km: Math.round(f.distance_to_ksa_km), place: ksaPlace(f, lang) })) : ''}</td></tr>`).join('');
   const sources = Object.entries(brief.sources || {}).map(([n, c]) => `<li>${esc(n)}: ${esc(c)}</li>`).join('');
+  const narrative = buildNarrative(brief, t);
+  const notes = narrativeNotes(narrative).map(n => `<li><b>E${esc(n.id)}</b> — ${esc(n.title)}${
+    n.url ? ` — <a href="${esc(n.url)}">${esc(n.url)}</a>` : ''}</li>`).join('');
 
   return `<!doctype html>
 <html lang="${lang}" dir="${dir}"><head><meta charset="utf-8">
@@ -120,9 +288,14 @@ export function toHtml(brief, t, lang = 'ar') {
   .score{font-family:"IBM Plex Mono",monospace;font-weight:700;min-width:28px}.t{font-weight:600}.m{color:#5b6670;font-size:12px}
   a{color:#0b5e8a;text-decoration:none}table{border-collapse:collapse;width:100%;font-size:13px}
   td{padding:6px 4px;border-bottom:1px solid #eef0f2}.none{color:#8a949c;font-style:italic}.method{font-size:12px;color:#5b6670}
+  .narrative p{margin:6px 0}.notes{list-style:decimal;padding-inline-start:20px;font-size:12px;color:#5b6670}
+  .notes li{display:list-item;border:0;padding:2px 0}
 </style></head><body>
 <h1>${esc(t('report.title'))}</h1>
 <div class="meta">${esc(t(`report.periods.${brief.period_hours}`, { defaultValue: `${brief.period_hours}h` }))} — ${esc(t('report.generated', { date: formatDate(brief.generated_at, lang) }))}</div>
+<section class="narrative"><h2>${esc(t('report.narrative.title'))}</h2><p>${narrativeHtml(narrative)}</p>
+<p class="method">${esc(t('report.narrative.template'))}</p>
+${notes ? `<h3 class="method">${esc(t('report.narrative.notes'))}</h3><ol class="notes">${notes}</ol>` : ''}</section>
 <div class="index"><b>${esc((r.index ?? 0).toFixed(1))}</b><span>${esc(t(`risk.levels.${r.level || 'low'}`))}</span></div>
 <p>${esc(summaryLine(brief, t))}</p>
 ${sections}

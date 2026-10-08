@@ -18,6 +18,7 @@ import MarketsPanel from './components/Markets/MarketsPanel';
 import ReplayBar from './components/Map/ReplayBar';
 import EventDrawer from './components/Events/EventDrawer';
 import ReportView from './components/Report/ReportView';
+import ChainsModal from './components/Chains/ChainsModal';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { usePolling, useFilters } from './hooks/usePolling';
 import { useAudioAlert } from './hooks/useAudioAlert';
@@ -65,6 +66,7 @@ export default function App() {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [detailEvent, setDetailEvent] = useState(null);
   const [reportOpen, setReportOpen] = useState(false);
+  const [chainsOpen, setChainsOpen] = useState(false);
   const [nuclearHours, setNuclearHours] = useState(24);
   const [activeTab, setActiveTab] = useState('nuclear');
   const [panelOpen, setPanelOpen] = useState(true);
@@ -244,6 +246,23 @@ export default function App() {
 
   const closeDetail = useCallback(() => setDetailEvent(null), []);
 
+  // فتح حدث بمعرّفه (سلاسل الترابط، استشهادات الموجز): يُجلب بقصته ثم يُفتح
+  const openEventById = useCallback((id) => {
+    getEvent(id)
+      .then(ev => {
+        if (!ev) return;
+        handleSelectEvent(ev);
+        setPanelOpen(true);
+      })
+      .catch(() => setToast({ kind: 'error', text: i18n.t('events.notFound') }));
+  }, [handleSelectEvent, i18n]);
+
+  const openEventFromModal = useCallback((id) => {
+    setReportOpen(false);
+    setChainsOpen(false);
+    openEventById(id);
+  }, [openEventById]);
+
   // رابط مشاركة: فتح الحدث المطلوب في لوحة التفاصيل عند التحميل
   useEffect(() => {
     if (linkedEventId == null) return undefined;
@@ -410,6 +429,7 @@ export default function App() {
           event={detailEvent}
           onClose={closeDetail}
           onShowOnMap={handleShowOnMap}
+          onOpenEvent={openEventById}
           facilities={nuclearFacilities}
         />
       </div>
@@ -424,6 +444,7 @@ export default function App() {
         stats={stats}
         risk={nuclearRisk}
         onOpenReport={() => setReportOpen(true)}
+        onOpenChains={() => setChainsOpen(true)}
         onOpenNuclear={() => { setActiveTab('nuclear'); setDetailEvent(null); setMobileView('panel'); setPanelOpen(true); }}
         isConnected={!statsError}
         onRefresh={handleRefresh}
@@ -556,7 +577,9 @@ export default function App() {
 
       <LiveTVDrawer />
 
-      <ReportView open={reportOpen} onClose={() => setReportOpen(false)} />
+      <ReportView open={reportOpen} onClose={() => setReportOpen(false)} onOpenEvent={openEventFromModal} />
+
+      <ChainsModal open={chainsOpen} onClose={() => setChainsOpen(false)} onOpenEvent={openEventFromModal} />
 
       <AlertSettings
         isOpen={alertsOpen}
