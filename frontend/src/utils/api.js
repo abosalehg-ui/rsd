@@ -84,6 +84,12 @@ export const getStats = (hours = 24) => fetchAPI('/events/stats', { hours });
 // حدث واحد بقصته — لرابط المشاركة `?event=ID`
 export const getEvent = (id) => fetchAPI(`/events/${encodeURIComponent(id)}`);
 
+// سلاسل السبب والأثر (روابط قاعدية بين القصص)
+export const getEventChain = (id, minConfidence) =>
+  fetchAPI(`/events/${encodeURIComponent(id)}/chain`, { min_confidence: minConfidence });
+export const getChains = (hours = 72, minConfidence, limit = 10) =>
+  fetchAPI('/chains', { hours, min_confidence: minConfidence, limit });
+
 // Flights
 export const getLiveFlights = () => fetchAPI('/flights/live');
 

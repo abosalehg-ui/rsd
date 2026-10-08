@@ -10,7 +10,8 @@ import { X, Printer, FileCode, FileText } from 'lucide-react';
 import { usePolling } from '../../hooks/usePolling';
 import { getNuclearBrief } from '../../utils/api';
 import { SEVERITIES, ksaPlace, riskLevel } from '../../utils/constants';
-import { downloadText, formatDate, summaryLine, toHtml, toMarkdown } from '../../utils/report';
+import { buildNarrative, downloadText, formatDate, summaryLine, toHtml, toMarkdown } from '../../utils/report';
+import { eventLink } from '../../utils/deepLink';
 import { safeUrl } from '../../utils/security';
 
 const PERIODS = [24, 72, 168];
@@ -52,7 +53,48 @@ function StoryRows({ items }) {
   );
 }
 
-export default function ReportView({ open, onClose }) {
+/** الموجز السردي: كل استشهاد `E<id>` رابط يفتح الحدث في التطبيق (ورابط
+ * `?event=ID` حقيقي للنسخ أو الفتح في لسان جديد). */
+function Narrative({ brief, onOpenEvent }) {
+  const { t } = useTranslation();
+  const sentences = buildNarrative(brief, t);
+  if (!sentences.length) return null;
+  return (
+    <section className="mt-6" aria-labelledby="report-narrative-title">
+      <h2 id="report-narrative-title" className="text-sm font-semibold text-slate-100 border-b border-rasad-border pb-1.5">
+        {t('report.narrative.title')}
+      </h2>
+      <p className="mt-2 text-sm leading-7 text-slate-200">
+        {sentences.map((segs, i) => (
+          <React.Fragment key={i}>
+            {i > 0 && ' '}
+            {segs.map((s, j) => (s.type === 'cite' ? (
+              <a
+                key={j}
+                href={eventLink(s.id)}
+                onClick={(e) => {
+                  if (!onOpenEvent) return;
+                  e.preventDefault();
+                  onOpenEvent(s.id);
+                }}
+                title={s.title}
+                aria-label={t('report.narrative.openEvent', { id: s.id })}
+                className="font-mono text-cyan-300 hover:text-cyan-100 underline decoration-dotted underline-offset-2 focus-ring rounded"
+              >
+                E{s.id}
+              </a>
+            ) : s.type === 'title'
+              ? <bdi key={j}>{s.text}</bdi>
+              : <React.Fragment key={j}>{s.text}</React.Fragment>))}
+          </React.Fragment>
+        ))}
+      </p>
+      <p className="mt-1 text-2xs text-slate-500 print-muted">{t('report.narrative.template')}</p>
+    </section>
+  );
+}
+
+export default function ReportView({ open, onClose, onOpenEvent }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language === 'ar' ? 'ar' : 'en';
   const [hours, setHours] = useState(24);
@@ -63,14 +105,19 @@ export default function ReportView({ open, onClose }) {
     300000, [open, hours],
   );
 
+  // onClose في ref: المستدعي يمرّر دالة جديدة في كل رسم، وربط الأثر بها يعيد
+  // التركيز إلى ما قبل النافذة مع كل تحديث دوري للتطبيق
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
   useEffect(() => {
     if (!open) return undefined;
     const prev = document.activeElement;
     closeRef.current?.focus();
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    const onKey = (e) => { if (e.key === 'Escape') onCloseRef.current?.(); };
     document.addEventListener('keydown', onKey);
     return () => { document.removeEventListener('keydown', onKey); prev?.focus?.(); };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -127,6 +174,8 @@ export default function ReportView({ open, onClose }) {
             <p className="mt-8 text-sm text-slate-300" aria-busy={loading}>{t('report.loading')}</p>
           ) : (
             <>
+              <Narrative brief={brief} onOpenEvent={onOpenEvent} />
+
               <section className="mt-6">
                 <h2 className="sr-only">{t('report.sections.summary')}</h2>
                 <div className="flex items-baseline gap-3">

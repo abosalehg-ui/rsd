@@ -3,7 +3,8 @@
  *
  * لوحة تغطي العمود الجانبي: الوصف كاملًا، مصادر القصة كلها بروابطها، الموقع
  * ودقته والمسافة إلى المملكة، ومكوّنات درجة الخطر للأخبار النووية — كي يُفهم
- * لماذا صُنِّف الخبر كما صُنِّف، ومعادلة أثره على المملكة. Escape يغلقها ويعيد
+ * لماذا صُنِّف الخبر كما صُنِّف، ومعادلة أثره على المملكة، و«سلسلة الترابط»
+ * (أسبابه وآثاره المحتملة بقواعدها). Escape يغلقها ويعيد
  * التركيز لما قبلها. «نسخ الرابط» يعطي رابط `?event=ID` يفتح هذه اللوحة نفسها.
  */
 import React, { useEffect, useRef, useState } from 'react';
@@ -14,6 +15,7 @@ import { safeUrl } from '../../utils/security';
 import { copyText, eventLink } from '../../utils/deepLink';
 import { Icon } from '../../utils/icons';
 import ImpactBreakdown, { ImpactPill } from '../Impact/ImpactBreakdown';
+import ChainSection from '../Chains/ChainSection';
 import { RiskPill, placeLabel } from './EventCard';
 
 const COMPONENT_ORDER = ['base', 'intensity', 'dampening', 'reassurance', 'statement', 'specificity', 'proximity'];
@@ -90,7 +92,7 @@ function Row({ label, children }) {
   );
 }
 
-export default function EventDrawer({ event, onClose, onShowOnMap, facilities = [] }) {
+export default function EventDrawer({ event, onClose, onShowOnMap, onOpenEvent, facilities = [] }) {
   const { t, i18n } = useTranslation();
   const closeRef = useRef(null);
   const returnFocus = useRef(null);
@@ -188,6 +190,8 @@ export default function EventDrawer({ event, onClose, onShowOnMap, facilities = 
         <RiskBreakdown nuclear={nuclear} />
 
         <ImpactBreakdown event={event} />
+
+        <ChainSection eventId={event.id} onOpenEvent={onOpenEvent} />
 
         <section className="mt-5">
           <h3 className="text-xs font-semibold text-slate-300">
