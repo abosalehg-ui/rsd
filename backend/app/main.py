@@ -22,6 +22,7 @@ from .api.flights import router as flights_router
 from .api.impact import router as impact_router
 from .api.infrastructure import router as infrastructure_router
 from .api.iran import router as iran_router
+from .api.markets import router as markets_router
 from .api.nuclear import router as nuclear_router
 from .api.system import router as system_router
 from .api.system import run_all_collectors
@@ -38,6 +39,10 @@ logging.basicConfig(
     format="%(asctime)s | %(name)-20s | %(levelname)-7s | %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+# httpx يسجّل كل طلب برابطه الكامل على مستوى INFO، ومفاتيح بعض المزوّدين
+# (FRED، NewsAPI) معاملات في الرابط نفسه — فلا نسمح بسجلّه دون التحذيرات.
+for _noisy in ("httpx", "httpcore"):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
 logger = logging.getLogger("rasad")
 
 _LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost", ""}
@@ -157,6 +162,7 @@ def create_app(settings: Settings | None = None, *, with_lifespan: bool = True) 
     app.include_router(iran_router)
     app.include_router(nuclear_router)
     app.include_router(impact_router)
+    app.include_router(markets_router)
     app.include_router(infrastructure_router)
 
     # تخديم الواجهة المبنية (الوضع المُجمّع / سطح المكتب). يُركَّب أخيراً على "/"

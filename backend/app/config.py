@@ -58,6 +58,10 @@ class Settings(BaseSettings):
     ucdp_country_ids: str = "620,625,630,640,645,651,652,660,663,666,670,678"
     ucdp_max_pages: int = 5
 
+    # FRED (بنك الاحتياطي الفيدرالي في سانت لويس) — أسعار الطاقة وVIX اليومية.
+    # مفتاح مجاني اختياري؛ بلا مفتاح يُتخطّى الجامع وتعرض الواجهة تلميح التفعيل.
+    fred_api_key: str = ""
+
     # خلاصات Google Alerts — روابط خاصة بحساب المستخدم (تُعامَل كأسرار).
     # الصيغة: عناصر مفصولة بفواصل، كل عنصر "الاسم|التصنيف|الرابط".
     # مثال: "GA - Red Sea|military|https://www.google.com/alerts/feeds/…"
@@ -80,6 +84,8 @@ class Settings(BaseSettings):
     nuclear_interval: int = 1800
     # تجميع الأخبار المتشابهة في قصص — عملية محلية رخيصة
     clustering_interval: int = 180
+    # أسعار FRED يومية تُنشر بتأخّر يوم أو أكثر — جلب يومي يكفي
+    markets_interval: int = 86400
 
     @property
     def effective_adsb_interval(self) -> int:
@@ -113,6 +119,8 @@ class Settings(BaseSettings):
     # سياسة الاحتفاظ بالبيانات (أيام)
     retention_events_days: int = 30
     retention_flights_days: int = 7
+    # قيم الأسواق صف يومي لكل سلسلة (نحو ألف صف في السنة) — نافذة أطول
+    retention_markets_days: int = 400
 
     model_config = SettingsConfigDict(
         env_file=_env_files(),

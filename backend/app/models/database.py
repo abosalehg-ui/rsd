@@ -5,12 +5,14 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import (
     Boolean,
     Column,
+    Date,
     DateTime,
     Float,
     Index,
     Integer,
     String,
     Text,
+    UniqueConstraint,
     delete,
     event,
     text,
@@ -139,6 +141,28 @@ class IranianLeaderNews(Base):
         # تستخدمه وظيفة الاحتفاظ (prune_old_data) — بدونه مسح كامل للجدول
         Index("idx_leader_news_collected", "collected_at"),
     )
+
+
+class MarketQuote(Base):
+    """قيم يومية لسلاسل الطاقة والأسواق من FRED (انظر collectors/markets).
+
+    `observed_at` تاريخ الملاحظة كما ينشره FRED (يوم تداول، لا لحظة جلب)،
+    و`fetched_at` وقت آخر جلب لها. صف واحد لكل (رمز، تاريخ): FRED يراجع
+    القيم أحيانًا فيُحدَّث الصف بدل تكراره.
+    """
+    __tablename__ = "market_quotes"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    code = Column(String(20), nullable=False)               # رمز سلسلة FRED، مثل DCOILBRENTEU
+    observed_at = Column(Date, nullable=False)
+    value = Column(Float, nullable=False)
+    fetched_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        UniqueConstraint("code", "observed_at", name="uq_market_code_date"),
+        Index("idx_market_observed", "observed_at"),
+    )
+
 
 # إعداد محرك قاعدة البيانات
 _engine = None
@@ -404,11 +428,15 @@ async def run_story_clustering(hours: int = 72) -> int:
     return assigned
 
 
-async def prune_old_data(events_days: int = 30, flights_days: int = 7) -> dict:
+async def prune_old_data(
+    events_days: int = 30, flights_days: int = 7, markets_days: int = 400,
+) -> dict:
     """حذف البيانات الأقدم من عتبات الاحتفاظ — يمنع نمو قاعدة البيانات بلا حدود.
 
     - الأحداث وأخبار القادة: أقدم من events_days.
     - مسارات الطيران (تنمو الأسرع): أقدم من flights_days.
+    - قيم الأسواق: أقدم من markets_days بتاريخ الملاحظة (صف يومي لكل سلسلة،
+      فالنافذة أطول بكثير من الأحداث ليبقى مخطط التسعين يومًا ممتلئًا).
     يعيد عدد الصفوف المحذوفة لكل جدول.
     """
     if not _session_factory:
@@ -417,6 +445,7 @@ async def prune_old_data(events_days: int = 30, flights_days: int = 7) -> dict:
     now = datetime.now(timezone.utc)
     events_cutoff = now - timedelta(days=events_days)
     flights_cutoff = now - timedelta(days=flights_days)
+    markets_cutoff = (now - timedelta(days=markets_days)).date()
     removed: dict = {}
 
     async with _session_factory() as session:
@@ -427,11 +456,15 @@ async def prune_old_data(events_days: int = 30, flights_days: int = 7) -> dict:
         r3 = await session.execute(
             delete(IranianLeaderNews).where(IranianLeaderNews.collected_at < events_cutoff)
         )
+        r4 = await session.execute(
+            delete(MarketQuote).where(MarketQuote.observed_at < markets_cutoff)
+        )
         await session.commit()
         removed = {
             "events": r1.rowcount or 0,
             "flight_tracks": r2.rowcount or 0,
             "iranian_leader_news": r3.rowcount or 0,
+            "market_quotes": r4.rowcount or 0,
         }
 
     total = sum(removed.values())

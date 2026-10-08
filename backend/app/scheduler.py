@@ -8,6 +8,7 @@ from .collectors import (
     collect_flights,
     collect_gdelt_events,
     collect_iran_osint,
+    collect_markets,
     collect_news,
     collect_nuclear_watch,
     collect_rss_feeds,
@@ -106,6 +107,19 @@ def register_jobs(scheduler: AsyncIOScheduler, settings) -> None:
         max_instances=1,
     )
 
+    # أسعار الطاقة والأسواق (FRED) — يومية. ليست أحداثًا فلا تدخل جمع الإقلاع
+    # في lifespan؛ تشغيل فوري هنا كي لا يبقى الشريط فارغًا يومًا كاملًا بعد
+    # إضافة المفتاح. بلا مفتاح تعود الوظيفة فورًا بلا طلب.
+    scheduler.add_job(
+        collect_markets,
+        "interval",
+        seconds=settings.markets_interval,
+        id="markets_collector",
+        name="جامع الطاقة والأسواق (FRED)",
+        max_instances=1,
+        next_run_time=datetime.now(timezone.utc),
+    )
+
     # تجميع القصص: كل جامع يكتب مستقلًا، فالتجميع وظيفة دورية واحدة بعدهم
     scheduler.add_job(
         run_story_clustering,
@@ -122,6 +136,7 @@ def register_jobs(scheduler: AsyncIOScheduler, settings) -> None:
         await prune_old_data(
             events_days=s.retention_events_days,
             flights_days=s.retention_flights_days,
+            markets_days=s.retention_markets_days,
         )
 
     scheduler.add_job(
@@ -132,7 +147,6 @@ def register_jobs(scheduler: AsyncIOScheduler, settings) -> None:
         name="منظّف البيانات",
         max_instances=1,
     )
-
 
 
 def stop_scheduler():
