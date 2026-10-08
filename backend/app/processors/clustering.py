@@ -59,6 +59,20 @@ def title_tokens(title: str) -> frozenset[str]:
     return frozenset(tokens)
 
 
+SEVERITY_RANK = {"critical": 4, "high": 3, "medium": 2, "low": 1}
+
+
+def story_rank(ev) -> tuple:
+    """ترتيب «ممثّل القصة»: الأعلى خطرًا ثم الأشد ثم الأحدث. مشترك بين طيّ
+    القصص عند الإخراج (`api/_stories`) وربط السبب بالأثر (`processors/causal`)
+    كي يكون ممثّل القصة واحدًا أينما ظهر."""
+    return (
+        ev.risk_score if ev.risk_score is not None else -1,
+        SEVERITY_RANK.get(ev.severity or "", 0),
+        ev.event_date.timestamp() if ev.event_date else 0,
+    )
+
+
 def similar(a: frozenset[str], b: frozenset[str]) -> bool:
     if not a or not b:
         return False

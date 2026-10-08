@@ -15,6 +15,7 @@ from sqlalchemy import (
     UniqueConstraint,
     delete,
     event,
+    select,
     text,
 )
 from sqlalchemy.exc import IntegrityError
@@ -161,6 +162,34 @@ class MarketQuote(Base):
     __table_args__ = (
         UniqueConstraint("code", "observed_at", name="uq_market_code_date"),
         Index("idx_market_observed", "observed_at"),
+    )
+
+
+class EventLink(Base):
+    """رابط «سبب ← أثر» محتمل بين قصتين مختلفتين (انظر processors/causal).
+
+    `cause_id` و`effect_id` معرّفا القصتين (`cluster_id` = معرّف أول خبر فيها)،
+    لا الأخبار الخام. `method` = "rule" للمحرّك القاعدي (الوحيد حاليًا).
+    `evidence` (JSON) يحمل الكيانات المشتركة والفارق الزمني ومكوّنات الثقة
+    والعبارات المطابِقة — تعرضها الواجهة كي يُفهم لماذا رُبط الحدثان.
+    """
+    __tablename__ = "event_links"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    cause_id = Column(Integer, nullable=False)
+    effect_id = Column(Integer, nullable=False)
+    relation_ar = Column(Text, nullable=False)
+    relation_en = Column(Text, nullable=False)
+    confidence = Column(Float, nullable=False)              # 0-1
+    method = Column(String(10), nullable=False, default="rule")
+    rule_id = Column(String(60))
+    evidence = Column(Text)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        UniqueConstraint("cause_id", "effect_id", name="uq_event_link_pair"),
+        Index("idx_event_links_effect", "effect_id"),
+        Index("idx_event_links_confidence", "confidence"),
     )
 
 
@@ -337,8 +366,6 @@ async def backfill_analysis(batch: int = 500) -> int:
 async def _backfill_v2(batch: int) -> int:
     import json
 
-    from sqlalchemy import select
-
     from ..processors.normalize import clean_text
     from ..processors.text_analysis import analyze, event_fields
 
@@ -384,8 +411,6 @@ _IMPACT_INPUTS = (
 
 
 async def _backfill_impact(batch: int) -> int:
-    from sqlalchemy import select
-
     from ..processors.impact import impact_fields
 
     total = 0
@@ -428,6 +453,41 @@ async def run_story_clustering(hours: int = 72) -> int:
     return assigned
 
 
+_llm_notice_logged = False
+
+
+async def run_causal_linking(hours: int = 72, min_confidence: float | None = None) -> dict:
+    """يعيد حساب روابط السبب والأثر للقصص المرصودة خلال آخر `hours` ساعة
+    (انظر processors/causal). يعمل بعد تجميع القصص لأن الروابط بين القصص."""
+    global _llm_notice_logged
+    if not _session_factory:
+        return {}
+    from ..config import get_settings
+    from ..processors.causal import link_story_chains
+
+    settings = get_settings()
+    if settings.llm_assist_enabled and not _llm_notice_logged:
+        # محجوز لخطوة اختيارية لاحقة (processors/causal.Refiner) — غير منفّذة
+        logger.warning("LLM_ASSIST_ENABLED مضبوط لكن الخطوة غير متوفرة في هذا الإصدار؛ الروابط قاعدية فقط.")
+        _llm_notice_logged = True
+    threshold = settings.causal_min_confidence if min_confidence is None else min_confidence
+    async with _session_factory() as session:
+        return await link_story_chains(
+            session, datetime.now(timezone.utc), hours=hours, min_confidence=threshold,
+        )
+
+
+async def run_analysis_cycle() -> dict:
+    """الدورة التحليلية الدورية: تجميع القصص ثم ربط السلاسل بينها (بالترتيب)."""
+    assigned = await run_story_clustering()
+    try:
+        links = await run_causal_linking()
+    except Exception as e:  # noqa: BLE001 - فشل الربط لا يوقف التجميع ولا الجدولة
+        logger.error("تعذّر ربط سلاسل السبب والأثر: %s", e)
+        links = {}
+    return {"clustered": assigned, "links": links}
+
+
 async def prune_old_data(
     events_days: int = 30, flights_days: int = 7, markets_days: int = 400,
 ) -> dict:
@@ -437,6 +497,7 @@ async def prune_old_data(
     - مسارات الطيران (تنمو الأسرع): أقدم من flights_days.
     - قيم الأسواق: أقدم من markets_days بتاريخ الملاحظة (صف يومي لكل سلسلة،
       فالنافذة أطول بكثير من الأحداث ليبقى مخطط التسعين يومًا ممتلئًا).
+    - روابط السبب والأثر: كل رابط حُذفت قصة أحد طرفيه (يتبع الأحداث).
     يعيد عدد الصفوف المحذوفة لكل جدول.
     """
     if not _session_factory:
@@ -459,12 +520,19 @@ async def prune_old_data(
         r4 = await session.execute(
             delete(MarketQuote).where(MarketQuote.observed_at < markets_cutoff)
         )
+        live_ids = select(Event.id)
+        r5 = await session.execute(
+            delete(EventLink).where(
+                EventLink.cause_id.notin_(live_ids) | EventLink.effect_id.notin_(live_ids)
+            )
+        )
         await session.commit()
         removed = {
             "events": r1.rowcount or 0,
             "flight_tracks": r2.rowcount or 0,
             "iranian_leader_news": r3.rowcount or 0,
             "market_quotes": r4.rowcount or 0,
+            "event_links": r5.rowcount or 0,
         }
 
     total = sum(removed.values())

@@ -116,6 +116,16 @@ class Settings(BaseSettings):
     rate_limit_requests: int = 120
     rate_limit_window_seconds: int = 60
 
+    # سلاسل السبب والأثر (processors/causal): أدنى ثقة يُخزَّن بها رابط (0-1).
+    # الرابط الخاطئ يضلّل أكثر من غيابه، فلا تخفضه دون مراجعة حالات الفشل في
+    # docs/causal-links-methodology.md.
+    causal_min_confidence: float = Field(default=0.4, ge=0.0, le=1.0)
+
+    # محجوز لخطوة اختيارية لاحقة بنموذج لغوي (تصنيف الروابط المرشّحة وصياغة
+    # الموجز). غير منفّذة في هذا الإصدار: الروابط والموجز قاعديان دائمًا، وضبطها
+    # True لا يرسل شيئًا لأي خدمة — يسجّل تنبيهًا فقط.
+    llm_assist_enabled: bool = False
+
     # سياسة الاحتفاظ بالبيانات (أيام)
     retention_events_days: int = 30
     retention_flights_days: int = 7

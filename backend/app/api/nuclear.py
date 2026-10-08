@@ -20,11 +20,14 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import and_, desc, select
 
+from ..config import get_settings
 from ..models.database import Event, get_session_factory
 from ..processors.gazetteer import ksa_point_en, nearest_ksa_point
 from ..processors.nuclear import TOPICS, severity_from_score
 from ._serializers import serialize_event
 from ._stories import collapse, representatives
+from .chains import build_chains
+from .impact import build_ksa_impact
 
 router = APIRouter(prefix="/api/nuclear", tags=["nuclear"])
 
@@ -48,6 +51,9 @@ RISK_TOP_N = 5
 _SERIES_BUCKETS = 12
 
 # موضوعات تُعدّ «تطورات سياسية» و«حوادث إشعاعية/أمان» في التقرير
+BRIEF_CHAINS = 3
+BRIEF_TOP_KSA = 3
+
 POLITICAL_TOPICS = ("diplomacy_sanctions", "safeguards_iaea", "weapons_program", "military_threat")
 INCIDENT_TOPICS = ("radiation_release", "radioactive_source", "safety_incident", "trafficking_security")
 
@@ -353,6 +359,11 @@ async def nuclear_brief(hours: int = Query(default=24, ge=1, le=168)):
     all_stories = collapse(events, 200)
     all_stories.sort(key=lambda s: s.get("risk_score") or 0, reverse=True)
 
+    # للموجز السردي في رأس التقرير: مؤشر الأثر على المملكة وقطاعاته، وأبرز
+    # سلاسل الترابط في الفترة نفسها
+    ksa = await build_ksa_impact(hours, now=now)
+    chains = await build_chains(hours, get_settings().causal_min_confidence, BRIEF_CHAINS, now=now)
+
     return {
         "period_hours": hours,
         "generated_at": risk["generated_at"],
@@ -364,6 +375,20 @@ async def nuclear_brief(hours: int = Query(default=24, ge=1, le=168)):
         "facilities": watch,
         "sources": dict(sorted(sources.items(), key=lambda kv: kv[1], reverse=True)[:15]),
         "totals": {"events": len(events), "stories": risk["stories"]},
+        "ksa_impact": {
+            **{k: ksa[k] for k in ("index", "level", "prev_index", "delta", "trend", "stories")},
+            "sectors": [
+                {k: s[k] for k in ("key", "index", "prev_index", "delta", "trend", "stories", "top_event_id")}
+                for s in ksa["sectors"]
+            ],
+            "top_events": [
+                {k: e.get(k) for k in ("id", "title", "url", "ksa_impact", "source_name")}
+                for e in ksa["top_events"][:BRIEF_TOP_KSA]
+            ],
+        },
+        "chains": chains["chains"],
+        # الموجز في الواجهة مبنيّ من قوالب نصية على هذه البيانات (لا نموذج لغوي)
+        "narrative_method": "template",
     }
 
 

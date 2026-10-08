@@ -15,7 +15,7 @@ from .collectors import (
     collect_ucdp_events,
 )
 from .config import get_settings
-from .models.database import prune_old_data, run_story_clustering
+from .models.database import prune_old_data, run_analysis_cycle
 
 logger = logging.getLogger("rasad.scheduler")
 
@@ -120,13 +120,14 @@ def register_jobs(scheduler: AsyncIOScheduler, settings) -> None:
         next_run_time=datetime.now(timezone.utc),
     )
 
-    # تجميع القصص: كل جامع يكتب مستقلًا، فالتجميع وظيفة دورية واحدة بعدهم
+    # تجميع القصص ثم ربط سلاسل السبب والأثر بينها: كل جامع يكتب مستقلًا،
+    # فالتحليل وظيفة دورية واحدة بعدهم (الربط يحتاج القصص مجمّعة أولًا)
     scheduler.add_job(
-        run_story_clustering,
+        run_analysis_cycle,
         "interval",
         seconds=settings.clustering_interval,
         id="story_clustering",
-        name="تجميع القصص",
+        name="تجميع القصص وربط السلاسل",
         max_instances=1,
     )
 
