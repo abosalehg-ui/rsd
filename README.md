@@ -45,6 +45,24 @@
 
 ---
 
+## 🇸🇦 الجديد: عدسة «الأثر على المملكة» وإعادة التشغيل الزمني
+
+| الميزة | الوصف |
+|--------|-------|
+| 🇸🇦 **مؤشر الأثر على المملكة** | 0-100 لكل الأحداث (لا النووية وحدها) بصيغة المؤشر النووي، مع الفترة السابقة والاتجاه والسلسلة الزمنية |
+| 🧮 **درجة أثر مفسَّرة لكل حدث** | 100 × الشدة × القرب × الإشارة المباشرة (أرامكو، المطارات، الموانئ، هرمز، باب المندب…) × ثقة المصدر — المعادلة بأرقامها في لوحة التفاصيل |
+| 🏷️ **8 قطاعات** | أمن، طاقة، طيران، ملاحة وموانئ، أسواق، غذاء ومياه، صحة، دبلوماسية — بمعجم عربي/إنجليزي بحدود الكلمة، وفلتر «حسب القطاع» في شريط الأحداث |
+| 👁️ **بنود «راقِب»** | قاعدية لا مولَّدة: كل قطاع ارتفع مؤشره 10 نقاط فأكثر عن الفترة السابقة وبلغ 25 |
+| ⏯️ **إعادة التشغيل الزمني** | شريط تحت الخريطة والكرة يعيد آخر 48 أو 72 ساعة ساعةً بساعة، بزر تشغيل ومنزلق وكثافة الأحداث لكل ساعة |
+| 🔗 **رابط مشاركة لكل حدث** | `?event=ID` يفتح لوحة التفاصيل مباشرة، وزر «نسخ رابط الحدث» |
+| ⏱️ **جدول المزامنة في الرأس** | وقت آخر تحليل وعدّاد تنازلي للتحديث القادم |
+| 🔢 **عدّادات التصنيفات** | عدد أحداث الفترة بجانب كل تصنيف وقطاع |
+
+يعمل كله دون اتصال وبلا مفاتيح. المنهجية الكاملة وحدودها:
+**[`docs/ksa-impact-methodology.md`](docs/ksa-impact-methodology.md)**.
+
+---
+
 ## ☢️ الجديد في v2.0: الرصد النووي والإشعاعي
 
 صار الرصد النووي والإشعاعي والتطورات السياسية المرتبطة به هو المحور الأول للمنصة:
@@ -157,7 +175,10 @@ npm run dev
 |--------|-------|
 | 🗺️ **خريطة 2D تفاعلية** | Leaflet مع تجميع ذكي للعلامات و6 طبقات (أحداث + طيران + إيران + نووي + قواعد + أنابيب) |
 | 🌍 **كرة أرضية 3D** | globe.gl + Three.js — نقاط متوهّجة + **حلقات رادار متحرّكة** للأحداث العاجلة + arcs للضربات (تحميل كسول) |
-| 📰 **شريط أخبار عاجلة** | تدفق مباشر مع فلاتر حسب التصنيف والخطورة والدولة |
+| 📰 **شريط أخبار عاجلة** | تدفق مباشر مع فلاتر حسب التصنيف (بعدد أحداثه) والقطاع والخطورة والدولة |
+| 🇸🇦 **عدسة الأثر على المملكة** | مؤشر 0-100 مفسَّر لكل الأحداث، وتوزيع حسب ثمانية قطاعات، وأعلى الأحداث أثرًا، وبنود «راقِب» |
+| ⏯️ **إعادة التشغيل الزمني** | آخر 48/72 ساعة ساعةً بساعة على الخريطة 2D والكرة 3D |
+| 🔗 **روابط مشاركة** | `?event=ID` يفتح تفاصيل الحدث مباشرة |
 | ✈️ **تتبع الطيران** | رصد الطائرات عبر ADS-B مع تمييز الطيران العسكري |
 | ⏳ **خط زمني + 📊 إحصائيات** | عرض زمني للأحداث + مؤشر تصعيد وتوزيعات |
 | 📺 **البث المباشر** | مشغّل مدمج للقنوات (الجزيرة، العربية، BBC) عبر `youtube-nocookie` |
@@ -319,8 +340,8 @@ rsd/
 │   │   ├── 📄 auth.py              # حارس CSRF + مفتاح API للنقاط المكلفة
 │   │   ├── 📄 static_data.py       # قراءة ملفات data/*.json المشتركة
 │   │   ├── 📂 collectors/          # gdelt · news_api · rss_feeds · ucdp · adsb · iran_osint · nuclear_watch (+ _feed_base)
-│   │   ├── 📂 processors/          # matching · normalize · gazetteer · nuclear · text_analysis · clustering · dates
-│   │   ├── 📂 api/                 # system · events (+country-index) · flights · iran · nuclear · infrastructure (+ _stories/_serializers)
+│   │   ├── 📂 processors/          # matching · normalize · gazetteer · nuclear · impact · text_analysis · clustering · dates
+│   │   ├── 📂 api/                 # system (+schedule) · events (+country-index) · flights · iran · nuclear · impact · infrastructure (+ _stories/_serializers)
 │   │   ├── 📂 data/                # nuclear_facilities · military_bases · pipelines · iranian_leaders (JSON)
 │   │   ├── 📂 middleware/          # cache (ETag) · ratelimit · security_headers
 │   │   └── 📂 models/database.py   # SQLite + SQLAlchemy + ترقية الأعمدة + الاحتفاظ
@@ -334,8 +355,9 @@ rsd/
 │   │   ├── 📄 App.jsx
 │   │   ├── 📂 components/
 │   │   │   ├── 📂 Layout/          # Header · LiveTVDrawer · AlertSettings
-│   │   │   ├── 📂 Map/             # RasadMap (2D) · RasadGlobe (3D، lazy) · popups · globeSprites · LayerToggles
+│   │   │   ├── 📂 Map/             # RasadMap (2D) · RasadGlobe (3D، lazy) · ReplayBar · popups · globeSprites · LayerToggles
 │   │   │   ├── 📂 Nuclear/         # NuclearPanel · RiskGauge · FacilityWatch · Sparkline
+│   │   │   ├── 📂 Impact/          # KsaLens · ImpactBreakdown (عدسة الأثر على المملكة)
 │   │   │   ├── 📂 Events/          # EventCard · StoryList · EventDrawer
 │   │   │   ├── 📂 Report/          # ReportView (طباعة / HTML / Markdown)
 │   │   │   ├── 📂 NewsFeed/        # NewsFeed.jsx
@@ -344,7 +366,7 @@ rsd/
 │   │   │   └── 📂 Iran/            # IranPanel.jsx
 │   │   ├── 📂 hooks/               # usePolling.js · useAudioAlert.js
 │   │   ├── 📂 i18n/                # index.js + locales/{ar,en}.json
-│   │   └── 📂 utils/               # api · constants (THEME) · security · icons · report
+│   │   └── 📂 utils/               # api · constants (THEME) · security · icons · report · replay · deepLink
 │   ├── 📂 public/                  # favicon.ico + أيقونات PWA
 │   └── 📄 vite.config.js · index.html · package.json
 │
@@ -356,7 +378,7 @@ rsd/
 │   ├── 🖼️ rasad.ico                # الأيقونة الجاهزة
 │   └── 📄 README.md                # دليل البناء
 │
-├── 📂 docs/                        # nuclear-risk-methodology.md · reviews/ (سجل المراجعات)
+├── 📂 docs/                        # nuclear-risk-methodology.md · ksa-impact-methodology.md · proposals/ · reviews/ (سجل المراجعات)
 ├── 📂 .github/workflows/           # ci.yml (lint+tests+build) · deploy-frontend.yml · feed-health.yml (فحص الخلاصات أسبوعيًا)
 ├── 📄 docker-compose.yml · docker-compose.prod.yml
 ├── 📄 Rasad.bat                          # تشغيل بنقرة واحدة (Windows) — عملية واحدة للواجهة والبيانات
@@ -372,17 +394,24 @@ rsd/
 
 | المسار | الوصف |
 |--------|-------|
-| `GET /api/events/` | الأحداث مطويّة في قصص مع فلاتر (category, severity, country_code, source, search, topic, hours, limit, collapse) |
+| `GET /api/events/` | الأحداث مطويّة في قصص مع فلاتر (category, severity, country_code, source, search, topic, sector, hours, limit, collapse) |
+| `GET /api/events/{id}` | حدث واحد بقصته ومصادرها (لرابط المشاركة `?event=ID`) |
 | `GET /api/events/latest?limit=20` | أحدث الأحداث الخام (تيار التنبيهات) |
 | `GET /api/events/map?hours=24&limit=200` | أحداث الخريطة (ممثّل واحد لكل قصة، بإحداثيات) |
-| `GET /api/events/stats` | إحصائيات شاملة + مؤشر التصعيد باتجاهه وسلسلته |
+| `GET /api/events/stats` | إحصائيات شاملة (منها العدّ حسب التصنيف والقطاع) + مؤشر التصعيد باتجاهه وسلسلته |
 | `GET /api/events/timeline` | بيانات الخط الزمني |
 | `GET /api/events/country-index?hours=72&top=20` | ترتيب الدول حسب درجة 0-100 |
 
 </details>
 
 <details>
-<summary><b>الطيران · إيران · النووي · البنية التحتية · النظام</b></summary>
+<summary><b>الأثر على المملكة · الطيران · إيران · النووي · البنية التحتية · النظام</b></summary>
+
+**الأثر على المملكة 🇸🇦**
+| المسار | الوصف |
+|--------|-------|
+| `GET /api/impact/ksa?hours=48` | المؤشر (0-100) وقيمة الفترة السابقة والاتجاه والسلسلة الزمنية، والتوزيع حسب القطاع، وأعلى الأحداث أثرًا بمكوّناتها، وبنود «راقِب» |
+| `GET /api/impact/sectors` | القطاعات ومعاملات المعادلة |
 
 **الطيران | Flights**
 | المسار | الوصف |
@@ -422,6 +451,7 @@ rsd/
 | `GET /api/health` | فحص صحة النظام |
 | `GET /api/sources` | المصادر المتاحة |
 | `GET /api/collectors/status` | حالة جامعي البيانات |
+| `GET /api/schedule` | وقت آخر تحليل وموعد المزامنة القادمة (للعدّاد في الرأس) |
 | `POST /api/refresh` | تحديث يدوي من جميع المصادر |
 
 </details>
