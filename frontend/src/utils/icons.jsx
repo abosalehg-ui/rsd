@@ -11,7 +11,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import {
   Atom, Radiation, Swords, Handshake, HeartPulse, TrendingUp, Newspaper,
   Flame, Rocket, Shield, Plane, Anchor, Crosshair, Factory, Droplets, FlaskConical,
-  Fuel, MapPin,
+  Fuel, MapPin, Wheat,
 } from 'lucide-react';
 
 export const ICONS = {
@@ -33,6 +33,7 @@ export const ICONS = {
   flask: FlaskConical,
   fuel: Fuel,
   pin: MapPin,
+  wheat: Wheat,
 };
 
 /** أيقونة باسمها — تقع على «خبر» للأسماء غير المعروفة. */

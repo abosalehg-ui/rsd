@@ -95,6 +95,34 @@ describe('<EventDrawer>', () => {
     const { container } = render(<EventDrawer event={null} />);
     expect(container).toBeEmptyDOMElement();
   });
+
+  it('copies a shareable ?event=ID link', async () => {
+    await i18n.changeLanguage('en');
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    render(<EventDrawer event={nuclearStory} onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Copy event link' }));
+    expect(await screen.findByRole('button', { name: 'Link copied' })).toBeInTheDocument();
+    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/?event=7`);
+  });
+
+  it('shows the Kingdom impact breakdown when present', async () => {
+    await i18n.changeLanguage('en');
+    render(<EventDrawer
+      event={{
+        ...nuclearStory,
+        ksa_impact: 67.5,
+        impact_sectors: ['security'],
+        impact: {
+          score: 67.5, severity: 'critical', proximity_band: 'adjacent', mention: 'none', mentioned: [],
+          components: { severity: 1, proximity: 1, mention: 0.6, source_trust: 0.9 },
+        },
+      }}
+      onClose={() => {}}
+    />);
+    expect(screen.getAllByTitle('Impact on the Kingdom')[0]).toHaveTextContent('68');
+    expect(screen.getByText('67.5 = 100 × 1 × 1 × 0.6 × 0.9')).toBeInTheDocument();
+  });
 });
 
 describe('timeGroup', () => {

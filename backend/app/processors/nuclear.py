@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .gazetteer import Location, find_facilities, nearest_ksa_point
+from .gazetteer import Location, find_facilities, ksa_proximity, proximity_band
 from .matching import KeywordSet, strip_phrases
 from .normalize import normalize_for_match
 
@@ -295,20 +295,16 @@ def severity_from_score(score: float) -> str:
     return "low"
 
 
+# نطاق القرب (gazetteer.PROXIMITY_BANDS) ← إضافة/خصم على درجة الخبر النووي
+_PROXIMITY_POINTS = {"adjacent": 15, "near": 8, "regional": 3, "far": -10, "unknown": -5}
+
+
 def proximity_adjustment(distance_km: float | None) -> int:
     """الأثر العابر للحدود: الأقرب للمملكة أعلى أولوية للرصد الوطني.
 
     خبر بلا أي موقع قابل للاستخلاص يُخفَّض قليلًا (-5): أغلبه أخبار صناعة أو
     أبحاث عامة من الخلاصات الدولية، والخبر الإقليمي يذكر مكانه عادةً."""
-    if distance_km is None:
-        return -5
-    if distance_km < 300:
-        return 15
-    if distance_km < 800:
-        return 8
-    if distance_km < 1500:
-        return 3
-    return -10
+    return _PROXIMITY_POINTS[proximity_band(distance_km)]
 
 
 def is_nuclear_relevant(title: str, description: str = "") -> bool:
@@ -362,11 +358,8 @@ def assess(
     statement = -15 if is_statement and not intensity and not reassuring else 0
     specificity = 5 if facilities else 0
 
-    distance = nearest = None
-    if location is not None and location.lat is not None:
-        near = nearest_ksa_point(location.lat, location.lon)
-        if near:
-            distance, nearest = near
+    prox = ksa_proximity(location.lat, location.lon) if location is not None else ksa_proximity(None, None)
+    distance, nearest = prox.distance_km, prox.nearest_point
     proximity = proximity_adjustment(distance)
 
     trust = SOURCE_TRUST.get(source_kind, 0.9)

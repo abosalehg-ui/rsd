@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 
 from ..models.database import Event
+from ..processors.impact import parse_sectors
 from ..processors.normalize import clean_text
 
 
@@ -29,6 +30,7 @@ def serialize_event(event: Event) -> dict:
     """التمثيل القياسي لحدث."""
     extra = _extra(event)
     nuclear = extra.get("nuclear") if isinstance(extra.get("nuclear"), dict) else None
+    impact = extra.get("impact") if isinstance(extra.get("impact"), dict) else None
     return {
         "id": event.id,
         "source": event.source,
@@ -53,6 +55,9 @@ def serialize_event(event: Event) -> dict:
         "cluster_id": event.cluster_id or event.id,
         "source_name": extra.get("source_name") or extra.get("feed_name") or event.source,
         "nuclear": nuclear,
+        "ksa_impact": event.ksa_impact,
+        "impact_sectors": parse_sectors(event.impact_sectors),
+        "impact": impact,
         "extra": extra,
     }
 

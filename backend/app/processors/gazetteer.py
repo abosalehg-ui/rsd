@@ -488,6 +488,43 @@ def nearest_ksa_point(lat: float | None, lon: float | None) -> tuple[float, str]
     return round(best[0], 1), best[1]
 
 
+# نطاقات القرب من المملكة — مصدر واحد يشترك فيه الرصد النووي (إضافة/خصم على
+# الدرجة) وعدسة الأثر (معامل ضرب). كل محرّك يترجم النطاق إلى وزنه الخاص، فلا
+# تتباعد الحدود بين المؤشرين.
+PROXIMITY_BANDS: tuple[tuple[float, str], ...] = (
+    (300, "adjacent"),    # على الحدود أو داخل المملكة
+    (800, "near"),        # الجوار المباشر (الخليج، اليمن، الأردن…)
+    (1500, "regional"),   # الإقليم الأوسع
+)
+PROXIMITY_FAR = "far"
+PROXIMITY_UNKNOWN = "unknown"   # لا موقع قابل للاستخلاص
+
+
+@dataclass(frozen=True)
+class KsaProximity:
+    distance_km: float | None
+    nearest_point: str
+    band: str
+
+
+def proximity_band(distance_km: float | None) -> str:
+    """نطاق القرب لمسافة (كم) إلى أقرب نقطة سعودية."""
+    if distance_km is None:
+        return PROXIMITY_UNKNOWN
+    for limit, band in PROXIMITY_BANDS:
+        if distance_km < limit:
+            return band
+    return PROXIMITY_FAR
+
+
+def ksa_proximity(lat: float | None, lon: float | None) -> KsaProximity:
+    """المسافة إلى المملكة ونطاقها لأي حدث له إحداثيات (لا النووي وحده)."""
+    near = nearest_ksa_point(lat, lon)
+    if near is None:
+        return KsaProximity(None, "", PROXIMITY_UNKNOWN)
+    return KsaProximity(near[0], near[1], proximity_band(near[0]))
+
+
 _KSA_EN = {ar: en for ar, en, _, _ in KSA_REFERENCE_POINTS}
 
 

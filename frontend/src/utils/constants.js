@@ -78,6 +78,21 @@ export const NUCLEAR_TOPICS = {
   energy_program: { category: 'nuclear', base: 10 },
 };
 
+/**
+ * قطاعات عدسة الأثر على المملكة (backend/app/processors/impact.SECTORS)،
+ * بترتيبها هناك. التسميات من i18n: `impact.sectors.<key>`.
+ */
+export const IMPACT_SECTORS = {
+  security: { icon: 'shield', color: '#f87171' },
+  energy: { icon: 'flame', color: '#f2c230' },
+  aviation: { icon: 'plane', color: '#67e8f9' },
+  shipping_ports: { icon: 'anchor', color: '#60a5fa' },
+  markets: { icon: 'trend', color: '#34d399' },
+  food_water: { icon: 'wheat', color: '#fb923c' },
+  health: { icon: 'heart', color: '#f0a3c6' },
+  diplomacy: { icon: 'handshake', color: '#a78bfa' },
+};
+
 /** نطاقات درجة الخطر 0-100 — تطابق severity_from_score في الخلفية. */
 export const RISK_BANDS = [
   { key: 'low', from: 0, to: 30 },

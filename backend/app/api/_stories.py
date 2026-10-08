@@ -35,8 +35,10 @@ def representatives(events: list[Event]) -> list[Event]:
     return [max(g, key=_rank) for g in group_stories(events)]
 
 
-def serialize_story(group: list[Event]) -> dict:
-    rep = max(group, key=_rank)
+def serialize_story(group: list[Event], rep: Event | None = None) -> dict:
+    """قصة بممثّلها ومصادرها. `rep` يفرض الممثّل (رابط مشاركة لخبر بعينه، أو
+    الأعلى أثرًا في عدسة المملكة) بدل الأعلى خطرًا."""
+    rep = rep if rep is not None else max(group, key=_rank)
     # تسلسل واحد لكل حدث: كل استدعاء يفكّ extra_data ويُنظّف العنوان والوصف
     serialized = {e.id: serialize_event(e) for e in group}
     data = serialized[rep.id]

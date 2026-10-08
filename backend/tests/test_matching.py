@@ -75,3 +75,25 @@ class TestCleaning:
         assert split_source_suffix("خبر عاجل - سكاي نيوز عربية", "سكاي نيوز عربية") == ("خبر عاجل", "سكاي نيوز عربية")
         # شرطة داخل العنوان لا تُقتطع حين لا تطابق المصدر المعروف
         assert split_source_suffix("Iran - US talks resume", "Reuters") == ("Iran - US talks resume", "")
+
+
+def test_substring_prefilter_never_changes_results():
+    """فحص `in` المسبق تحسين أداء فقط: النتائج مطابقة لتشغيل كل تعبير."""
+    from app.processors.impact import SECTORS
+    from app.processors.nuclear import TOPICS
+
+    texts = [
+        "للطاقة الذرية والاشعاعيه",
+        "strikes hit the enriched uranium site at 60%",
+        "foo   bar after masking",
+        "قصفت الطائرات المسيرات مطارات سعوديه في جازان",
+        "nothing relevant here",
+    ]
+    sets = [s.terms for s in SECTORS] + [t.terms for t in TOPICS] + [KeywordSet(("foo bar", "60%", "enrich*"))]
+    for ks in sets:
+        for raw in texts:
+            norm = normalize_for_match(raw)
+            brute = [t for t, rx in ks._compiled if rx.search(norm)]
+            assert ks.matched_terms(norm) == brute
+            assert ks.matches(norm) == bool(brute)
+            assert len(ks.search(norm)) == sum(len(list(rx.finditer(norm))) for _, rx in ks._compiled)

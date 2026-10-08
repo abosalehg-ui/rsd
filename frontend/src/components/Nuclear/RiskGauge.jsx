@@ -7,6 +7,9 @@
  * حُسبت القيمة؟» تفكّ المعادلة بأرقامها الفعلية.
  *
  * التدريج `dir="ltr"`: المقاييس الرقمية تُقرأ من الصفر يسارًا في اللغتين.
+ *
+ * يعيد استعماله مؤشر الأثر على المملكة (`Impact/KsaLens`) بالصيغة نفسها: تمرّر
+ * العدسة عنوانها وأيقونتها ونص معادلتها، والنطاقات والإبرة والاتجاه مشتركة.
  */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -32,13 +35,19 @@ export function TrendNote({ delta, className = '' }) {
   );
 }
 
-export default function RiskGauge({ risk, loading = false, error = null, onRetry }) {
+export default function RiskGauge({
+  risk, loading = false, error = null, onRetry,
+  title, icon: TitleIcon = Radiation, formulaKey = 'risk.formula', noteKey = 'risk.storiesNote',
+  notes, emptyText, loadFailedText,
+  id = 'risk-gauge-title',
+}) {
   const { t } = useTranslation();
+  const heading = title || t('risk.title');
 
   if (error && !risk) {
     return (
       <div className="rounded-lg border border-rasad-border bg-rasad-bg p-4 text-sm text-red-200" role="alert">
-        {t('risk.loadFailed')}{' '}
+        {loadFailedText || t('risk.loadFailed')}{' '}
         {onRetry && (
           <button onClick={onRetry} className="underline focus-ring rounded">{t('risk.retry')}</button>
         )}
@@ -58,11 +67,11 @@ export default function RiskGauge({ risk, loading = false, error = null, onRetry
   return (
     <section
       className="rounded-lg border border-rasad-border bg-rasad-bg p-4"
-      aria-labelledby="risk-gauge-title"
+      aria-labelledby={id}
     >
       <div className="flex items-center gap-2 text-hazard">
-        <Radiation className="w-4 h-4" aria-hidden="true" />
-        <h2 id="risk-gauge-title" className="text-sm font-semibold text-slate-100">{t('risk.title')}</h2>
+        <TitleIcon className="w-4 h-4" aria-hidden="true" />
+        <h2 id={id} className="text-sm font-semibold text-slate-100">{heading}</h2>
       </div>
 
       <div className="mt-3 flex items-end justify-between gap-3 flex-wrap">
@@ -103,7 +112,7 @@ export default function RiskGauge({ risk, loading = false, error = null, onRetry
         </div>
       </div>
       <p className="sr-only">
-        {t('risk.title')}: {value.toFixed(1)} — {t(`risk.levels.${level}`)}. {t('risk.prev')}: {risk.prev_index ?? 0}.
+        {heading}: {value.toFixed(1)} — {t(`risk.levels.${level}`)}. {t('risk.prev')}: {risk.prev_index ?? 0}.
       </p>
 
       {risk.series?.length > 1 && (
@@ -129,7 +138,7 @@ export default function RiskGauge({ risk, loading = false, error = null, onRetry
         </summary>
         <div className="mt-2 space-y-2 text-xs text-slate-300">
           <p className="leading-relaxed">
-            {t('risk.formula', {
+            {t(formulaKey, {
               maxW: Math.round((c.max_weight ?? 0.6) * 100),
               topW: Math.round((c.top_mean_weight ?? 0.4) * 100),
               n: c.top_n ?? 5,
@@ -137,11 +146,12 @@ export default function RiskGauge({ risk, loading = false, error = null, onRetry
               mean: c.top_mean ?? 0,
             })}
           </p>
-          <p className="text-slate-400">{t('risk.storiesNote')}</p>
+          <p className="text-slate-400">{t(noteKey)}</p>
+          {notes}
         </div>
       </details>
 
-      {risk.stories === 0 && <p className="mt-2 text-sm text-slate-300">{t('risk.empty')}</p>}
+      {risk.stories === 0 && <p className="mt-2 text-sm text-slate-300">{emptyText || t('risk.empty')}</p>}
     </section>
   );
 }

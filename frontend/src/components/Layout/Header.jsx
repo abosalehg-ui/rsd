@@ -4,15 +4,32 @@
  * ثلاث مناطق بدل شارات متساوية الوزن:
  *   الهوية ← المؤشران (المخاطر النووية/الإشعاعية أولًا، ثم التصعيد) باتجاههما
  *   ← الأفعال (التقرير، التحديث، التنبيهات، قائمة إعدادات تجمع اللغة والعرض).
- * حالة الاتصال ووقت آخر تحديث نقطة وسطر واحد بدل شارتين.
+ * حالة الاتصال ووقت آخر تحديث نقطة وسطر واحد بدل شارتين، وتحتها وقت آخر
+ * تحليل مكتمل في الخادم وعدّاد تنازلي لدورة الجمع التالية (`/api/schedule`).
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Radiation, RefreshCw, Bell, BellOff, Settings, Globe2, Box, Map as MapIcon, FileText, Radio,
-  ArrowUpRight, ArrowDownRight, Minus,
+  ArrowUpRight, ArrowDownRight, Minus, Timer,
 } from 'lucide-react';
 import { SEVERITIES, escalationColor, riskLevel } from '../../utils/constants';
+
+/** ثوانٍ → «m:ss» أو «h:mm:ss» (أرقام لاتينية في اللغتين كبقية العدّادات). */
+export function formatCountdown(totalSeconds) {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = String(s % 60).padStart(2, '0');
+  return h ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`;
+}
+
+/** موعد المزامنة القادمة بساعة الجهاز: وقت الجلب + المهلة النسبية من الخادم. */
+export function nextSyncAt(schedule, fetchedAt) {
+  const secs = schedule?.next_sync_in_seconds;
+  if (secs == null || !fetchedAt) return null;
+  return new Date(fetchedAt.getTime() + secs * 1000);
+}
 
 const ICON_BTN = 'min-w-11 min-h-11 flex items-center justify-center rounded-md transition-colors focus-ring';
 
@@ -86,7 +103,7 @@ function SettingsMenu({ viewMode, onToggleView, onOpenReport }) {
 export default function Header({
   stats, risk, isConnected, onRefresh, refreshing, alertsEnabled = true, lastAlertEvent = null,
   recentAlertCount = 0, onOpenAlerts, viewMode = '2d', onToggleView, lastFetchedAt = null,
-  onOpenReport, onOpenNuclear,
+  onOpenReport, onOpenNuclear, schedule = null, scheduleFetchedAt = null,
 }) {
   const { t, i18n } = useTranslation();
   const isAr = i18n.language === 'ar';
@@ -112,6 +129,11 @@ export default function Header({
   const timeStr = now.toLocaleTimeString(localeCode, { ...hm, second: '2-digit' });
   const dateStr = now.toLocaleDateString(localeCode, { weekday: 'long', day: 'numeric', month: 'long' });
   const lastStr = lastFetchedAt ? lastFetchedAt.toLocaleTimeString(localeCode, hm) : '—';
+  const analysisStr = schedule?.last_analysis
+    ? new Date(schedule.last_analysis).toLocaleTimeString(localeCode, hm)
+    : null;
+  const syncAt = nextSyncAt(schedule, scheduleFetchedAt);
+  const syncLeft = syncAt ? (syncAt.getTime() - now.getTime()) / 1000 : null;
 
   const riskValue = risk?.index ?? null;
   const riskLvl = risk?.level || riskLevel(riskValue);
@@ -181,6 +203,24 @@ export default function Header({
           <span className="hidden lg:inline">{t('app.lastUpdate')} <span className="font-mono">{lastStr}</span></span>
           <span className="sr-only">{isConnected ? t('app.connected') : t('app.disconnected')}</span>
         </div>
+        {(analysisStr || syncLeft !== null) && (
+          <div
+            className="hidden lg:flex flex-col items-start leading-tight text-2xs text-slate-400"
+            title={t('app.scheduleHelp')}
+          >
+            {analysisStr && (
+              <span>{t('app.lastAnalysis')} <span className="font-mono text-slate-300">{analysisStr}</span></span>
+            )}
+            {syncLeft !== null && (
+              <span className="inline-flex items-center gap-1">
+                <Timer className="w-3 h-3" aria-hidden="true" />
+                {syncLeft > 0
+                  ? t('app.nextSync', { time: formatCountdown(syncLeft) })
+                  : t('app.nextSyncDue')}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* الأفعال */}
         <div className="flex items-center gap-0.5">

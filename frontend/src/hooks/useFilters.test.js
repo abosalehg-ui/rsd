@@ -31,6 +31,13 @@ describe('useFilters', () => {
     expect(result.current.filters.hours).toBe(72);
   });
 
+  it('يقبل القطاع المعروف ويُسقط غير المعروف (يرفضه الخادم بـ422)', () => {
+    setUrl('sector=energy');
+    expect(renderHook(() => useFilters()).result.current.filters.sector).toBe('energy');
+    setUrl('sector=tourism');
+    expect(renderHook(() => useFilters()).result.current.filters.sector).toBe('');
+  });
+
   it('يكتب الفلاتر في العنوان عند تغييرها', () => {
     const { result } = renderHook(() => useFilters());
     act(() => result.current.updateFilter('category', 'nuclear'));

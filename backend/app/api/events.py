@@ -2,12 +2,13 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import and_, desc, func, select
 
 from ..models.database import Event, get_session_factory
+from ..processors.impact import SECTOR_KEYS, parse_sectors
 from ._serializers import serialize_event
-from ._stories import collapse, representatives
+from ._stories import collapse, representatives, serialize_story
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 
@@ -20,6 +21,7 @@ async def get_events(
     source: Optional[str] = Query(default=None, max_length=50),
     search: Optional[str] = Query(default=None, max_length=100),
     topic: Optional[str] = Query(default=None, max_length=40),
+    sector: Optional[str] = Query(default=None, max_length=20, description="security|energy|aviation|…"),
     hours: int = Query(default=24, ge=1, le=720),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
@@ -30,7 +32,10 @@ async def get_events(
     `collapse=true` (الافتراضي) يطوي الأخبار المتشابهة في قصة واحدة مع قائمة
     مصادرها؛ `total` يبقى عدد الأحداث الخام و`stories` عدد القصص المُعادة.
     `category=nuclear` يشمل الإشعاعي أيضًا (الرصد النووي والإشعاعي وحدة واحدة).
+    `sector` يفلتر بقطاع عدسة الأثر على المملكة (processors/impact.SECTOR_KEYS).
     """
+    if sector and sector not in SECTOR_KEYS:
+        raise HTTPException(status_code=422, detail=f"قطاع غير معروف: {sector}")
     session_factory = get_session_factory()
     async with session_factory() as session:
         query = select(Event)
@@ -46,6 +51,10 @@ async def get_events(
             conditions.append(Event.category == category)
         if topic:
             conditions.append(Event.topic == topic)
+        if sector:
+            # العمود قائمة JSON (["security", "energy"]): المفتاح بين علامتي تنصيص
+            # لا يطابق جزءًا من مفتاح آخر
+            conditions.append(Event.impact_sectors.contains(f'"{sector}"'))
         if severity:
             conditions.append(Event.severity == severity)
         if country_code:
@@ -172,6 +181,15 @@ async def get_stats(hours: int = Query(default=24, ge=1, le=720)):
         )
         sources = dict((await session.execute(source_query)).all())
 
+        # حسب قطاع الأثر على المملكة: العمود قائمة JSON، فالعدّ في بايثون من
+        # عمود واحد خفيف بدل استعلام LIKE لكل قطاع
+        sectors = {k: 0 for k in SECTOR_KEYS}
+        for (raw,) in (await session.execute(
+            select(Event.impact_sectors).where(and_(base_filter, Event.impact_sectors.isnot(None)))
+        )).all():
+            for key in parse_sectors(raw):
+                sectors[key] += 1
+
         # مؤشر التصعيد = نسبة الأحداث العسكرية عالية/حرجة الخطورة من الإجمالي.
         # نُعيد معه قيمة الفترة السابقة المماثلة وسلسلة زمنية، كي يُقرأ الرقم
         # باتجاهه لا كرقم معزول بلا مرجع.
@@ -183,6 +201,7 @@ async def get_stats(hours: int = Query(default=24, ge=1, le=720)):
             "severities": severities,
             "countries": countries,
             "sources": sources,
+            "sectors": sectors,
             "escalation_index": escalation_index,
             "escalation_prev": escalation_prev,
             "escalation_delta": round(escalation_index - escalation_prev, 1),
@@ -344,3 +363,25 @@ async def get_country_index(
             "max_raw_score": round(max_raw, 1),
             "ranking": ranking[:top],
         }
+
+
+# آخر المسار عمدًا: `/{event_id}` بعد `/latest` و`/map` و`/stats`… فلا يلتقطها.
+@router.get("/{event_id}")
+async def get_event(event_id: int):
+    """حدث واحد بقصته (لرابط المشاركة `?event=ID`). الحدث المطلوب هو الممثّل
+    حتى لو كان في قصته خبر أعلى خطرًا — الرابط يشير إليه بعينه."""
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        event = await session.get(Event, event_id)
+        if event is None:
+            raise HTTPException(status_code=404, detail=f"حدث غير موجود: {event_id}")
+        story_id = event.cluster_id or event.id
+        group = list((await session.execute(
+            select(Event)
+            .where((Event.cluster_id == story_id) | (Event.id == story_id) | (Event.id == event.id))
+            .order_by(desc(Event.event_date))
+            .limit(50)
+        )).scalars().all())
+    if event not in group:
+        group.append(event)
+    return serialize_story(group, rep=event)
