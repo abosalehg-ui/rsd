@@ -45,7 +45,23 @@
 
 ---
 
-## 🇸🇦 الجديد: عدسة «الأثر على المملكة» وإعادة التشغيل الزمني
+## 🛢️ الجديد: شريط الطاقة والأسواق ومخطط التزامن
+
+| الميزة | الوصف |
+|--------|-------|
+| 🛢️ **شريط أسعار في الرأس** | برنت، غرب تكساس، غاز هنري هب، ومؤشر التقلّب VIX — آخر قيمة ونسبة تغيّرها عن السابقة (أخضر صعودًا، أحمر هبوطًا) و**تاريخ البيانات** صراحةً |
+| 📊 **لوحة «الأسواق»** | بطاقة لكل سلسلة بقيمتها ووحدتها ويوم تداولها وخط مصغّر لتسعين يومًا |
+| 🔀 **مخطط التزامن** | مؤشر الخطر النووي ومؤشر الأثر على المملكة يومًا بيوم مقابل برنت على محور زمني واحد (لوحتان متراصّتان لا محوران رأسيان)، مع معامل الارتباط وعدد الأيام المشتركة وجدول البيانات — بعبارة «قراءة تزامن وليست تنبؤًا ولا نصيحة مالية» |
+| 📴 **دون اتصال** | القيم تُقرأ من قاعدة البيانات المحلية، فآخر المعروف يبقى ظاهرًا بلا إنترنت |
+
+المصدر **FRED** (بنك الاحتياطي الفيدرالي في سانت لويس) بمفتاح مجاني **اختياري** `FRED_API_KEY`؛ بلا مفتاح
+يُتخطّى الجامع بصمت وتعرض الواجهة «أضف FRED_API_KEY للتفعيل». بيانات النفط في FRED **يومية وتتأخّر يومًا أو
+أكثر** — ليست لحظية، ولا تُعرض على أنها كذلك. مؤشر تاسي غير متوفّر في FRED فهو خارج هذه المرحلة.
+المنهجية وحدودها: **[`docs/markets-sync-methodology.md`](docs/markets-sync-methodology.md)**.
+
+---
+
+## 🇸🇦 عدسة «الأثر على المملكة» وإعادة التشغيل الزمني
 
 | الميزة | الوصف |
 |--------|-------|
@@ -165,6 +181,7 @@ npm run dev
 - **Python** 3.10+ و **Node.js** 18+ (للتطوير/البناء)
 - **مفتاح NewsAPI** (اختياري) — [احصل على مفتاح مجاني](https://newsapi.org/)
 - **رمز UCDP** (اختياري) — [توثيق UCDP](https://ucdp.uu.se/apidocs/) (الـ API لم يعد مفتوحاً بلا رمز)
+- **مفتاح FRED** (اختياري، لشريط الطاقة والأسواق) — [احصل على مفتاح مجاني](https://fred.stlouisfed.org/docs/api/api_key.html)
 - لبناء المثبّت: **Inno Setup 6** ([تنزيل](https://jrsoftware.org/isdl.php))
 
 ---
@@ -178,6 +195,7 @@ npm run dev
 | 📰 **شريط أخبار عاجلة** | تدفق مباشر مع فلاتر حسب التصنيف (بعدد أحداثه) والقطاع والخطورة والدولة |
 | 🇸🇦 **عدسة الأثر على المملكة** | مؤشر 0-100 مفسَّر لكل الأحداث، وتوزيع حسب ثمانية قطاعات، وأعلى الأحداث أثرًا، وبنود «راقِب» |
 | ⏯️ **إعادة التشغيل الزمني** | آخر 48/72 ساعة ساعةً بساعة على الخريطة 2D والكرة 3D |
+| 🛢️ **الطاقة والأسواق** | شريط برنت/غرب تكساس/الغاز/VIX في الرأس بتاريخ بياناته، ولوحة بخطوط مصغّرة، ومخطط تزامن المؤشرين مع برنت *(يحتاج `FRED_API_KEY`)* |
 | 🔗 **روابط مشاركة** | `?event=ID` يفتح تفاصيل الحدث مباشرة |
 | ✈️ **تتبع الطيران** | رصد الطائرات عبر ADS-B مع تمييز الطيران العسكري |
 | ⏳ **خط زمني + 📊 إحصائيات** | عرض زمني للأحداث + مؤشر تصعيد وتوزيعات |
@@ -315,6 +333,7 @@ packaging\build_installer.bat
 | **UCDP** | بيانات النزاعات المسلحة (جامعة أوبسالا) *(يحتاج `UCDP_ACCESS_TOKEN` — الـ API لم يعد عاماً)* | يومياً |
 | **ADS-B** | تتبع الطيران (adsb.lol) | كل 30 ثانية |
 | **Iran OSINT** | مصادر OSINT متخصصة بإيران والشرق الأوسط | كل 30 دقيقة |
+| **FRED** | برنت `DCOILBRENTEU`، غرب تكساس `DCOILWTICO`، غاز هنري هب `DHHNGSP`، مؤشر التقلّب `VIXCLS` *(يحتاج `FRED_API_KEY` المجاني — قيم إغلاق يومية تتأخّر يومًا أو أكثر)* | يومياً |
 
 <details>
 <summary>📰 مصادر RSS المدعومة (اضغط للعرض)</summary>
@@ -339,9 +358,9 @@ rsd/
 │   │   ├── 📄 scheduler.py         # جدولة جمع البيانات (APScheduler)
 │   │   ├── 📄 auth.py              # حارس CSRF + مفتاح API للنقاط المكلفة
 │   │   ├── 📄 static_data.py       # قراءة ملفات data/*.json المشتركة
-│   │   ├── 📂 collectors/          # gdelt · news_api · rss_feeds · ucdp · adsb · iran_osint · nuclear_watch (+ _feed_base)
+│   │   ├── 📂 collectors/          # gdelt · news_api · rss_feeds · ucdp · adsb · iran_osint · nuclear_watch · markets (+ _feed_base)
 │   │   ├── 📂 processors/          # matching · normalize · gazetteer · nuclear · impact · text_analysis · clustering · dates
-│   │   ├── 📂 api/                 # system (+schedule) · events (+country-index) · flights · iran · nuclear · impact · infrastructure (+ _stories/_serializers)
+│   │   ├── 📂 api/                 # system (+schedule) · events (+country-index) · flights · iran · nuclear · impact · markets · infrastructure (+ _stories/_serializers)
 │   │   ├── 📂 data/                # nuclear_facilities · military_bases · pipelines · iranian_leaders (JSON)
 │   │   ├── 📂 middleware/          # cache (ETag) · ratelimit · security_headers
 │   │   └── 📂 models/database.py   # SQLite + SQLAlchemy + ترقية الأعمدة + الاحتفاظ
@@ -358,6 +377,7 @@ rsd/
 │   │   │   ├── 📂 Map/             # RasadMap (2D) · RasadGlobe (3D، lazy) · ReplayBar · popups · globeSprites · LayerToggles
 │   │   │   ├── 📂 Nuclear/         # NuclearPanel · RiskGauge · FacilityWatch · Sparkline
 │   │   │   ├── 📂 Impact/          # KsaLens · ImpactBreakdown (عدسة الأثر على المملكة)
+│   │   │   ├── 📂 Markets/         # MarketTicker · MarketsPanel · SyncChart (الطاقة والأسواق)
 │   │   │   ├── 📂 Events/          # EventCard · StoryList · EventDrawer
 │   │   │   ├── 📂 Report/          # ReportView (طباعة / HTML / Markdown)
 │   │   │   ├── 📂 NewsFeed/        # NewsFeed.jsx
@@ -366,7 +386,7 @@ rsd/
 │   │   │   └── 📂 Iran/            # IranPanel.jsx
 │   │   ├── 📂 hooks/               # usePolling.js · useAudioAlert.js
 │   │   ├── 📂 i18n/                # index.js + locales/{ar,en}.json
-│   │   └── 📂 utils/               # api · constants (THEME) · security · icons · report · replay · deepLink
+│   │   └── 📂 utils/               # api · constants (THEME) · security · icons · report · replay · deepLink · markets
 │   ├── 📂 public/                  # favicon.ico + أيقونات PWA
 │   └── 📄 vite.config.js · index.html · package.json
 │
@@ -378,7 +398,7 @@ rsd/
 │   ├── 🖼️ rasad.ico                # الأيقونة الجاهزة
 │   └── 📄 README.md                # دليل البناء
 │
-├── 📂 docs/                        # nuclear-risk-methodology.md · ksa-impact-methodology.md · proposals/ · reviews/ (سجل المراجعات)
+├── 📂 docs/                        # nuclear-risk-methodology.md · ksa-impact-methodology.md · markets-sync-methodology.md · proposals/ · reviews/
 ├── 📂 .github/workflows/           # ci.yml (lint+tests+build) · deploy-frontend.yml · feed-health.yml (فحص الخلاصات أسبوعيًا)
 ├── 📄 docker-compose.yml · docker-compose.prod.yml
 ├── 📄 Rasad.bat                          # تشغيل بنقرة واحدة (Windows) — عملية واحدة للواجهة والبيانات
@@ -405,13 +425,20 @@ rsd/
 </details>
 
 <details>
-<summary><b>الأثر على المملكة · الطيران · إيران · النووي · البنية التحتية · النظام</b></summary>
+<summary><b>الأثر على المملكة · الطاقة والأسواق · الطيران · إيران · النووي · البنية التحتية · النظام</b></summary>
 
 **الأثر على المملكة 🇸🇦**
 | المسار | الوصف |
 |--------|-------|
 | `GET /api/impact/ksa?hours=48` | المؤشر (0-100) وقيمة الفترة السابقة والاتجاه والسلسلة الزمنية، والتوزيع حسب القطاع، وأعلى الأحداث أثرًا بمكوّناتها، وبنود «راقِب» |
 | `GET /api/impact/sectors` | القطاعات ومعاملات المعادلة |
+
+**الطاقة والأسواق 🛢️** *(من قاعدة البيانات — تعمل دون اتصال وبلا مفتاح بآخر القيم المخزّنة)*
+| المسار | الوصف |
+|--------|-------|
+| `GET /api/markets/latest` | لكل سلسلة: آخر قيمة وسابقتها والتغيّر ونسبته وتاريخ الملاحظة ووقت الجلب، مع `enabled` (هل المفتاح مضبوط) و`as_of` |
+| `GET /api/markets/series?codes=DCOILBRENTEU,VIXCLS&days=90` | القيم اليومية لكل سلسلة (`codes` اختياري، `days` من 1 إلى 400) |
+| `GET /api/markets/correlation?days=30` | المؤشر النووي ومؤشر الأثر يوميًا مصفوفين مع برنت على التواريخ نفسها، ومعامل الارتباط (`days` من 7 إلى 90) |
 
 **الطيران | Flights**
 | المسار | الوصف |
@@ -479,6 +506,10 @@ DATABASE_URL=sqlite+aiosqlite:///./rasad.db
 # رمز UCDP — بدونه يُتخطّى المصدر ويظهر disabled في /api/sources
 UCDP_ACCESS_TOKEN=
 
+# مفتاح FRED المجاني — أسعار الطاقة وVIX اليومية. بدونه يُتخطّى الجامع
+# وتعرض الواجهة «أضف FRED_API_KEY للتفعيل». https://fred.stlouisfed.org/docs/api/api_key.html
+FRED_API_KEY=
+
 # فترات التحديث (بالثواني)
 GDELT_INTERVAL=900        # 15 دقيقة
 NEWSAPI_INTERVAL=3600     # ساعة (الحصة المجانية 100 طلب/يوم)
@@ -529,6 +560,7 @@ RATE_LIMIT_WINDOW_SECONDS=60
 | `events` | جميع الأحداث من كل المصادر (+ حقلا confidence و video_url) |
 | `flight_tracks` | سجل تتبع الطيران |
 | `iranian_leader_news` | أخبار القادة الإيرانيين المرصودة |
+| `market_quotes` | قيم FRED اليومية (code, observed_at, value) — فريد على (code, observed_at) وتُحدَّث القيمة المراجَعة؛ تُحذف الأقدم من `RETENTION_MARKETS_DAYS` (400 يوم) |
 
 ---
 
@@ -606,6 +638,7 @@ git push origin feat/my-feature   # ثم افتح Pull Request
 | **طبقة إيران OSINT فارغة** | تظهر بعد أول دورة جمع — انتظر دقيقة بعد التشغيل واضغط 🔄 (`/api/iran/strikes`) |
 | **خطأ NewsAPI** | أضف `NEWSAPI_KEY` في `.env` (المفتاح المجاني يعطي أخباراً قديمة 24+ ساعة) |
 | **UCDP لا يجمع شيئاً** | الـ API صار يتطلّب رمزاً — أضف `UCDP_ACCESS_TOKEN`، وإلا يظهر المصدر `disabled` في `/api/sources` |
+| **شريط الأسواق يقول «أضف FRED_API_KEY»** | أضف مفتاح FRED المجاني إلى `.env` وأعد التشغيل؛ يُجلب فور الإقلاع ثم يوميًا. تاريخ البيانات قبل يوم أو أكثر طبيعي: FRED ينشر الإغلاق متأخرًا |
 | **الخريطة 2D لا تعمل** | تحقق من الإنترنت (Leaflet يحتاج tiles من CartoCDN) وافحص Console |
 | **🖥️ المثبّت: تحذير SmartScreen/مكافح فيروسات** | طبيعي لتطبيق غير موقّع — اختر "Run anyway" (للتوقيع: شهادة Code Signing) |
 | **🖥️ المنفذ 8000 مشغول** | أغلق أي نسخة عاملة (أو خادم تطوير) — التطبيق يكتفي بفتح المتصفح على النسخة العاملة |
