@@ -45,7 +45,23 @@
 
 ---
 
-## 🛢️ الجديد: شريط الطاقة والأسواق ومخطط التزامن
+## 🔗 الجديد: سلاسل السبب والأثر والموجز السردي
+
+| الميزة | الوصف |
+|--------|-------|
+| 🔗 **روابط «سبب ← أثر» بين القصص** | لا تجميع الخبر الواحد فقط: رصد يربط قصصًا **مختلفة** بخمسة قوالب صريحة — هجوم في الخليج أو اليمن ← طاقة أو ملاحة، حدث نووي ← دبلوماسية أو عقوبات، ضربة ← رد انتقامي، ضربة ← إطلاق صواريخ، هجوم على أصل سعودي ← طيران أو أسواق |
+| 🧮 **ثقة مفسَّرة لكل رابط** | وزن القالب × الكيان المشترك (منشأة، ممر، قائد، مدينة، دولة) × الزمن (ساعة إلى 72 ساعة) × ثقة المصدر، ولا يُخزَّن ما دون 40% — مع القاعدة التي أنتجت الرابط والعبارات التي طابقت |
+| 🧭 **«سلسلة الترابط» في لوحة الحدث** | أسبابه وآثاره المحتملة بشارة ثقة ملوّنة، والنقر يفتح الحدث المرتبط |
+| ⛓️ **نافذة «سلاسل التأثير»** | أطول السلاسل في الفترة بنسبة كل رابط، وثقة السلسلة = أضعف حلقاتها، ومفتاح إخفاء الروابط ضعيفة الثقة |
+| 📝 **موجز سردي في رأس التقرير** | فقرة من قوالب نصية: تغيّر المؤشر النووي ومؤشر الأثر على المملكة عن الفترة السابقة، وأبرز القصص، والقطاعات الصاعدة، وأبرز السلاسل — كل حدث يُستشهد به `E123` (رابط في التطبيق، ونص مع قائمة مراجع في HTML وMarkdown) |
+
+**قاعدي بالكامل** — لا ذكاء اصطناعي ولا مفاتيح، ويعمل دون اتصال. الدقة قبل الشمول: الرابط الخاطئ يضلّل أكثر
+من غيابه، فالاختبارات تتحقق من الإيجابيات الكاذبة صراحةً (دفعة عناوين واقعية لا يجوز أن تُربط). الرابط فرضية للتحقق
+لا إثبات للسببية. المنهجية وحالات الفشل المعروفة: **[`docs/causal-links-methodology.md`](docs/causal-links-methodology.md)**.
+
+---
+
+## 🛢️ شريط الطاقة والأسواق ومخطط التزامن
 
 | الميزة | الوصف |
 |--------|-------|
@@ -196,6 +212,7 @@ npm run dev
 | 🇸🇦 **عدسة الأثر على المملكة** | مؤشر 0-100 مفسَّر لكل الأحداث، وتوزيع حسب ثمانية قطاعات، وأعلى الأحداث أثرًا، وبنود «راقِب» |
 | ⏯️ **إعادة التشغيل الزمني** | آخر 48/72 ساعة ساعةً بساعة على الخريطة 2D والكرة 3D |
 | 🛢️ **الطاقة والأسواق** | شريط برنت/غرب تكساس/الغاز/VIX في الرأس بتاريخ بياناته، ولوحة بخطوط مصغّرة، ومخطط تزامن المؤشرين مع برنت *(يحتاج `FRED_API_KEY`)* |
+| 🔗 **سلاسل السبب والأثر** | روابط قاعدية بين القصص بنسبة ثقة مفسَّرة وقاعدتها، في لوحة الحدث ونافذة «سلاسل التأثير»، وموجز سردي في رأس التقرير |
 | 🔗 **روابط مشاركة** | `?event=ID` يفتح تفاصيل الحدث مباشرة |
 | ✈️ **تتبع الطيران** | رصد الطائرات عبر ADS-B مع تمييز الطيران العسكري |
 | ⏳ **خط زمني + 📊 إحصائيات** | عرض زمني للأحداث + مؤشر تصعيد وتوزيعات |
@@ -359,8 +376,8 @@ rsd/
 │   │   ├── 📄 auth.py              # حارس CSRF + مفتاح API للنقاط المكلفة
 │   │   ├── 📄 static_data.py       # قراءة ملفات data/*.json المشتركة
 │   │   ├── 📂 collectors/          # gdelt · news_api · rss_feeds · ucdp · adsb · iran_osint · nuclear_watch · markets (+ _feed_base)
-│   │   ├── 📂 processors/          # matching · normalize · gazetteer · nuclear · impact · text_analysis · clustering · dates
-│   │   ├── 📂 api/                 # system (+schedule) · events (+country-index) · flights · iran · nuclear · impact · markets · infrastructure (+ _stories/_serializers)
+│   │   ├── 📂 processors/          # matching · normalize · gazetteer · nuclear · impact · text_analysis · clustering · causal · dates
+│   │   ├── 📂 api/                 # system (+schedule) · events (+country-index) · chains · flights · iran · nuclear · impact · markets · infrastructure (+ _stories/_serializers)
 │   │   ├── 📂 data/                # nuclear_facilities · military_bases · pipelines · iranian_leaders (JSON)
 │   │   ├── 📂 middleware/          # cache (ETag) · ratelimit · security_headers
 │   │   └── 📂 models/database.py   # SQLite + SQLAlchemy + ترقية الأعمدة + الاحتفاظ
@@ -378,15 +395,16 @@ rsd/
 │   │   │   ├── 📂 Nuclear/         # NuclearPanel · RiskGauge · FacilityWatch · Sparkline
 │   │   │   ├── 📂 Impact/          # KsaLens · ImpactBreakdown (عدسة الأثر على المملكة)
 │   │   │   ├── 📂 Markets/         # MarketTicker · MarketsPanel · SyncChart (الطاقة والأسواق)
+│   │   │   ├── 📂 Chains/          # ChainSection (لوحة الحدث) · ChainsModal (سلاسل التأثير) · LinkParts
 │   │   │   ├── 📂 Events/          # EventCard · StoryList · EventDrawer
-│   │   │   ├── 📂 Report/          # ReportView (طباعة / HTML / Markdown)
+│   │   │   ├── 📂 Report/          # ReportView (موجز سردي + طباعة / HTML / Markdown)
 │   │   │   ├── 📂 NewsFeed/        # NewsFeed.jsx
 │   │   │   ├── 📂 Timeline/        # Timeline.jsx
 │   │   │   ├── 📂 Stats/           # StatsPanel.jsx · CountryIndex.jsx
 │   │   │   └── 📂 Iran/            # IranPanel.jsx
 │   │   ├── 📂 hooks/               # usePolling.js · useAudioAlert.js
 │   │   ├── 📂 i18n/                # index.js + locales/{ar,en}.json
-│   │   └── 📂 utils/               # api · constants (THEME) · security · icons · report · replay · deepLink · markets
+│   │   └── 📂 utils/               # api · constants (THEME) · security · icons · report · replay · deepLink · markets · chains
 │   ├── 📂 public/                  # favicon.ico + أيقونات PWA
 │   └── 📄 vite.config.js · index.html · package.json
 │
@@ -398,7 +416,7 @@ rsd/
 │   ├── 🖼️ rasad.ico                # الأيقونة الجاهزة
 │   └── 📄 README.md                # دليل البناء
 │
-├── 📂 docs/                        # nuclear-risk-methodology.md · ksa-impact-methodology.md · markets-sync-methodology.md · proposals/ · reviews/
+├── 📂 docs/                        # nuclear-risk-methodology.md · ksa-impact-methodology.md · markets-sync-methodology.md · causal-links-methodology.md · proposals/ · reviews/
 ├── 📂 .github/workflows/           # ci.yml (lint+tests+build) · deploy-frontend.yml · feed-health.yml (فحص الخلاصات أسبوعيًا)
 ├── 📄 docker-compose.yml · docker-compose.prod.yml
 ├── 📄 Rasad.bat                          # تشغيل بنقرة واحدة (Windows) — عملية واحدة للواجهة والبيانات
@@ -416,6 +434,9 @@ rsd/
 |--------|-------|
 | `GET /api/events/` | الأحداث مطويّة في قصص مع فلاتر (category, severity, country_code, source, search, topic, sector, hours, limit, collapse) |
 | `GET /api/events/{id}` | حدث واحد بقصته ومصادرها (لرابط المشاركة `?event=ID`) |
+| `GET /api/events/{id}/chain?min_confidence=0` | أسباب قصة الحدث المحتملة وآثارها المباشرة، لكل رابط علاقته (ar/en) وثقته وقاعدته وأدلّته (الكيانات المشتركة، الفارق الزمني، مكوّنات المعادلة) |
+| `GET /api/chains?hours=72&min_confidence=0.4&limit=10` | أطول سلاسل «سبب ← أثر» في الفترة: عقدها وروابطها بنسبة كل رابط، وثقة السلسلة (أضعف حلقة) |
+| `GET /api/chains/rules` | القوالب وأوزانها ومعاملات معادلة الثقة |
 | `GET /api/events/latest?limit=20` | أحدث الأحداث الخام (تيار التنبيهات) |
 | `GET /api/events/map?hours=24&limit=200` | أحداث الخريطة (ممثّل واحد لكل قصة، بإحداثيات) |
 | `GET /api/events/stats` | إحصائيات شاملة (منها العدّ حسب التصنيف والقطاع) + مؤشر التصعيد باتجاهه وسلسلته |
@@ -459,7 +480,7 @@ rsd/
 |--------|-------|
 | `GET /api/nuclear/risk?hours=24` | مؤشر المخاطر النووية والإشعاعية (0-100) مع مكوّناته واتجاهه وسلسلته |
 | `GET /api/nuclear/events` | الأخبار النووية/الإشعاعية مطويّة في قصص (topic, min_risk, near_ksa_km) |
-| `GET /api/nuclear/brief?hours=24` | التقرير الدوري (بيانات منظّمة تصدّرها الواجهة) |
+| `GET /api/nuclear/brief?hours=24` | التقرير الدوري (بيانات منظّمة تصدّرها الواجهة)، ومعه مؤشر الأثر على المملكة وقطاعاته وأبرز سلاسل الترابط لبناء الموجز السردي |
 | `GET /api/nuclear/topics` | الموضوعات وأوزان أساسها |
 | `GET /api/nuclear/facilities` | قائمة المنشآت + المسافة إلى المملكة + مسافات التخطيط (country, facility_type, status) |
 | `GET /api/nuclear/facilities/watch` | المنشآت المذكورة في الأخبار مرتّبة بالخطر |
@@ -509,6 +530,11 @@ UCDP_ACCESS_TOKEN=
 # مفتاح FRED المجاني — أسعار الطاقة وVIX اليومية. بدونه يُتخطّى الجامع
 # وتعرض الواجهة «أضف FRED_API_KEY للتفعيل». https://fred.stlouisfed.org/docs/api/api_key.html
 FRED_API_KEY=
+
+# سلاسل السبب والأثر: أدنى ثقة يُخزَّن بها رابط (0-1)
+CAUSAL_MIN_CONFIDENCE=0.4
+# محجوز لخطوة اختيارية لاحقة بنموذج لغوي — غير منفّذة؛ ضبطها لا يرسل شيئاً لأي خدمة
+LLM_ASSIST_ENABLED=false
 
 # فترات التحديث (بالثواني)
 GDELT_INTERVAL=900        # 15 دقيقة
@@ -560,6 +586,7 @@ RATE_LIMIT_WINDOW_SECONDS=60
 | `events` | جميع الأحداث من كل المصادر (+ حقلا confidence و video_url) |
 | `flight_tracks` | سجل تتبع الطيران |
 | `iranian_leader_news` | أخبار القادة الإيرانيين المرصودة |
+| `event_links` | روابط «سبب ← أثر» بين القصص (cause_id, effect_id, relation_ar/en, confidence, method, rule_id, evidence) — فريد على الزوج، ويُحذف مع حذف قصة أحد طرفيه |
 | `market_quotes` | قيم FRED اليومية (code, observed_at, value) — فريد على (code, observed_at) وتُحدَّث القيمة المراجَعة؛ تُحذف الأقدم من `RETENTION_MARKETS_DAYS` (400 يوم) |
 
 ---
