@@ -34,7 +34,8 @@ _BOUNDARY_START = r"(?<![\w])"
 _BOUNDARY_END = r"(?![\w])"
 
 
-def _term_pattern(term: str) -> str:
+def _term_body(term: str) -> tuple[str, bool, bool]:
+    """(جسم الكلمة بعد التطبيع، مطابقة بادئة؟، عربية؟)."""
     raw = normalize_for_match(term)
     prefix_match = raw.endswith("*")
     raw = raw.rstrip("*").strip()
@@ -42,6 +43,11 @@ def _term_pattern(term: str) -> str:
     if is_arabic and raw.startswith("ال") and len(raw) > 4:
         # «ال» تُغطّيها السوابق؛ إبقاؤها في الجسم يُفشل «للطاقة» (ل + ال بلا ألف)
         raw = raw[2:]
+    return raw, prefix_match, is_arabic
+
+
+def _term_pattern(term: str) -> str:
+    raw, prefix_match, is_arabic = _term_body(term)
     body = r"\s+".join(re.escape(part) for part in raw.split(" "))
 
     if prefix_match:
@@ -75,20 +81,29 @@ class KeywordSet:
     def __init__(self, terms: Iterable[str]):
         self.terms: tuple[str, ...] = tuple(dict.fromkeys(t for t in terms if t and t.strip()))
         self._compiled = [(t, re.compile(_term_pattern(t))) for t in self.terms]
+        # أجزاء الجسم الحرفية لكل كلمة: التعبير لا يطابق إلا إن ظهرت كلها في
+        # النص، وفحص `in` (بحث نصّي في C) أسرع بكثير من تشغيل التعبير. أغلب
+        # الكلمات غائبة عن أغلب النصوص، فيُتخطّى تعبيرها كليًا.
+        self._parts = [tuple(_term_body(t)[0].split(" ")) for t in self.terms]
+
+    def _candidates(self, norm_text: str):
+        for (term, rx), parts in zip(self._compiled, self._parts):
+            if all(p in norm_text for p in parts):
+                yield term, rx
 
     def __len__(self) -> int:
         return len(self.terms)
 
     def search(self, norm_text: str) -> list[Hit]:
         hits: list[Hit] = []
-        for term, rx in self._compiled:
+        for term, rx in self._candidates(norm_text):
             for m in rx.finditer(norm_text):
                 hits.append(Hit(term, m.start(), m.end()))
         hits.sort(key=lambda h: h.start)
         return hits
 
     def matches(self, norm_text: str) -> bool:
-        return any(rx.search(norm_text) for _, rx in self._compiled)
+        return any(rx.search(norm_text) for _, rx in self._candidates(norm_text))
 
     def count(self, norm_text: str) -> int:
         """عدد المقاطع المطابِقة غير المتداخلة، مع تفضيل الأطول.
@@ -104,7 +119,7 @@ class KeywordSet:
         return len(taken)
 
     def matched_terms(self, norm_text: str) -> list[str]:
-        return [t for t, rx in self._compiled if rx.search(norm_text)]
+        return [t for t, rx in self._candidates(norm_text) if rx.search(norm_text)]
 
 
 def mask_spans(norm_text: str, spans: Iterable[tuple[int, int]]) -> str:

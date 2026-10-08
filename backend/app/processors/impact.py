@@ -202,6 +202,8 @@ def tag_sectors(title: str, description: str = "") -> dict[str, int]:
     title_norm, _ = strip_phrases(normalize_for_match(title), _SECTOR_EXCLUDE)
     hits: dict[str, int] = {}
     for sector in SECTORS:
+        if not sector.terms.matches(norm):     # مسح واحد يستبعد أغلب القطاعات
+            continue
         n = sector.terms.count(norm) + sector.terms.count(title_norm)
         if n:
             hits[sector.key] = n
@@ -216,6 +218,8 @@ def _strict_terms(terms: KeywordSet, norm: str) -> list[str]:
     سلامة») و«الجبيل» مدينةَ «جبيل» اللبنانية. لاسم المكان المعرّف نشترط ظهور
     الأداة («الرياض»، «بالرياض»، «للرياض»)."""
     found: list[str] = []
+    if not terms.matches(norm):
+        return found
     for hit in terms.search(norm):
         if hit.term in found:
             continue

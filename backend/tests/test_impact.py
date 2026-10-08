@@ -227,3 +227,15 @@ class TestImpactFields:
         assert SECTOR_KEYS == (
             "security", "energy", "aviation", "shipping_ports", "markets", "food_water", "health", "diplomacy",
         )
+
+
+@pytest.mark.parametrize("title,severity,lat,lon,expected", [
+    # جدول الأمثلة في docs/ksa-impact-methodology.md
+    ("هجوم بمسيرة على منشأة أرامكو في بقيق", "critical", 25.94, 49.67, 90.0),
+    ("اعتراض صاروخ باليستي أطلق نحو الرياض", "critical", 24.7, 46.6, 81.0),
+    ("استهداف ناقلة في البحر الأحمر قبالة الحديدة", "high", 14.8, 42.95, 57.4),
+    ("Oil prices jump as tankers avoid the Strait of Hormuz", "medium", 26.5, 56.3, 30.6),
+    ("Local elections held in London", "low", 51.5, -0.1, 4.0),
+])
+def test_documented_examples(title, severity, lat, lon, expected):
+    assert assess_impact(title, severity=severity, latitude=lat, longitude=lon).score == expected
