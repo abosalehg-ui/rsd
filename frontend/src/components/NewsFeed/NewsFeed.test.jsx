@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import '../../i18n';
-import NewsFeed from './NewsFeed';
+import i18n from '../../i18n';
+import NewsFeed, { categoryCount } from './NewsFeed';
 
 const baseFilters = {
-  category: '', severity: '', country_code: '', source: '', search: '', hours: 24,
+  category: '', severity: '', country_code: '', source: '', search: '', sector: '', hours: 24,
 };
 
 const sampleEvents = [
@@ -110,5 +111,55 @@ describe('<NewsFeed> filter panel', () => {
     fireEvent.click(screen.getByLabelText(/Toggle filters|إظهار\/إخفاء الفلاتر/));
     fireEvent.change(screen.getAllByRole('combobox')[2], { target: { value: '72' } });
     expect(onFilterChange).toHaveBeenCalledWith('hours', 72);
+  });
+});
+
+describe('<NewsFeed> counts and sectors', () => {
+  beforeEach(async () => { await i18n.changeLanguage('en'); });
+
+  it('shows the event count next to each category', () => {
+    render(<NewsFeed
+      events={sampleEvents}
+      filters={baseFilters}
+      categoryCounts={{ military: 38, diplomatic: 12, nuclear: 3, radiological: 2 }}
+    />);
+    const group = screen.getByRole('group', { name: 'By category' });
+    expect(group).toHaveTextContent('Military38');
+    expect(group).toHaveTextContent('Diplomatic12');
+    // «نووي» في الخادم يشمل الإشعاعي
+    expect(group).toHaveTextContent('Nuclear5');
+    expect(group).toHaveTextContent('All55');
+  });
+
+  it('hides counts until stats arrive instead of showing a misleading 0', () => {
+    render(<NewsFeed events={sampleEvents} filters={baseFilters} />);
+    expect(screen.getByRole('group', { name: 'By category' })).not.toHaveTextContent(/\d/);
+  });
+
+  it('filters by Kingdom-impact sector with counts', () => {
+    const onFilterChange = vi.fn();
+    render(<NewsFeed
+      events={sampleEvents}
+      filters={baseFilters}
+      onFilterChange={onFilterChange}
+      sectorCounts={{ energy: 4, security: 9 }}
+    />);
+    fireEvent.click(screen.getByLabelText('Toggle filters'));
+    const sectors = screen.getByRole('group', { name: 'By sector (Kingdom impact)' });
+    expect(sectors).toHaveTextContent('Energy4');
+    expect(sectors).toHaveTextContent('Health0');
+    fireEvent.click(screen.getByRole('button', { name: /^Energy/ }));
+    expect(onFilterChange).toHaveBeenCalledWith('sector', 'energy');
+  });
+
+  it('counts the active sector as a filter', () => {
+    render(<NewsFeed events={sampleEvents} filters={{ ...baseFilters, sector: 'energy' }} />);
+    expect(screen.getByLabelText('Toggle filters').textContent).toBe('1');
+  });
+
+  it('categoryCount merges radiological into nuclear', () => {
+    expect(categoryCount(null, 'military')).toBeNull();
+    expect(categoryCount({ nuclear: 1, radiological: 2 }, 'nuclear')).toBe(3);
+    expect(categoryCount({}, 'economic')).toBe(0);
   });
 });

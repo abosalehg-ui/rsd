@@ -2,7 +2,7 @@
  * رصد - خطافات مخصصة
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { TIME_WINDOWS } from '../utils/constants';
+import { IMPACT_SECTORS, TIME_WINDOWS } from '../utils/constants';
 
 /**
  * خطاف جلب البيانات مع تحديث تلقائي.
@@ -75,6 +75,7 @@ const FILTER_DEFAULTS = {
   country_code: '',
   source: '',
   search: '',
+  sector: '',
   hours: 24,
 };
 
@@ -87,6 +88,8 @@ function sanitize(key, raw) {
     const n = Number(raw);
     return TIME_WINDOWS.includes(n) ? n : FILTER_DEFAULTS.hours;
   }
+  // قطاع غير معروف يعيد 422 من الخادم — نُسقطه بدل كسر القائمة
+  if (key === 'sector') return IMPACT_SECTORS[raw] ? raw : '';
   return String(raw ?? '').slice(0, SEARCH_MAX);
 }
 

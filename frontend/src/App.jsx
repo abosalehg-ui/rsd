@@ -13,6 +13,8 @@ import Timeline from './components/Timeline/Timeline';
 import StatsPanel from './components/Stats/StatsPanel';
 import IranPanel from './components/Iran/IranPanel';
 import NuclearPanel from './components/Nuclear/NuclearPanel';
+import KsaLens from './components/Impact/KsaLens';
+import ReplayBar from './components/Map/ReplayBar';
 import EventDrawer from './components/Events/EventDrawer';
 import ReportView from './components/Report/ReportView';
 import ErrorBoundary from './components/common/ErrorBoundary';
@@ -20,12 +22,15 @@ import { usePolling, useFilters } from './hooks/usePolling';
 import { useAudioAlert } from './hooks/useAudioAlert';
 import {
   Newspaper, Clock, BarChart3, PanelLeftClose, PanelLeftOpen, Crosshair, Map as MapIcon, X, Radiation,
+  Landmark,
 } from 'lucide-react';
 import {
   getEvents, getMapEvents, getStats, getLiveFlights, refreshSources,
   getIranStrikes, getNuclearFacilities, getNuclearRisk,
   getCountryIndex, getMilitaryBases, getPipelines, getLatestEvents,
+  getEvent, getSchedule,
 } from './utils/api';
+import { readEventId, writeEventId } from './utils/deepLink';
 
 // تحميل كسول للكرة الأرضية — Three.js كبير الحجم
 const RasadGlobe = lazy(() => import('./components/Map/RasadGlobe'));
@@ -33,6 +38,7 @@ const RasadGlobe = lazy(() => import('./components/Map/RasadGlobe'));
 // الرصد النووي والإشعاعي هو التبويب الأول والافتراضي: مهمة المنصة الأساسية
 const TABS = [
   { id: 'nuclear', labelKey: 'tabs.nuclear', icon: Radiation },
+  { id: 'impact', labelKey: 'tabs.impact', icon: Landmark },
   { id: 'news', labelKey: 'tabs.news', icon: Newspaper },
   { id: 'timeline', labelKey: 'tabs.timeline', icon: Clock },
   { id: 'stats', labelKey: 'tabs.stats', icon: BarChart3 },
@@ -53,7 +59,7 @@ const DEFAULT_LAYERS = {
 };
 
 export default function App() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [detailEvent, setDetailEvent] = useState(null);
   const [reportOpen, setReportOpen] = useState(false);
@@ -67,6 +73,10 @@ export default function App() {
     try { return localStorage.getItem('rsd-view-mode') || '2d'; } catch { return '2d'; }
   });
   const { filters, updateFilter, resetFilters } = useFilters();
+  // إعادة التشغيل الزمني: أحداث الإطار الحالي، أو null للبيانات الحيّة
+  const [replayEvents, setReplayEvents] = useState(null);
+  // رابط المشاركة `?event=ID` يُقرأ مرة عند التحميل (قبل أن يكتب أي تأثير العنوان)
+  const [linkedEventId] = useState(() => readEventId());
 
   const setLayer = useCallback((key, value) => {
     setLayers(prev => ({ ...prev, [key]: value }));
@@ -128,6 +138,12 @@ export default function App() {
     60000, [nuclearHours]
   );
 
+  // وقت آخر تحليل وموعد المزامنة القادمة — للهيدر
+  const { data: schedule, lastFetchedAt: scheduleFetchedAt } = usePolling(
+    useCallback(() => getSchedule(), []),
+    60000
+  );
+
   // مؤشر استخبارات الدول (v1.3)
   const { data: countryIndex, loading: countryLoading } = usePolling(
     useCallback(() => getCountryIndex({ hours: 72, top: 15 }), []),
@@ -136,7 +152,9 @@ export default function App() {
 
   const events = useMemo(() => eventsData?.events || [], [eventsData]);
   const iranStrikes = useMemo(() => iranData?.strikes || [], [iranData]);
-  const mapEvts = useMemo(() => mapEvents || [], [mapEvents]);
+  const liveMapEvts = useMemo(() => mapEvents || [], [mapEvents]);
+  // `??` لا `||`: إطار إعادة فارغ (ساعة بلا أحداث) يعرض خريطة فارغة لا البيانات الحيّة
+  const mapEvts = replayEvents ?? liveMapEvts;
   const nuclearFacilities = useMemo(() => nuclearData?.facilities || [], [nuclearData]);
   const militaryBases = useMemo(() => basesData?.bases || [], [basesData]);
   const pipelines = useMemo(() => pipelinesData?.pipelines || [], [pipelinesData]);
@@ -216,6 +234,35 @@ export default function App() {
   }, []);
 
   const closeDetail = useCallback(() => setDetailEvent(null), []);
+
+  // رابط مشاركة: فتح الحدث المطلوب في لوحة التفاصيل عند التحميل
+  useEffect(() => {
+    if (linkedEventId == null) return undefined;
+    let cancelled = false;
+    getEvent(linkedEventId)
+      .then(ev => {
+        if (cancelled || !ev) return;
+        setDetailEvent(ev);
+        setSelectedEvent(ev);
+        setMobileView('panel');
+        setPanelOpen(true);
+      })
+      .catch(() => { if (!cancelled) setToast({ kind: 'error', text: i18n.t('events.notFound') }); });
+    return () => { cancelled = true; };
+    // i18n لا t: تغيير اللغة يغيّر هوية t ولا يجوز أن يعيد فتح الحدث
+  }, [linkedEventId, i18n]);
+
+  // العنوان يعكس الحدث المفتوح، فيُنسخ من شريط العنوان أو زر «نسخ الرابط»
+  useEffect(() => {
+    writeEventId(typeof detailEvent?.id === 'number' ? detailEvent.id : null);
+  }, [detailEvent]);
+
+  // من عدسة الأثر: قطاع ← شريط الأحداث مفلترًا به
+  const handleSelectSector = useCallback((sector) => {
+    updateFilter('sector', sector);
+    setDetailEvent(null);
+    setActiveTab('news');
+  }, [updateFilter]);
 
   const mapNode = viewMode === '3d' ? (
     <ErrorBoundary onReset={() => setViewMode('2d')}>
@@ -310,6 +357,13 @@ export default function App() {
             onSelectFacility={handleSelectFacility}
           />
         )}
+        {activeTab === 'impact' && (
+          <KsaLens
+            onOpenEvent={handleSelectEvent}
+            onSelectSector={handleSelectSector}
+            activeId={detailEvent?.id}
+          />
+        )}
         {activeTab === 'news' && (
           <NewsFeed
             events={events}
@@ -320,6 +374,8 @@ export default function App() {
             filters={filters}
             onFilterChange={updateFilter}
             onResetFilters={resetFilters}
+            categoryCounts={stats?.categories || null}
+            sectorCounts={stats?.sectors || null}
           />
         )}
         {activeTab === 'timeline' && (
@@ -367,6 +423,8 @@ export default function App() {
         viewMode={viewMode}
         onToggleView={toggleViewMode}
         lastFetchedAt={statsFetchedAt}
+        schedule={schedule}
+        scheduleFetchedAt={scheduleFetchedAt}
       />
 
       {/* بانر تعذّر الاتصال — البيانات المعروضة قد تكون قديمة */}
@@ -450,7 +508,11 @@ export default function App() {
             mobileView === 'map' ? 'flex' : 'hidden'
           } md:flex md:flex-1`}
         >
-          <div className="absolute inset-0">{mapNode}</div>
+          {/* الخريطة/الكرة فوق شريط إعادة التشغيل الزمني (يغذّي الاثنتين) */}
+          <div className="absolute inset-0 flex flex-col">
+            <div className="relative flex-1 min-h-0">{mapNode}</div>
+            <ReplayBar onFrame={setReplayEvents} />
+          </div>
 
           {/* زر طي/فتح اللوحة — سطح المكتب فقط (على الجوال يوجد المبدّل).
               خصائص منطقية (end/border-e/rounded-s) كي لا ينفصل التبويب على

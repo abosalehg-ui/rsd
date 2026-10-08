@@ -27,7 +27,11 @@
     "view": "View",
     "lastUpdate": "Last update",
     "escalationHelp": "Share of high-severity military events among all events in the period",
-    "nuclearIndex": "Risk index"
+    "nuclearIndex": "Risk index",
+    "lastAnalysis": "Last analysis",
+    "nextSync": "Next sync in {{time}}",
+    "nextSyncDue": "Next sync due now",
+    "scheduleHelp": "Last completed news analysis, and the countdown to the next collection cycle"
   },
   "common": {
     "loading": "Loading…"
@@ -37,7 +41,8 @@
     "timeline": "Timeline",
     "stats": "Statistics",
     "iran": "Iran",
-    "nuclear": "Nuclear & radiological"
+    "nuclear": "Nuclear & radiological",
+    "impact": "Kingdom impact"
   },
   "news": {
     "title": "Events",
@@ -54,7 +59,11 @@
     "allCountries": "All countries",
     "allSources": "All sources",
     "resetFilters": "Reset filters",
-    "loadFailed": "Could not load events — the server may be unreachable"
+    "loadFailed": "Could not load events — the server may be unreachable",
+    "byCategory": "By category",
+    "bySector": "By sector (Kingdom impact)",
+    "allSectors": "All sectors",
+    "countTitle": "{{count}} events in this period"
   },
   "timeline": {
     "title": "Timeline",
@@ -366,7 +375,11 @@
     "published": "Published",
     "firstSeen": "First seen",
     "noDescription": "The source gave no description.",
-    "sameCountry": "Other events in {{country}}"
+    "sameCountry": "Other events in {{country}}",
+    "copyLink": "Copy event link",
+    "linkCopied": "Link copied",
+    "copyFailed": "Couldn't copy — copy the link from the address bar",
+    "notFound": "Couldn't open the linked event — it may have expired under the data retention period."
   },
   "report": {
     "title": "Nuclear & radiological watch report",
@@ -397,5 +410,92 @@
     "summaryLine": "Index {{index}} ({{level}}), {{trend}}. {{stories}} stories from {{events}} reports, {{near}} of them near the Kingdom.",
     "none": "Nothing in this period.",
     "method": "Each report scores 0–100 = topic base + severity signals − dampeners (exercise, analysis, official reassurance, statement) ± proximity to the Kingdom, multiplied by a source trust factor. Index = 60% of the highest score + 40% of the mean of the top five stories. Weights are an initial operational estimate open to calibration; classification is automatic from open sources and needs human verification before any decision."
+  },
+  "impact": {
+    "title": "Kingdom impact index",
+    "short": "Kingdom impact",
+    "window": "Period",
+    "periods": {
+      "24": "Last 24 hours",
+      "48": "Last 48 hours",
+      "72": "Last 3 days",
+      "168": "Last week"
+    },
+    "empty": "No events with an impact in this period.",
+    "loadFailed": "Couldn't load the impact index: the Rasad server isn't responding (was the Rasad.bat window closed?).",
+    "formula": "{{maxW}}% of the highest single impact ({{max}}) + {{topW}}% of the mean of the top {{n}} stories ({{mean}})",
+    "storiesNote": "Covers all events, not only nuclear ones; a story counts once, however many outlets report it.",
+    "eventFormula": "Event impact = 100 × severity × proximity × direct mention × source trust",
+    "factorsTitle": "Formula factors",
+    "method": "Weights are an initial operational estimate open to calibration; tagging is automatic from open sources and needs human verification before any decision.",
+    "sectorsTitle": "Impact by sector",
+    "sectorStories": "{{count}} stories",
+    "openSector": "Show {{sector}} events",
+    "topTitle": "Highest-impact events",
+    "watchTitle": "Watch",
+    "watchItem": "Up from {{prev}} to {{value}}",
+    "watchNone": "No sector's impact rose clearly on the previous period.",
+    "watchRule": "A sector appears here when its index rises {{delta}} points or more on the previous period and reaches {{min}}.",
+    "watchOpen": "Open the top event",
+    "score": "Impact on the Kingdom",
+    "breakdown": "Impact on the Kingdom",
+    "noSectors": "No sector tagged",
+    "mentioned": "Mentions: {{terms}}",
+    "components": {
+      "severity": "Severity",
+      "proximity": "Proximity to the Kingdom",
+      "mention": "Direct mention",
+      "source_trust": "Source trust"
+    },
+    "mentionLevels": {
+      "asset": "Critical Saudi asset",
+      "ksa": "The Kingdom or its cities",
+      "chokepoint": "Vital sea lane",
+      "none": "No direct mention"
+    },
+    "bands": {
+      "adjacent": "Adjacent (under 300 km)",
+      "near": "Near (under 800 km)",
+      "regional": "Regional (under 1,500 km)",
+      "far": "Far",
+      "unknown": "No location"
+    },
+    "trust": {
+      "official": "Official",
+      "specialist": "Specialist",
+      "news": "News",
+      "aggregator": "Aggregator",
+      "analysis": "Analysis & opinion"
+    },
+    "sectors": {
+      "security": "Security",
+      "energy": "Energy",
+      "aviation": "Aviation",
+      "shipping_ports": "Shipping & ports",
+      "markets": "Markets",
+      "food_water": "Food & water",
+      "health": "Health",
+      "diplomacy": "Diplomacy"
+    },
+    "colIndex": "Index",
+    "colStories": "Stories"
+  },
+  "replay": {
+    "open": "Time replay",
+    "close": "Close replay",
+    "play": "Play",
+    "pause": "Pause",
+    "restart": "From the start",
+    "window": "Replay window",
+    "windows": {
+      "48": "48 hours",
+      "72": "72 hours"
+    },
+    "slider": "Hour shown",
+    "until": "Up to {{time}}",
+    "count": "{{count}} events",
+    "loading": "Loading events for the period…",
+    "failed": "Couldn't load replay events.",
+    "active": "Replay mode: the map shows events up to the chosen hour"
   }
 }

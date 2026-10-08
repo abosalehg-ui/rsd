@@ -1,13 +1,14 @@
 /**
  * رصد - قائمة الأحداث مع البحث والفلاتر
  *
- * المرشّحات هنا (بحث/دولة/مصدر/نافذة زمنية) موصولة بـ`useFilters`، وهي نفسها
- * معاملات `GET /api/events/`.
+ * المرشّحات هنا (بحث/تصنيف/قطاع/دولة/مصدر/نافذة زمنية) موصولة بـ`useFilters`،
+ * وهي نفسها معاملات `GET /api/events/`. بجانب كل تصنيف وقطاع عدد أحداثه في
+ * الفترة (من `/api/events/stats`) كي يُرى حجم كل فلتر قبل اختياره.
  */
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  CATEGORIES, SEVERITIES, COUNTRIES, SOURCES, TIME_WINDOWS,
+  CATEGORIES, SEVERITIES, COUNTRIES, SOURCES, TIME_WINDOWS, IMPACT_SECTORS,
 } from '../../utils/constants';
 import { Icon } from '../../utils/icons';
 import StoryList from '../Events/StoryList';
@@ -15,7 +16,25 @@ import { Newspaper, Filter, Search, X, RotateCcw } from 'lucide-react';
 
 const SEARCH_DEBOUNCE_MS = 400;
 
-export default function NewsFeed({ events = [], error, loading = false, onSelectEvent, activeId = null, filters, onFilterChange, onResetFilters }) {
+/** العدد بجانب الفلتر — `null` حين لا تتوفر الإحصائيات بعد (لا «0» مضلِّل). */
+function Count({ value, label }) {
+  if (value == null) return null;
+  return (
+    <span className="ms-1 font-mono text-2xs opacity-75" title={label}>{value}</span>
+  );
+}
+
+/** «نووي» في الخادم يشمل الإشعاعي (`category=nuclear`)، فيُعرض عددهما معًا. */
+export function categoryCount(counts, key) {
+  if (!counts) return null;
+  if (key === 'nuclear') return (counts.nuclear || 0) + (counts.radiological || 0);
+  return counts[key] || 0;
+}
+
+export default function NewsFeed({
+  events = [], error, loading = false, onSelectEvent, activeId = null, filters, onFilterChange, onResetFilters,
+  categoryCounts = null, sectorCounts = null,
+}) {
   const { t } = useTranslation();
   const [showFilters, setShowFilters] = useState(false);
   // مسودة البحث محلية ثم تُدفع للفلتر بعد سكون — كي لا نطلق طلباً لكل حرف
@@ -28,7 +47,7 @@ export default function NewsFeed({ events = [], error, loading = false, onSelect
     return () => clearTimeout(id);
   }, [searchDraft, filters?.search, onFilterChange]);
 
-  const activeFilterCount = ['category', 'severity', 'country_code', 'source', 'search']
+  const activeFilterCount = ['category', 'severity', 'country_code', 'source', 'search', 'sector']
     .filter(k => filters?.[k]).length;
 
   return (
@@ -81,20 +100,55 @@ export default function NewsFeed({ events = [], error, loading = false, onSelect
         </div>
       </div>
 
+      {/* التصنيفات ظاهرة دائمًا بأعدادها — أكثر الفلاتر استعمالًا */}
+      <div className="px-3 py-2 border-b border-rasad-border overflow-x-auto">
+        <div className="flex gap-1 w-max" role="group" aria-label={t('news.byCategory')}>
+          <button onClick={() => onFilterChange?.('category', '')}
+            aria-pressed={!filters?.category}
+            className={`text-xs px-2 py-1 rounded whitespace-nowrap focus-ring ${!filters?.category ? 'bg-cyan-400/20 text-cyan-200' : 'bg-rasad-border text-slate-300'}`}>
+            {t('news.all')}
+            {categoryCounts && (
+              <Count
+                value={Object.values(categoryCounts).reduce((a, b) => a + (b || 0), 0)}
+                label={t('news.countTitle', { count: Object.values(categoryCounts).reduce((a, b) => a + (b || 0), 0) })}
+              />
+            )}
+          </button>
+          {Object.entries(CATEGORIES).map(([key, cat]) => (
+            <button key={key} onClick={() => onFilterChange?.('category', filters?.category === key ? '' : key)}
+              aria-pressed={filters?.category === key}
+              className={`text-xs px-2 py-1 rounded whitespace-nowrap focus-ring ${filters?.category === key ? 'text-white' : 'bg-rasad-border text-slate-300'}`}
+              style={filters?.category === key ? { background: cat.color + '30', color: cat.color } : {}}>
+              <Icon name={cat.icon} className="inline w-3.5 h-3.5 -mt-0.5" /> {t(`categories.${key}`)}
+              <Count
+                value={categoryCount(categoryCounts, key)}
+                label={t('news.countTitle', { count: categoryCount(categoryCounts, key) ?? 0 })}
+              />
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* الفلاتر */}
       {showFilters && (
         <div className="px-3 py-2 border-b border-rasad-border bg-rasad-bg space-y-2">
-          <div className="flex flex-wrap gap-1">
-            <button onClick={() => onFilterChange?.('category', '')}
-              className={`text-xs px-2 py-1 rounded focus-ring ${!filters?.category ? 'bg-cyan-400/20 text-cyan-200' : 'bg-rasad-border text-slate-300'}`}>
-              {t('news.all')}
+          <div className="flex flex-wrap gap-1" role="group" aria-label={t('news.bySector')}>
+            <span className="w-full text-xs text-slate-300">{t('news.bySector')}</span>
+            <button onClick={() => onFilterChange?.('sector', '')}
+              aria-pressed={!filters?.sector}
+              className={`text-xs px-2 py-1 rounded focus-ring ${!filters?.sector ? 'bg-cyan-400/20 text-cyan-200' : 'bg-rasad-border text-slate-300'}`}>
+              {t('news.allSectors')}
             </button>
-            {Object.entries(CATEGORIES).map(([key, cat]) => (
-              <button key={key} onClick={() => onFilterChange?.('category', filters?.category === key ? '' : key)}
-                aria-pressed={filters?.category === key}
-                className={`text-xs px-2 py-1 rounded focus-ring ${filters?.category === key ? 'text-white' : 'bg-rasad-border text-slate-300'}`}
-                style={filters?.category === key ? { background: cat.color + '30', color: cat.color } : {}}>
-                <Icon name={cat.icon} className="inline w-3.5 h-3.5 -mt-0.5" /> {t(`categories.${key}`)}
+            {Object.entries(IMPACT_SECTORS).map(([key, sec]) => (
+              <button key={key} onClick={() => onFilterChange?.('sector', filters?.sector === key ? '' : key)}
+                aria-pressed={filters?.sector === key}
+                className={`text-xs px-2 py-1 rounded focus-ring ${filters?.sector === key ? 'text-white' : 'bg-rasad-border text-slate-300'}`}
+                style={filters?.sector === key ? { background: sec.color + '30', color: sec.color } : {}}>
+                <Icon name={sec.icon} className="inline w-3.5 h-3.5 -mt-0.5" /> {t(`impact.sectors.${key}`)}
+                <Count
+                  value={sectorCounts ? (sectorCounts[key] || 0) : null}
+                  label={t('news.countTitle', { count: sectorCounts?.[key] || 0 })}
+                />
               </button>
             ))}
           </div>

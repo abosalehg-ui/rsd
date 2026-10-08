@@ -3,14 +3,17 @@
  *
  * لوحة تغطي العمود الجانبي: الوصف كاملًا، مصادر القصة كلها بروابطها، الموقع
  * ودقته والمسافة إلى المملكة، ومكوّنات درجة الخطر للأخبار النووية — كي يُفهم
- * لماذا صُنِّف الخبر كما صُنِّف. Escape يغلقها ويعيد التركيز لما قبلها.
+ * لماذا صُنِّف الخبر كما صُنِّف، ومعادلة أثره على المملكة. Escape يغلقها ويعيد
+ * التركيز لما قبلها. «نسخ الرابط» يعطي رابط `?event=ID` يفتح هذه اللوحة نفسها.
  */
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, ExternalLink, Crosshair } from 'lucide-react';
+import { X, ExternalLink, Crosshair, Link2, Check } from 'lucide-react';
 import { categoryOf, ksaPlace, severityOf, timeAgo } from '../../utils/constants';
 import { safeUrl } from '../../utils/security';
+import { copyText, eventLink } from '../../utils/deepLink';
 import { Icon } from '../../utils/icons';
+import ImpactBreakdown, { ImpactPill } from '../Impact/ImpactBreakdown';
 import { RiskPill, placeLabel } from './EventCard';
 
 const COMPONENT_ORDER = ['base', 'intensity', 'dampening', 'reassurance', 'statement', 'specificity', 'proximity'];
@@ -41,6 +44,40 @@ function RiskBreakdown({ nuclear }) {
         </div>
       </dl>
     </section>
+  );
+}
+
+/** زر «نسخ رابط الحدث» مع تأكيد مؤقت (ونص قارئ الشاشة عبر aria-live). */
+function CopyLinkButton({ id }) {
+  const { t } = useTranslation();
+  const [state, setState] = useState('idle');   // idle | copied | failed
+
+  useEffect(() => {
+    if (state === 'idle') return undefined;
+    const timer = setTimeout(() => setState('idle'), 2500);
+    return () => clearTimeout(timer);
+  }, [state]);
+
+  const copy = async () => setState((await copyText(eventLink(id))) ? 'copied' : 'failed');
+  const label = state === 'copied' ? t('events.linkCopied') : t('events.copyLink');
+
+  return (
+    <>
+      <button
+        onClick={copy}
+        aria-label={label}
+        title={label}
+        className={`min-w-11 min-h-11 flex items-center justify-center rounded hover:bg-rasad-border focus-ring ${
+          state === 'copied' ? 'text-emerald-300' : 'text-slate-300 hover:text-white'
+        }`}
+      >
+        {state === 'copied' ? <Check className="w-5 h-5" aria-hidden="true" /> : <Link2 className="w-5 h-5" aria-hidden="true" />}
+      </button>
+      <span className="sr-only" role="status" aria-live="polite">
+        {state === 'copied' ? t('events.linkCopied') : state === 'failed' ? t('events.copyFailed') : ''}
+      </span>
+      {state === 'failed' && <span className="text-2xs text-red-200">{t('events.copyFailed')}</span>}
+    </>
   );
 }
 
@@ -98,6 +135,7 @@ export default function EventDrawer({ event, onClose, onShowOnMap, facilities = 
         <Icon name={cat.icon} className="w-4 h-4" style={{ color: cat.color }} />
         <span className="text-xs font-semibold text-slate-300">{t('events.details')}</span>
         <span className="flex-1" />
+        {typeof event.id === 'number' && <CopyLinkButton id={event.id} />}
         <button
           ref={closeRef}
           onClick={onClose}
@@ -117,6 +155,7 @@ export default function EventDrawer({ event, onClose, onShowOnMap, facilities = 
             {t(`severity.${event.severity}`, { defaultValue: t('severity.low') })}
           </span>
           <RiskPill score={event.risk_score} />
+          <ImpactPill score={event.ksa_impact} />
         </div>
 
         <h2 id="event-drawer-title" className="mt-3 text-lg font-semibold leading-snug text-slate-50">{event.title}</h2>
@@ -147,6 +186,8 @@ export default function EventDrawer({ event, onClose, onShowOnMap, facilities = 
         </dl>
 
         <RiskBreakdown nuclear={nuclear} />
+
+        <ImpactBreakdown event={event} />
 
         <section className="mt-5">
           <h3 className="text-xs font-semibold text-slate-300">

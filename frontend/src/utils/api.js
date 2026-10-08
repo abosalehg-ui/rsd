@@ -81,6 +81,8 @@ export const getMapEvents = (hours = 24, limit = 200) => fetchAPI('/events/map',
 // تيار غير مفلتر لمحرّك التنبيهات — لا يتأثر بفلاتر العرض
 export const getLatestEvents = (limit = 50) => fetchAPI('/events/latest', { limit });
 export const getStats = (hours = 24) => fetchAPI('/events/stats', { hours });
+// حدث واحد بقصته — لرابط المشاركة `?event=ID`
+export const getEvent = (id) => fetchAPI(`/events/${encodeURIComponent(id)}`);
 
 // Flights
 export const getLiveFlights = () => fetchAPI('/flights/live');
@@ -99,6 +101,12 @@ export const getNuclearRisk = (hours = 24) => fetchAPI('/nuclear/risk', { hours 
 export const getNuclearEvents = (params = {}) => fetchAPI('/nuclear/events', params);
 export const getFacilityWatch = (hours = 168) => fetchAPI('/nuclear/facilities/watch', { hours });
 export const getNuclearBrief = (hours = 24) => fetchAPI('/nuclear/brief', { hours });
+
+// عدسة الأثر على المملكة
+export const getKsaImpact = (hours = 48) => fetchAPI('/impact/ksa', { hours });
+
+// جدول المزامنة: وقت آخر تحليل وموعد التحديث القادم
+export const getSchedule = () => fetchAPI('/schedule');
 
 // Country Intelligence Index 📊 (v1.3)
 export const getCountryIndex = (params = {}) => fetchAPI('/events/country-index', params);
