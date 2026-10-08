@@ -3,14 +3,18 @@
  *
  * الزمن يجري من اليسار لليمين في اللغتين (عُرف المخططات الزمنية حتى في
  * الواجهات العربية)، فالحاوية `dir="ltr"` صراحةً.
+ *
+ * المؤشرات 0-100 تبدأ من الصفر؛ الأسعار تمرّر `min` (أدنى قيمة في النافذة)
+ * وإلا بدا تذبذب برنت بين 80 و85 خطًّا مستويًا.
  */
 import React from 'react';
 
-export default function Sparkline({ points = [], max = 100, color = 'currentColor', height = 36, label }) {
+export default function Sparkline({ points = [], min = 0, max = 100, color = 'currentColor', height = 36, label }) {
   if (!points.length) return null;
   const w = 100;
   const step = points.length > 1 ? w / (points.length - 1) : w;
-  const y = (v) => height - 2 - (Math.min(v, max) / max) * (height - 4);
+  const span = max - min || 1;
+  const y = (v) => height - 2 - ((Math.min(Math.max(v, min), max) - min) / span) * (height - 4);
   const coords = points.map((v, i) => `${(i * step).toFixed(2)},${y(v).toFixed(2)}`);
   const area = `0,${height} ${coords.join(' ')} ${w},${height}`;
 

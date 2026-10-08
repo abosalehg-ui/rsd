@@ -14,6 +14,7 @@ import StatsPanel from './components/Stats/StatsPanel';
 import IranPanel from './components/Iran/IranPanel';
 import NuclearPanel from './components/Nuclear/NuclearPanel';
 import KsaLens from './components/Impact/KsaLens';
+import MarketsPanel from './components/Markets/MarketsPanel';
 import ReplayBar from './components/Map/ReplayBar';
 import EventDrawer from './components/Events/EventDrawer';
 import ReportView from './components/Report/ReportView';
@@ -22,13 +23,13 @@ import { usePolling, useFilters } from './hooks/usePolling';
 import { useAudioAlert } from './hooks/useAudioAlert';
 import {
   Newspaper, Clock, BarChart3, PanelLeftClose, PanelLeftOpen, Crosshair, Map as MapIcon, X, Radiation,
-  Landmark,
+  Landmark, Fuel,
 } from 'lucide-react';
 import {
   getEvents, getMapEvents, getStats, getLiveFlights, refreshSources,
   getIranStrikes, getNuclearFacilities, getNuclearRisk,
   getCountryIndex, getMilitaryBases, getPipelines, getLatestEvents,
-  getEvent, getSchedule,
+  getEvent, getSchedule, getMarketsLatest,
 } from './utils/api';
 import { readEventId, writeEventId } from './utils/deepLink';
 
@@ -43,6 +44,7 @@ const TABS = [
   { id: 'timeline', labelKey: 'tabs.timeline', icon: Clock },
   { id: 'stats', labelKey: 'tabs.stats', icon: BarChart3 },
   { id: 'iran', labelKey: 'tabs.iran', icon: Crosshair },
+  { id: 'markets', labelKey: 'tabs.markets', icon: Fuel },
 ];
 
 // حالة الطبقات مرفوعة إلى App كي تتشارك الخريطة 2D والكرة 3D الإعدادات نفسها.
@@ -142,6 +144,13 @@ export default function App() {
   const { data: schedule, lastFetchedAt: scheduleFetchedAt } = usePolling(
     useCallback(() => getSchedule(), []),
     60000
+  );
+
+  // الطاقة والأسواق (FRED يومي) — يشاركه شريط الهيدر ولوحة الأسواق. القيم
+  // من قاعدة الخادم، فنصف ساعة يكفي ليلتقط جلبه اليومي.
+  const { data: marketsLatest, error: marketsError } = usePolling(
+    useCallback(() => getMarketsLatest(), []),
+    1800000
   );
 
   // مؤشر استخبارات الدول (v1.3)
@@ -390,6 +399,9 @@ export default function App() {
         {activeTab === 'stats' && (
           <StatsPanel stats={stats} countryIndex={countryIndex} countryLoading={countryLoading} />
         )}
+        {activeTab === 'markets' && (
+          <MarketsPanel latest={marketsLatest} latestError={marketsError} />
+        )}
         {activeTab === 'iran' && (
           // الضربات من الاستطلاع المشترك في App كي تطابق اللوحة الخريطة
           <IranPanel strikes={iranStrikes} onSelectStrike={handleSelectEvent} />
@@ -425,6 +437,8 @@ export default function App() {
         lastFetchedAt={statsFetchedAt}
         schedule={schedule}
         scheduleFetchedAt={scheduleFetchedAt}
+        markets={marketsLatest}
+        onOpenMarkets={() => { setActiveTab('markets'); setDetailEvent(null); setMobileView('panel'); setPanelOpen(true); }}
       />
 
       {/* بانر تعذّر الاتصال — البيانات المعروضة قد تكون قديمة */}

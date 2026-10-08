@@ -42,7 +42,8 @@
     "stats": "Statistics",
     "iran": "Iran",
     "nuclear": "Nuclear & radiological",
-    "impact": "Kingdom impact"
+    "impact": "Kingdom impact",
+    "markets": "Markets"
   },
   "news": {
     "title": "Events",
@@ -497,5 +498,77 @@
     "loading": "Loading events for the period…",
     "failed": "Couldn't load replay events.",
     "active": "Replay mode: the map shows events up to the chosen hour"
+  },
+  "markets": {
+    "title": "Energy & markets",
+    "tickerLabel": "Energy & markets — daily FRED data, not live",
+    "openPanel": "Open the energy & markets panel",
+    "short": {
+      "DCOILBRENTEU": "Brent",
+      "DCOILWTICO": "WTI",
+      "DHHNGSP": "Gas",
+      "VIXCLS": "VIX"
+    },
+    "series": {
+      "DCOILBRENTEU": "Brent crude",
+      "DCOILWTICO": "WTI crude",
+      "DHHNGSP": "Henry Hub natural gas",
+      "VIXCLS": "VIX volatility index"
+    },
+    "units": {
+      "USD/bbl": "USD / barrel",
+      "USD/MMBtu": "USD / MMBtu",
+      "index": "index"
+    },
+    "dir": {
+      "up": "up",
+      "down": "down",
+      "flat": "unchanged"
+    },
+    "asOf": "as of {{date}}",
+    "dataDate": "Data date: {{date}}",
+    "daysOld_one": "{{count}} day old",
+    "daysOld_other": "{{count}} days old",
+    "lagNote": "FRED publishes daily closing values with a lag of one day or more — this is not live data.",
+    "fetchedAt": "Last fetched {{time}}.",
+    "observed": "Trading day {{date}}",
+    "vsPrev": "change vs {{date}}",
+    "noValue": "No value yet",
+    "sparkLabel": "{{name}} over {{days}} days: low {{lo}}, high {{hi}}",
+    "cardsLabel": "Latest values",
+    "pending": "FRED key is set — waiting for the first daily fetch.",
+    "loadFailed": "Couldn't load market data.",
+    "noKeyShort": "add FRED_API_KEY to enable",
+    "noKeyTitle": "Add FRED_API_KEY to enable",
+    "noKeyBody": "Energy prices come from FRED (Federal Reserve Bank of St. Louis). Get a free key, add it to the .env file next to Rasad, then restart:",
+    "noKeyWhere": "Free key: fred.stlouisfed.org → My Account → API Keys. Everything else in Rasad works without it.",
+    "noKeyStale": "Showing the last values stored before the key was removed.",
+    "sync": {
+      "title": "Synchronization: risk indices vs Brent",
+      "disclaimer": "A synchronization reading — not a forecast and not financial advice.",
+      "window": "Period",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days",
+      "legend": "Chart legend",
+      "chartLabel": "Daily nuclear risk index and Kingdom impact index (0-100, top) and Brent price (bottom) over {{days}} days on one time axis",
+      "series": {
+        "nuclear": "Nuclear risk",
+        "ksa": "Kingdom impact",
+        "brent": "Brent"
+      },
+      "noCoverage": "no data",
+      "noTrading": "no trading",
+      "noBrent": "No Brent values in this period",
+      "partial": "today (partial)",
+      "tableToggle": "Show the data table",
+      "tableCaption": "Daily values of the two indices and Brent",
+      "date": "Date",
+      "r": "r = {{r}} over {{n}} shared days",
+      "rNone": "not enough shared days ({{n}} of {{min}})",
+      "method": "Each day's index is computed from that UTC day's events only (what the 24-hour index showed at the end of the day). Brent is the closing price of the same date; weekends and holidays have none. The correlation coefficient describes co-movement within the window — it implies no causation.",
+      "coverage": "Index data starts {{date}}.",
+      "brentAsOf": "Latest Brent date: {{date}}.",
+      "loadFailed": "Couldn't load the synchronization chart."
+    }
   }
 }

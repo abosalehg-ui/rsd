@@ -69,8 +69,8 @@ npm run build                  # تأكيد نجاح البناء
 
 ```
 backend/app/
-  ├── api/          نقاط FastAPI (system, events, flights, iran, nuclear, impact, infrastructure) + _stories/_serializers
-  ├── collectors/   جامعو المصادر (gdelt, news_api, rss_feeds, ucdp, adsb, iran_osint, nuclear_watch) + _feed_base
+  ├── api/          نقاط FastAPI (system, events, flights, iran, nuclear, impact, markets, infrastructure) + _stories/_serializers
+  ├── collectors/   جامعو المصادر (gdelt, news_api, rss_feeds, ucdp, adsb, iran_osint, nuclear_watch, markets) + _feed_base
   ├── processors/   منطق نقي (matching, normalize, gazetteer, nuclear, impact, text_analysis, clustering, dates)
   ├── models/       نماذج SQLAlchemy + ترقية الأعمدة + الاحتفاظ بالبيانات
   ├── middleware/   cache (ETag) · ratelimit · security_headers
@@ -79,8 +79,8 @@ backend/app/
   ├── config.py     الإعدادات (pydantic-settings)
   └── scheduler.py  جدولة الجمع + التجميع + التنظيف
 frontend/src/
-  ├── components/   مكوّنات الواجهة (Map, Nuclear, Impact, Events, Report, Stats, Iran, Layout, …)
+  ├── components/   مكوّنات الواجهة (Map, Nuclear, Impact, Markets, Events, Report, Stats, Iran, Layout, …)
   ├── hooks/        usePolling, useAudioAlert
-  ├── utils/        api, constants (THEME = مصدر الألوان الواحد), security, icons, report, replay, deepLink
+  ├── utils/        api, constants (THEME = مصدر الألوان الواحد), security, icons, report, replay, deepLink, markets
   └── i18n/         الترجمة (ar/en) — أي نص معروض يمرّ عبر t()
 ```

@@ -39,6 +39,10 @@ export const THEME = {
   emergency: '#f4585d',
   flightMilitary: '#c4b5fd',
   flightCivil: '#94a3b8',
+  // مخطط التزامن (Markets/SyncChart) — متحقَّق منها على سطح اللوحة الداكن
+  syncNuclear: '#b8860b',
+  syncKsa: '#3f86e6',
+  syncBrent: '#1f9e7a',
 };
 
 // الأيقونات أسماء مكوّنات lucide (انظر utils/icons.jsx) لا رموز تعبيرية: حجم
@@ -222,3 +226,21 @@ export function formatNumber(num) {
   if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
   return num?.toString() || '0';
 }
+
+/**
+ * سلاسل FRED في شريط الطاقة والأسواق بترتيب العرض (backend/app/collectors/markets.SERIES).
+ * الأسماء من `markets.series.<code>` و`markets.short.<code>` في الترجمة.
+ */
+export const MARKET_SERIES = ['DCOILBRENTEU', 'DCOILWTICO', 'DHHNGSP', 'VIXCLS'];
+export const BRENT_CODE = 'DCOILBRENTEU';
+
+/**
+ * ألوان مخطط التزامن — هوية لا رتبة، ومتحقَّق منها بمدقّق الألوان على سطح
+ * اللوحة الداكن (نطاق الإضاءة، فصل عمى الألوان، التباين). أغمق درجة من
+ * `hazard` لأن الأصفر الفاتح يخرج عن نطاق الإضاءة على الخلفية الداكنة.
+ */
+export const SYNC_COLORS = {
+  nuclear: THEME.syncNuclear,
+  ksa: THEME.syncKsa,
+  brent: THEME.syncBrent,
+};

@@ -191,7 +191,7 @@ async def get_collectors_status():
 @router.get("/sources")
 async def get_sources():
     """المصادر المتاحة. المصدر الذي ينقصه اعتماد (NewsAPI بلا مفتاح، UCDP
-    بلا رمز) يُعلَن `disabled` بدل `active` لأنه لا يجمع شيئًا."""
+    بلا رمز، FRED بلا مفتاح) يُعلَن `disabled` بدل `active` لأنه لا يجمع شيئًا."""
     s = get_settings()
 
     def _fmt(seconds: int) -> str:
@@ -215,6 +215,7 @@ async def get_sources():
             {"id": "iran_osint", "name": "Iran OSINT", "interval": _fmt(s.iran_osint_interval), "status": "active"},
             {"id": "nuclear_watch", "name": "الرصد النووي والإشعاعي", "interval": _fmt(s.nuclear_interval), "status": "active"},
             {"id": "adsb", "name": "adsb.lol ADS-B", "interval": _fmt(s.effective_adsb_interval), "status": "active"},
+            {"id": "fred", "name": "FRED (St. Louis Fed)", "interval": _fmt(s.markets_interval), "status": _state(bool(s.fred_api_key))},
         ],
         "planned": [
             {"id": "telegram", "name": "Telegram", "status": "phase_2"},
