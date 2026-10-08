@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import __version__
 from .api.events import router as events_router
 from .api.flights import router as flights_router
+from .api.impact import router as impact_router
 from .api.infrastructure import router as infrastructure_router
 from .api.iran import router as iran_router
 from .api.nuclear import router as nuclear_router
@@ -155,6 +156,7 @@ def create_app(settings: Settings | None = None, *, with_lifespan: bool = True) 
     app.include_router(flights_router)
     app.include_router(iran_router)
     app.include_router(nuclear_router)
+    app.include_router(impact_router)
     app.include_router(infrastructure_router)
 
     # تخديم الواجهة المبنية (الوضع المُجمّع / سطح المكتب). يُركَّب أخيراً على "/"

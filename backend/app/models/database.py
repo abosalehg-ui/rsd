@@ -69,6 +69,10 @@ class Event(Base):
     geo_precision = Column(String(12))      # facility | city | region | country | none
     cluster_id = Column(Integer)            # معرّف «القصة»: أول حدث في مجموعة الأخبار المتشابهة
 
+    # عدسة الأثر على المملكة — تُملأ من `processors.impact` لكل الأحداث
+    impact_sectors = Column(Text)           # JSON: قائمة القطاعات (processors/impact.SECTOR_KEYS)
+    ksa_impact = Column(Float)              # درجة الأثر 0-100؛ مكوّناتها في extra_data.impact
+
     __table_args__ = (
         Index("idx_events_date", "event_date"),
         Index("idx_events_category", "category"),
@@ -166,6 +170,8 @@ _EVENTS_ADDED_COLUMNS = {
     "facility_id": "VARCHAR(40)",
     "geo_precision": "VARCHAR(12)",
     "cluster_id": "INTEGER",
+    "impact_sectors": "TEXT",
+    "ksa_impact": "FLOAT",
 }
 
 
@@ -234,6 +240,16 @@ def _upsert_insert(dialect_name: str):
     return None
 
 
+def _with_impact(fields: dict) -> dict:
+    """يضيف حقول الأثر على المملكة إن لم يحسبها الجامع — نقطة واحدة تغطّي
+    كل الجامعين بدل تكرار الاستدعاء في كل منها."""
+    if "ksa_impact" in fields:
+        return fields
+    from ..processors.impact import impact_fields
+
+    return {**fields, **impact_fields(fields)}
+
+
 async def insert_event_if_new(session, **fields) -> bool:
     """إدراج حدث مع تجاهل التعارض على source_id ذرّياً (INSERT ... ON CONFLICT
     DO NOTHING). يعيد True إذا أُدرِج فعلاً، False إذا كان مكرّراً.
@@ -244,6 +260,7 @@ async def insert_event_if_new(session, **fields) -> bool:
     يختار اللهجة من الاتصال (DATABASE_URL يقبل أي محرّك) ويسقط على
     SAVEPOINT + IntegrityError لما عدا SQLite وPostgreSQL.
     """
+    fields = _with_impact(fields)
     dialect_name = session.bind.dialect.name if session.bind is not None else "sqlite"
     insert_fn = _upsert_insert(dialect_name)
 
@@ -271,14 +288,29 @@ _BACKFILL_SKIP_SOURCES = ("ucdp", "iran_osint")
 
 
 async def backfill_analysis(batch: int = 500) -> int:
-    """يعيد تحليل الأحداث المخزّنة قبل v2.0 (لا `geo_precision` لها).
+    """يعيد تحليل الأحداث المخزّنة بمحرّك أقدم من الحالي.
 
     قاعدة سطح المكتب تبقى بين الإصدارات، فبدون هذا تظهر أحداث الأيام الثلاثين
-    الماضية بلا موضوع نووي ولا درجة خطر ولا موقع مُصحَّح حتى تنتهي صلاحيتها.
-    يعمل على دفعات ويتوقّف حين لا يبقى شيء؛ تشغيله مرة ثانية لا يفعل شيئًا.
+    الماضية بلا موضوع نووي ولا درجة خطر ولا أثر على المملكة حتى تنتهي صلاحيتها.
+    مرحلتان على دفعات، كل منهما تتوقّف حين لا يبقى شيء؛ تشغيله مرة ثانية لا
+    يفعل شيئًا:
+
+    1. صفوف ما قبل v2.0 (لا `geo_precision`): تصنيف وموقع ودرجة خطر نووي.
+    2. صفوف بلا `ksa_impact` (كل المصادر، ومنها الصفوف المعاد تحليلها للتو):
+       وسم القطاعات ودرجة الأثر من الحقول المخزّنة.
     """
     if not _session_factory:
         return 0
+    total = await _backfill_v2(batch)
+    impacted = await _backfill_impact(batch)
+    if total:
+        logger.info("🔁 إعادة تحليل %s حدثًا مخزّنًا بمحرّك v2.0", total)
+    if impacted:
+        logger.info("🔁 حساب الأثر على المملكة لـ %s حدثًا مخزّنًا", impacted)
+    return total + impacted
+
+
+async def _backfill_v2(batch: int) -> int:
     import json
 
     from sqlalchemy import select
@@ -315,22 +347,61 @@ async def backfill_analysis(batch: int = 500) -> int:
                 ev.title = title
                 ev.description = description
                 ev.extra_data = json.dumps({**extra, **a.extra}, ensure_ascii=False)
+                # التصنيف والموقع تغيّرا: الأثر المحسوب سابقًا (إن وُجد) لم يعد صالحًا
+                ev.ksa_impact = None
             await session.commit()
             total += len(rows)
-    if total:
-        logger.info("🔁 إعادة تحليل %s حدثًا مخزّنًا بمحرّك v2.0", total)
     return total
+
+
+_IMPACT_INPUTS = (
+    "title", "description", "severity", "latitude", "longitude", "source", "confidence", "extra_data",
+)
+
+
+async def _backfill_impact(batch: int) -> int:
+    from sqlalchemy import select
+
+    from ..processors.impact import impact_fields
+
+    total = 0
+    while True:
+        async with _session_factory() as session:
+            rows = (await session.execute(
+                select(Event).where(Event.ksa_impact.is_(None)).limit(batch)
+            )).scalars().all()
+            if not rows:
+                break
+            for ev in rows:
+                derived = impact_fields({k: getattr(ev, k) for k in _IMPACT_INPUTS})
+                for key, value in derived.items():
+                    setattr(ev, key, value)
+            await session.commit()
+            total += len(rows)
+    return total
+
+
+# وقت آخر تحليل مكتمل (تجميع القصص بعد الجمع) — يعرضه الهيدر عبر /api/schedule.
+# متغيّر عملية: يكفي لتطبيق سطح المكتب وuvicorn بعامل واحد.
+_last_analysis_at: datetime | None = None
+
+
+def last_analysis_at() -> datetime | None:
+    return _last_analysis_at
 
 
 async def run_story_clustering(hours: int = 72) -> int:
     """يُسند القصص للأحداث الجديدة خلال آخر `hours` ساعة (انظر processors/clustering)."""
+    global _last_analysis_at
     if not _session_factory:
         return 0
     from ..processors.clustering import assign_story_clusters
 
     since = datetime.now(timezone.utc) - timedelta(hours=hours)
     async with _session_factory() as session:
-        return await assign_story_clusters(session, since)
+        assigned = await assign_story_clusters(session, since)
+    _last_analysis_at = datetime.now(timezone.utc)
+    return assigned
 
 
 async def prune_old_data(events_days: int = 30, flights_days: int = 7) -> dict:

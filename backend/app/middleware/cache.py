@@ -6,6 +6,7 @@
 - يضيف Cache-Control حسب المسار:
   * /api/infrastructure/* و /api/nuclear/facilities/* و /api/sources → public, max-age=3600
   * /api/events/stats و /api/events/country-index → public, max-age=60
+  * /api/nuclear/* و /api/impact/* (مؤشرات حيّة) → max-age=30 مع revalidate
   * بقية /api/events/* و /api/iran/* و /api/flights/* → no-cache (يجب revalidate)
 """
 from __future__ import annotations
@@ -24,6 +25,9 @@ _CACHE_RULES: list[tuple[str, str]] = [
     ("/api/nuclear/facilities", "public, max-age=3600, stale-while-revalidate=300"),
     ("/api/nuclear/topics", "public, max-age=3600"),
     ("/api/nuclear/", "public, max-age=30, must-revalidate"),
+    ("/api/impact/sectors", "public, max-age=3600"),
+    ("/api/impact/", "public, max-age=30, must-revalidate"),
+    ("/api/schedule", "no-cache"),
     ("/api/sources", "public, max-age=3600"),
     ("/api/events/country-index", "public, max-age=60, stale-while-revalidate=30"),
     ("/api/events/stats", "public, max-age=60, stale-while-revalidate=30"),

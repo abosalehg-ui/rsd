@@ -8,7 +8,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from datetime import timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Awaitable, Callable
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -25,7 +25,7 @@ from ..collectors import (
     collect_ucdp_events,
 )
 from ..config import get_settings
-from ..models.database import Event, get_session_factory, run_story_clustering
+from ..models.database import Event, get_session_factory, last_analysis_at, run_story_clustering
 from ..processors.dates import utcnow
 
 logger = logging.getLogger("rasad.system")
@@ -220,4 +220,50 @@ async def get_sources():
             {"id": "telegram", "name": "Telegram", "status": "phase_2"},
             {"id": "ai", "name": "Ollama/Qwen AI", "status": "phase_2"},
         ],
+    }
+
+
+# وظائف المجدول التي تُعدّ «مزامنة» يعرض الهيدر عدّادها. الطيران (كل 30 ثانية)
+# والتجميع والتنظيف خارجها: عدّاد يعود للصفر كل نصف دقيقة لا يُخبر بشيء.
+SYNC_JOBS = (
+    "gdelt_collector", "newsapi_collector", "rss_collector", "ucdp_collector",
+    "iran_osint_collector", "nuclear_watch_collector",
+)
+
+
+@router.get("/schedule")
+async def get_schedule():
+    """وقت آخر تحليل وموعد المزامنة القادمة (للهيدر).
+
+    `next_sync_in_seconds` نسبي كي لا يتأثر العدّاد بفرق ساعة الجهاز عن
+    الخادم. وقت آخر تحليل = آخر تجميع قصص مكتمل في هذه العملية، وإلا آخر
+    حدث جُمع (أُعيد تشغيل الخادم ولم تكتمل دورة بعد)."""
+    from ..scheduler import scheduler
+
+    now = utcnow()
+    jobs = []
+    if scheduler.running:
+        for job in scheduler.get_jobs():
+            if job.next_run_time is None:
+                continue
+            jobs.append({"id": job.id, "name": job.name, "next_run": job.next_run_time.isoformat()})
+
+    upcoming = [
+        datetime.fromisoformat(j["next_run"]) for j in jobs if j["id"] in SYNC_JOBS
+    ]
+    next_sync = min(upcoming) if upcoming else None
+
+    last = last_analysis_at()
+    if last is None:
+        async with get_session_factory()() as session:
+            last = (await session.execute(select(func.max(Event.collected_at)))).scalar()
+        if last is not None and last.tzinfo is None:
+            last = last.replace(tzinfo=timezone.utc)
+
+    return {
+        "now": now.isoformat(),
+        "last_analysis": last.isoformat() if last else None,
+        "next_sync": next_sync.isoformat() if next_sync else None,
+        "next_sync_in_seconds": max(0, round((next_sync - now).total_seconds())) if next_sync else None,
+        "jobs": sorted(jobs, key=lambda j: j["next_run"]),
     }
