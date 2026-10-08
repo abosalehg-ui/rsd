@@ -537,6 +537,10 @@ class Template:
     effect: Predicate
     # كيان أخصّ من الدولة، أو دولتان مشتركتان على الأقل
     strong_entity: bool = False
+    # كيانات مشتركة بحكم شرطي القالب نفسيهما فلا تدلّ على شيء: في قالب «أصل
+    # سعودي ← طيران أو أسواق» الطرفان سعوديان دائمًا، فاشتراكهما في «السعودية»
+    # لا يربط هجومًا في بقيق بتعليق رحلات في أبها
+    uninformative: frozenset[tuple[str, str]] = frozenset()
 
 
 TEMPLATES: tuple[Template, ...] = (
@@ -570,6 +574,7 @@ TEMPLATES: tuple[Template, ...] = (
         "هجوم على أصل سعودي أو قربه ← أثر على الطيران أو الأسواق",
         "Attack on or near a Saudi asset → aviation or market impact",
         ksa_asset_attack, aviation_markets_effect,
+        uninformative=frozenset({("country", "SA")}),
     ),
 )
 TEMPLATE_BY_ID = {t.id: t for t in TEMPLATES}
@@ -667,7 +672,7 @@ def evaluate_pair(tpl: Template, cause: StoryFacts, effect: StoryFacts) -> tuple
         return None, "order"
     if gap > WINDOW:
         return None, "window"
-    shared = cause.entities & effect.entities
+    shared = (cause.entities & effect.entities) - tpl.uninformative
     if not shared:
         return None, "entity"
     countries = [k for kind, k in shared if kind == "country"]

@@ -263,6 +263,13 @@ class TestKsaAssetAviationMarkets:
         assert_link(self.rule, story("Missile attack on Jazan"),
                     story("Flights suspended at Jazan airport", 3))
 
+    def test_sharing_only_the_kingdom_is_not_evidence(self):
+        # الطرفان سعوديان بحكم القالب: هجوم في بقيق لا يفسّر تعليق رحلات أبها
+        assert_no_link(self.rule, story("Houthi drone attack on Aramco facility in Abqaiq"),
+                       story("تعليق الرحلات في مطار أبها", 3), "entity")
+        assert_no_link(self.rule, story("هجوم بطائرة مسيرة على مطار أبها"),
+                       story("Saudi stocks fall after Aramco attack", 3), "entity")
+
     def test_saudi_led_strike_is_not_an_attack_on_a_saudi_asset(self):
         assert_no_link(self.rule, story("Saudi-led coalition strikes Sanaa"),
                        story("Flights suspended at Sanaa airport", 4), "cause")
