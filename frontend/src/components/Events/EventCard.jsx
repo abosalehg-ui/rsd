@@ -11,19 +11,15 @@ import { useTranslation } from 'react-i18next';
 import { MapPin, CircleDashed, Layers } from 'lucide-react';
 import { COUNTRIES, categoryOf, riskColor, severityOf, timeAgo } from '../../utils/constants';
 import { Icon } from '../../utils/icons';
+import ScorePill from '../common/ScorePill';
 
 export function RiskPill({ score, className = '' }) {
   const { t } = useTranslation();
   if (score === null || score === undefined) return null;
-  const color = riskColor(score);
   return (
-    <span
-      className={`inline-flex items-center rounded px-1.5 py-0.5 font-mono text-xs font-semibold tabular-nums ${className}`}
-      style={{ color, background: `${color}1f`, boxShadow: `inset 0 0 0 1px ${color}55` }}
-      title={t('risk.score')}
-    >
+    <ScorePill color={riskColor(score)} title={t('risk.score')} className={className}>
       {Math.round(score)}
-    </span>
+    </ScorePill>
   );
 }
 

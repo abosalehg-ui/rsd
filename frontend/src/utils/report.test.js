@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import i18n from '../i18n';
-import { buildNarrative, narrativeNotes, narrativeText, shortTitle, summaryLine, toHtml, toMarkdown } from './report';
+import {
+  buildNarrative, formatDate, mdEsc, mdUrl, narrativeNotes, narrativeText, shortTitle, summaryLine, toHtml, toMarkdown,
+} from './report';
 
 const t = (...args) => i18n.t(...args);
 
@@ -118,7 +120,8 @@ describe('report export', () => {
   it('builds markdown with safe links only', () => {
     const md = toMarkdown(brief, t, 'en');
     expect(md).toContain('# Nuclear & radiological watch report');
-    expect(md).toContain('[Strike <script>alert(1)</script> on Natanz](https://ok.test/a)');
+    expect(md).toContain('[Strike \\<script\\>alert\\(1\\)\\</script\\> on Natanz](https://ok.test/a)');
+    expect(md).not.toContain('<script>');
     expect(md).not.toContain('javascript:');
     expect(md).toContain('Natanz: 1 stories, Risk score 79');
   });
@@ -130,7 +133,8 @@ describe('report export', () => {
     expect(md).toContain('(E21) → “Iran launches');
     expect(md).not.toMatch(/\[E\d+\]\(/);                       // الاستشهاد نص لا رابط
     expect(md).toContain('### Event references');
-    expect(md).toContain('1. **E1** — Strike <script>alert(1)</script> on Natanz — <https://ok.test/a>');
+    expect(md).toContain('1. **E1** — Strike \\<script\\>alert\\(1\\)\\</script\\> on Natanz — <https://ok.test/a>');
+    expect(md).toContain('“Strike \\<script\\>alert\\(1\\)\\</script\\> on Natanz” (E1)');   // العنوان داخل الموجز مُهرَّب أيضًا
     expect(md).toContain('2. **E2** — Bad link\n');
     expect(md).not.toContain('javascript:');
   });
@@ -155,5 +159,53 @@ describe('report export', () => {
     expect(html).not.toContain('javascript:');
     expect(html).not.toContain('<script>');
     expect(html.indexOf('class="narrative"')).toBeLessThan(html.indexOf('class="index"'));
+  });
+});
+
+describe('markdown escaping', () => {
+  beforeAll(async () => { await i18n.changeLanguage('en'); });
+
+  it('escapes markdown and HTML metacharacters in external text', () => {
+    expect(mdEsc('a [b](c) <i>*x*_y_ `z` \\ end')).toBe('a \\[b\\]\\(c\\) \\<i\\>\\*x\\*\\_y\\_ \\`z\\` \\\\ end');
+    expect(mdEsc(null)).toBe('');
+  });
+
+  it('percent-encodes characters that would end a markdown link early', () => {
+    expect(mdUrl('https://ex.test/a (b)<c>')).toBe('https://ex.test/a%20%28b%29%3Cc%3E');
+  });
+
+  it('keeps a hostile title from breaking out of its link', () => {
+    const md = toMarkdown({
+      ...brief,
+      top_stories: [{ id: 5, title: 'x](https://evil.test) <img src=x onerror=alert(1)>', url: 'https://ok.test/p (1)', risk_score: 50 }],
+    }, t, 'en');
+    expect(md).toContain('[x\\]\\(https://evil.test\\) \\<img src=x onerror=alert\\(1\\)\\>](https://ok.test/p%20%281%29)');
+    expect(md).not.toMatch(/(^|[^\\])<img/);                 // لا وسم غير مُهرَّب
+  });
+});
+
+describe('formatDate', () => {
+  it('formats a valid date and never throws on an invalid one', () => {
+    expect(formatDate('2026-09-25T12:00:00Z', 'en')).toMatch(/2026/);
+    expect(() => formatDate('not-a-date', 'en')).not.toThrow();
+    expect(formatDate('not-a-date', 'ar')).toBe('not-a-date');
+    expect(formatDate(null, 'en')).toBe('');
+  });
+});
+
+describe('narrative without a comparable previous period', () => {
+  beforeAll(async () => { await i18n.changeLanguage('en'); });
+
+  it('says there is no comparison and lists no rising sectors', () => {
+    const text = narrativeText(buildNarrative({
+      ...narrativeBrief,
+      ksa_impact: {
+        ...narrativeBrief.ksa_impact, comparable: false, prev_index: null, delta: null, trend: null,
+        sectors: narrativeBrief.ksa_impact.sectors.map(s => ({ ...s, prev_index: null, delta: null, trend: null })),
+      },
+    }, t));
+    expect(text).toContain('The Kingdom impact index is 62.3 (High); no comparison: the previous period is beyond data retention.');
+    expect(text).not.toContain('Rising sectors');
+    expect(text).not.toContain("No sector's impact rose");
   });
 });

@@ -4,10 +4,11 @@
  * نافذة بملء الشاشة بتصميم ورقة: تُقرأ على الشاشة، وتُطبع (أو تُحفظ PDF من
  * نافذة الطباعة) بأنماط @media print في index.css، أو تُنزَّل HTML/Markdown.
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Printer, FileCode, FileText } from 'lucide-react';
 import { usePolling } from '../../hooks/usePolling';
+import { useModal } from '../../hooks/useModal';
 import { getNuclearBrief } from '../../utils/api';
 import { SEVERITIES, ksaPlace, riskLevel } from '../../utils/constants';
 import { buildNarrative, downloadText, formatDate, summaryLine, toHtml, toMarkdown } from '../../utils/report';
@@ -99,25 +100,14 @@ export default function ReportView({ open, onClose, onOpenEvent }) {
   const lang = i18n.language === 'ar' ? 'ar' : 'en';
   const [hours, setHours] = useState(24);
   const closeRef = useRef(null);
+  const dialogRef = useRef(null);
 
   const { data: brief, error, loading } = usePolling(
     useCallback(() => (open ? getNuclearBrief(hours) : Promise.resolve(null)), [open, hours]),
     300000, [open, hours],
   );
 
-  // onClose في ref: المستدعي يمرّر دالة جديدة في كل رسم، وربط الأثر بها يعيد
-  // التركيز إلى ما قبل النافذة مع كل تحديث دوري للتطبيق
-  const onCloseRef = useRef(onClose);
-  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const prev = document.activeElement;
-    closeRef.current?.focus();
-    const onKey = (e) => { if (e.key === 'Escape') onCloseRef.current?.(); };
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('keydown', onKey); prev?.focus?.(); };
-  }, [open]);
+  useModal(open, onClose, { containerRef: dialogRef, initialFocusRef: closeRef });
 
   if (!open) return null;
 
@@ -128,7 +118,7 @@ export default function ReportView({ open, onClose, onOpenEvent }) {
   return (
     // items-start: بدونه تمطّ flex الورقة إلى ارتفاع الشاشة فقط، فيتجاوز المحتوى
     // الطويل خلفيتها ويظهر النص فوق الخريطة مباشرة.
-    <div className="fixed inset-0 z-[10000] bg-black/70 flex items-start justify-center overflow-y-auto print-root" role="dialog" aria-modal="true" aria-labelledby="report-title">
+    <div ref={dialogRef} className="fixed inset-0 z-[10000] bg-black/70 flex items-start justify-center overflow-y-auto print-root" role="dialog" aria-modal="true" aria-labelledby="report-title">
       <div className="w-full max-w-3xl my-0 sm:my-6 min-h-full sm:min-h-0 bg-rasad-panel sm:rounded-xl border border-rasad-border shadow-2xl print-card">
         <div className="no-print sticky top-0 z-10 flex flex-wrap items-center gap-2 px-4 py-3 bg-rasad-panel/95 backdrop-blur border-b border-rasad-border sm:rounded-t-xl">
           <label htmlFor="report-period" className="text-xs text-slate-400">{t('report.period')}</label>
@@ -152,7 +142,7 @@ export default function ReportView({ open, onClose, onOpenEvent }) {
             <FileText className="w-4 h-4" aria-hidden="true" /> {t('report.markdown')}
           </button>
           <button ref={closeRef} onClick={onClose} aria-label={t('report.close')}
-            className="min-w-9 min-h-9 flex items-center justify-center rounded-md text-slate-300 hover:text-white hover:bg-rasad-border focus-ring">
+            className="min-w-11 min-h-11 flex items-center justify-center rounded-md text-slate-300 hover:text-white hover:bg-rasad-border focus-ring">
             <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>

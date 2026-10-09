@@ -20,7 +20,7 @@ const SEARCH_DEBOUNCE_MS = 400;
 function Count({ value, label }) {
   if (value == null) return null;
   return (
-    <span className="ms-1 font-mono text-2xs opacity-75" title={label}>{value}</span>
+    <span className="font-mono text-2xs opacity-75" title={label}>{value}</span>
   );
 }
 
@@ -105,7 +105,7 @@ export default function NewsFeed({
         <div className="flex gap-1 w-max" role="group" aria-label={t('news.byCategory')}>
           <button onClick={() => onFilterChange?.('category', '')}
             aria-pressed={!filters?.category}
-            className={`text-xs px-2 py-1 rounded whitespace-nowrap focus-ring ${!filters?.category ? 'bg-cyan-400/20 text-cyan-200' : 'bg-rasad-border text-slate-300'}`}>
+            className={`min-h-11 inline-flex items-center gap-1 text-xs px-2.5 py-2 rounded whitespace-nowrap focus-ring ${!filters?.category ? 'bg-cyan-400/20 text-cyan-200' : 'bg-rasad-border text-slate-300'}`}>
             {t('news.all')}
             {categoryCounts && (
               <Count
@@ -117,7 +117,7 @@ export default function NewsFeed({
           {Object.entries(CATEGORIES).map(([key, cat]) => (
             <button key={key} onClick={() => onFilterChange?.('category', filters?.category === key ? '' : key)}
               aria-pressed={filters?.category === key}
-              className={`text-xs px-2 py-1 rounded whitespace-nowrap focus-ring ${filters?.category === key ? 'text-white' : 'bg-rasad-border text-slate-300'}`}
+              className={`min-h-11 inline-flex items-center gap-1 text-xs px-2.5 py-2 rounded whitespace-nowrap focus-ring ${filters?.category === key ? 'text-white' : 'bg-rasad-border text-slate-300'}`}
               style={filters?.category === key ? { background: cat.color + '30', color: cat.color } : {}}>
               <Icon name={cat.icon} className="inline w-3.5 h-3.5 -mt-0.5" /> {t(`categories.${key}`)}
               <Count
@@ -136,13 +136,13 @@ export default function NewsFeed({
             <span className="w-full text-xs text-slate-300">{t('news.bySector')}</span>
             <button onClick={() => onFilterChange?.('sector', '')}
               aria-pressed={!filters?.sector}
-              className={`text-xs px-2 py-1 rounded focus-ring ${!filters?.sector ? 'bg-cyan-400/20 text-cyan-200' : 'bg-rasad-border text-slate-300'}`}>
+              className={`min-h-11 inline-flex items-center gap-1 text-xs px-2.5 py-2 rounded focus-ring ${!filters?.sector ? 'bg-cyan-400/20 text-cyan-200' : 'bg-rasad-border text-slate-300'}`}>
               {t('news.allSectors')}
             </button>
             {Object.entries(IMPACT_SECTORS).map(([key, sec]) => (
               <button key={key} onClick={() => onFilterChange?.('sector', filters?.sector === key ? '' : key)}
                 aria-pressed={filters?.sector === key}
-                className={`text-xs px-2 py-1 rounded focus-ring ${filters?.sector === key ? 'text-white' : 'bg-rasad-border text-slate-300'}`}
+                className={`min-h-11 inline-flex items-center gap-1 text-xs px-2.5 py-2 rounded focus-ring ${filters?.sector === key ? 'text-white' : 'bg-rasad-border text-slate-300'}`}
                 style={filters?.sector === key ? { background: sec.color + '30', color: sec.color } : {}}>
                 <Icon name={sec.icon} className="inline w-3.5 h-3.5 -mt-0.5" /> {t(`impact.sectors.${key}`)}
                 <Count
@@ -157,7 +157,7 @@ export default function NewsFeed({
             {Object.entries(SEVERITIES).map(([key, sev]) => (
               <button key={key} onClick={() => onFilterChange?.('severity', filters?.severity === key ? '' : key)}
                 aria-pressed={filters?.severity === key}
-                className={`text-xs px-2 py-1 rounded focus-ring ${filters?.severity === key ? 'text-white' : 'bg-rasad-border text-slate-300'}`}
+                className={`min-h-11 inline-flex items-center gap-1 text-xs px-2.5 py-2 rounded focus-ring ${filters?.severity === key ? 'text-white' : 'bg-rasad-border text-slate-300'}`}
                 style={filters?.severity === key ? { background: sev.color + '30', color: sev.color } : {}}>
                 <span className="inline-block w-2 h-2 rounded-full me-1" style={{ background: sev.color }} aria-hidden="true" />
                 {t(`severity.${key}`)}

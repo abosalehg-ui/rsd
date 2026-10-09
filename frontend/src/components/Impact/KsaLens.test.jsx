@@ -88,18 +88,40 @@ describe('<KsaLens>', () => {
     expect(onOpenEvent).toHaveBeenCalledWith(aramco);
   });
 
-  it('fetches a watch item event that is not among the top events', async () => {
+  it('hands a watch item event that is not among the top events to App by id', async () => {
     vi.spyOn(api, 'getKsaImpact').mockResolvedValue({
       ...impact, watch: [{ ...impact.watch[0], top_event_id: 99 }],
     });
-    const other = { ...aramco, id: 99, title: 'Other' };
-    const getEvent = vi.spyOn(api, 'getEvent').mockResolvedValue(other);
+    // App يجلبه ويعرض تنبيهًا إن فشل — لا جلب صامت داخل العدسة
+    const getEvent = vi.spyOn(api, 'getEvent');
     const onOpenEvent = vi.fn();
-    render(<KsaLens onOpenEvent={onOpenEvent} />);
+    const onOpenEventById = vi.fn();
+    render(<KsaLens onOpenEvent={onOpenEvent} onOpenEventById={onOpenEventById} />);
     const watch = within(await screen.findByRole('region', { name: 'Watch' }));
     fireEvent.click(watch.getByRole('button', { name: 'Open the top event' }));
-    await waitFor(() => expect(onOpenEvent).toHaveBeenCalledWith(other));
-    expect(getEvent).toHaveBeenCalledWith(99);
+    expect(onOpenEventById).toHaveBeenCalledWith(99);
+    expect(onOpenEvent).not.toHaveBeenCalled();
+    expect(getEvent).not.toHaveBeenCalled();
+  });
+
+  it('says there is no comparison when the previous period is beyond retention', async () => {
+    vi.spyOn(api, 'getKsaImpact').mockResolvedValue({
+      ...impact, comparable: false, prev_index: null, delta: null, trend: null, watch: [],
+      sectors: impact.sectors.map(s => ({ ...s, prev_index: null, delta: null, trend: null })),
+    });
+    render(<KsaLens />);
+    expect(await screen.findAllByText('No comparison: previous period is beyond data retention')).not.toHaveLength(0);
+    expect(screen.queryByText(/on the previous period$/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Up from 0.0 to 54.0')).not.toBeInTheDocument();
+  });
+
+  it('keeps the previous figures under a visible error when a new window fails', async () => {
+    const spy = vi.spyOn(api, 'getKsaImpact').mockResolvedValue(impact);
+    render(<KsaLens />);
+    await screen.findByRole('region', { name: 'Watch' });
+    spy.mockRejectedValue(new Error('down'));
+    fireEvent.change(screen.getByLabelText('Period'), { target: { value: '168' } });
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load the selected period — showing the previous period.");
   });
 
   it('shows the sector bars and filters the feed by sector', async () => {

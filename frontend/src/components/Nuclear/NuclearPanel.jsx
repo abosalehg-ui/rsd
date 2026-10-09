@@ -18,7 +18,7 @@ const WINDOWS = [24, 72, 168];
 const NEAR_KSA_KM = 800;
 
 export default function NuclearPanel({
-  risk, riskError, onRetryRisk, hours, onHoursChange, onOpenEvent, activeId, onSelectFacility,
+  risk, riskError, riskStale = false, onRetryRisk, hours, onHoursChange, onOpenEvent, activeId, onSelectFacility,
 }) {
   const { t } = useTranslation();
   const [topic, setTopic] = useState('');
@@ -51,12 +51,12 @@ export default function NuclearPanel({
             id="nuc-window"
             value={hours}
             onChange={(e) => onHoursChange?.(Number(e.target.value))}
-            className="bg-rasad-bg border border-rasad-border rounded px-2 py-1 text-xs text-slate-100 focus-ring"
+            className="min-h-11 bg-rasad-bg border border-rasad-border rounded px-2 py-2 text-xs text-slate-100 focus-ring"
           >
             {WINDOWS.map(h => <option key={h} value={h}>{t(`report.periods.${h}`)}</option>)}
           </select>
         </div>
-        <RiskGauge risk={risk} error={riskError} onRetry={onRetryRisk} />
+        <RiskGauge risk={risk} error={riskError} stale={riskStale} onRetry={onRetryRisk} />
       </div>
 
       <div className="px-3 pb-2">

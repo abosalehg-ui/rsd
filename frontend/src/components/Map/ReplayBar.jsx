@@ -14,6 +14,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next';
 import { Play, Pause, History, X, RotateCcw } from 'lucide-react';
 import { getMapEvents } from '../../utils/api';
+import { localeFor } from '../../utils/constants';
 import { REPLAY_WINDOWS, eventsUntil, frameEnd, hourlyCounts, replayStart } from '../../utils/replay';
 
 export const PLAY_INTERVAL_MS = 700;
@@ -28,6 +29,8 @@ export default function ReplayBar({ onFrame, now: fixedNow = null }) {
   const [status, setStatus] = useState('idle');    // idle | loading | ready | error
   const [step, setStep] = useState(REPLAY_WINDOWS[0] - 1);
   const [playing, setPlaying] = useState(false);
+  // ما يُعلَن لقارئ الشاشة: بداية التشغيل وإيقافه ونهايته فقط، لا كل إطار
+  const [announce, setAnnounce] = useState('');
   const seq = useRef(0);
 
   const start = useMemo(() => (anchor ? replayStart(anchor, hours) : null), [anchor, hours]);
@@ -43,18 +46,26 @@ export default function ReplayBar({ onFrame, now: fixedNow = null }) {
       setStatus('ready');
     } catch {
       if (mine !== seq.current) return;
-      setEvents([]);
+      // null لا []: مصفوفة فارغة إطار صالح («ساعة بلا أحداث») فتُفرغ الخريطة؛
+      // الفشل يعيدها للبيانات الحيّة ويُعرض سببه في سطر الحالة
+      setEvents(null);
       setStatus('error');
       setPlaying(false);
+      setAnnounce('');
+      onFrame?.(null);
     }
-  }, []);
+  }, [onFrame]);
 
   const activate = useCallback(() => {
-    if (active) return;
+    // بعد فشل التحميل: التفاعل التالي (تشغيل/منزلق) محاولة جديدة
+    if (active) {
+      if (status === 'error') load(hours);
+      return;
+    }
     setActive(true);
     setAnchor(fixedNow ? new Date(fixedNow) : new Date());
     load(hours);
-  }, [active, fixedNow, hours, load]);
+  }, [active, status, fixedNow, hours, load]);
 
   const close = useCallback(() => {
     seq.current += 1;
@@ -62,6 +73,7 @@ export default function ReplayBar({ onFrame, now: fixedNow = null }) {
     setPlaying(false);
     setEvents(null);
     setStatus('idle');
+    setAnnounce('');
     setStep(hours - 1);
     onFrame?.(null);
   }, [hours, onFrame]);
@@ -84,6 +96,7 @@ export default function ReplayBar({ onFrame, now: fixedNow = null }) {
     const id = setInterval(() => {
       if (stepRef.current >= lastStep) {
         setPlaying(false);
+        setAnnounce('ended');
         return;
       }
       stepRef.current += 1;
@@ -93,8 +106,9 @@ export default function ReplayBar({ onFrame, now: fixedNow = null }) {
   }, [playing, status, lastStep]);
 
   const togglePlay = () => {
-    if (playing) { setPlaying(false); return; }
+    if (playing) { setPlaying(false); setAnnounce('paused'); return; }
     activate();
+    setAnnounce('started');
     // من البداية إن كان المؤشر عند النهاية (أول تشغيل أو بعد انتهاء الإعادة)
     setStep(s => (s >= lastStep ? 0 : s));
     setPlaying(true);
@@ -120,7 +134,7 @@ export default function ReplayBar({ onFrame, now: fixedNow = null }) {
   );
   const peak = Math.max(1, ...counts);
 
-  const locale = i18n.language === 'ar' ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB';
+  const locale = localeFor(i18n.language);
   const timeLabel = start
     ? frameEnd(start, step).toLocaleString(locale, { weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false })
     : '';
@@ -146,7 +160,7 @@ export default function ReplayBar({ onFrame, now: fixedNow = null }) {
           onClick={() => { setPlaying(false); setStep(0); }}
           aria-label={t('replay.restart')}
           title={t('replay.restart')}
-          className="hidden sm:flex min-w-9 min-h-11 items-center justify-center rounded-md text-slate-300 hover:text-white focus-ring"
+          className="hidden sm:flex min-w-11 min-h-11 items-center justify-center rounded-md text-slate-300 hover:text-white focus-ring"
         >
           <RotateCcw className="w-4 h-4" aria-hidden="true" />
         </button>
@@ -178,28 +192,43 @@ export default function ReplayBar({ onFrame, now: fixedNow = null }) {
         />
       </div>
 
-      <div className="hidden sm:flex flex-col items-end leading-tight min-w-[7.5rem] text-2xs" aria-live="polite">
+      {/* سطر الحالة على كل العروض: على الجوال نسخة مختصرة (العدد أو الخطأ)،
+          ومن sm الوقت والعدد كاملين. بلا aria-live: الإطارات تتبدّل كل 700ms */}
+      <div className={`${active ? 'flex' : 'hidden sm:flex'} flex-col items-end leading-tight max-w-[6.5rem] sm:max-w-none sm:min-w-[7.5rem] text-2xs`}>
         {!active && (
           <span className="flex items-center gap-1 text-slate-300">
             <History className="w-3.5 h-3.5" aria-hidden="true" /> {t('replay.open')}
           </span>
         )}
-        {active && status === 'loading' && <span className="text-slate-300">{t('replay.loading')}</span>}
-        {active && status === 'error' && <span className="text-red-200" role="alert">{t('replay.failed')}</span>}
+        {active && status === 'loading' && (
+          <span className="text-slate-300">
+            <span className="sm:hidden">…</span>
+            <span className="hidden sm:inline">{t('replay.loading')}</span>
+          </span>
+        )}
+        {active && status === 'error' && (
+          <span className="text-red-200" role="alert">
+            <span className="sm:hidden" aria-hidden="true">{t('replay.failedShort')}</span>
+            <span className="sr-only sm:not-sr-only">{t('replay.failed')}</span>
+          </span>
+        )}
         {active && status === 'ready' && (
           <>
-            <span className="text-cyan-200 tabular-nums">{t('replay.until', { time: timeLabel })}</span>
-            <span className="text-slate-400">{t('replay.count', { count: frame?.length ?? 0 })}</span>
+            <span className="hidden sm:inline text-cyan-200 tabular-nums">{t('replay.until', { time: timeLabel })}</span>
+            <span className="text-slate-400 whitespace-nowrap">{t('replay.count', { count: frame?.length ?? 0 })}</span>
           </>
         )}
       </div>
+      <span className="sr-only" role="status" aria-live="polite">
+        {announce ? t(`replay.announce.${announce}`) : ''}
+      </span>
 
       <label htmlFor="rsd-replay-window" className="sr-only">{t('replay.window')}</label>
       <select
         id="rsd-replay-window"
         value={hours}
         onChange={changeWindow}
-        className="bg-rasad-bg border border-rasad-border rounded px-1.5 py-1 text-xs text-slate-100 focus-ring"
+        className="min-h-11 bg-rasad-bg border border-rasad-border rounded px-1.5 py-2 text-xs text-slate-100 focus-ring"
       >
         {REPLAY_WINDOWS.map(h => <option key={h} value={h}>{t(`replay.windows.${h}`)}</option>)}
       </select>

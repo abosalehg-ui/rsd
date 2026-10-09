@@ -9,11 +9,17 @@ import { IMPACT_SECTORS, TIME_WINDOWS } from '../utils/constants';
  *
  * يعيد `lastFetchedAt` أيضاً: وقت آخر استجابة معلومة يملكها هذا الخطاف، فيعرضه
  * الهيدر منها بدل اشتقاقه من تغيّر هوية كائن البيانات.
+ *
+ * عند تغيّر `deps` (نافذة زمنية، فلتر) تبقى البيانات السابقة معروضة كي لا تومض
+ * القوائم فارغة مع كل ضغطة فلتر، لكن `stale` يصير true و`loading` يعود true حتى
+ * تصل استجابة الطلب الجديد. فإن فشل بقي `stale` مع `error`: المكوّن يعرف أن ما
+ * يعرضه يخص الفترة السابقة لا المختارة.
  */
 export function usePolling(fetchFn, interval = 30000, deps = []) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [stale, setStale] = useState(false);
   const [lastFetchedAt, setLastFetchedAt] = useState(null);
   const intervalRef = useRef(null);
   const fetchRef = useRef(fetchFn);
@@ -25,13 +31,18 @@ export function usePolling(fetchFn, interval = 30000, deps = []) {
   // حارس تسلسل: يمنع استجابة قديمة (شبكة بطيئة) من الكتابة فوق أحدث منها
   const seqRef = useRef(0);
 
-  const doFetch = useCallback(async () => {
+  const run = useCallback(async (depsChanged = false) => {
     const mySeq = ++seqRef.current;
+    if (depsChanged) {
+      setLoading(true);
+      setStale(true);
+    }
     try {
       const result = await fetchRef.current();
       if (mySeq !== seqRef.current) return; // وصلت استجابة أحدث — تجاهل هذه
       setData(result);
       setError(null);
+      setStale(false);
       setLastFetchedAt(new Date());
     } catch (err) {
       if (mySeq !== seqRef.current) return;
@@ -41,19 +52,29 @@ export function usePolling(fetchFn, interval = 30000, deps = []) {
     }
   }, []);
 
+  const refetch = useCallback(() => run(false), [run]);
+
+  // مقارنة سطحية بآخر deps: التأثير يُعاد أيضًا عند تغيّر interval أو في
+  // StrictMode، وهذان لا يجعلان البيانات المعروضة قديمة.
+  const prevDepsRef = useRef(deps);
+
   // يُعاد الجلب فورًا عند تغيّر deps (مثل الفلاتر) لا فقط في الدورة التالية.
   // كما نوقف الاستطلاع عندما يكون التبويب مخفياً (توفير شبكة/معالج) ونجلب فوراً
   // عند العودة إليه.
   useEffect(() => {
+    const prev = prevDepsRef.current;
+    const depsChanged = prev.length !== deps.length || deps.some((d, i) => !Object.is(d, prev[i]));
+    prevDepsRef.current = deps;
+
     const tick = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-      doFetch();
+      run(false);
     };
-    doFetch();
+    run(depsChanged);
     intervalRef.current = setInterval(tick, interval);
 
     const onVisible = () => {
-      if (document.visibilityState === 'visible') doFetch();
+      if (document.visibilityState === 'visible') run(false);
     };
     document.addEventListener('visibilitychange', onVisible);
 
@@ -62,9 +83,9 @@ export function usePolling(fetchFn, interval = 30000, deps = []) {
       document.removeEventListener('visibilitychange', onVisible);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doFetch, interval, ...deps]);
+  }, [run, interval, ...deps]);
 
-  return { data, loading, error, lastFetchedAt, refetch: doFetch };
+  return { data, loading, error, stale, lastFetchedAt, refetch };
 }
 
 // ===== الفلاتر =====

@@ -1,7 +1,7 @@
 /**
  * رصد (Rsd) - التطبيق الرئيسي
  */
-import React, { useState, useCallback, useMemo, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef, Suspense, lazy } from 'react';
 import { useTranslation } from 'react-i18next';
 import Header from './components/Layout/Header';
 import LiveTVDrawer from './components/Layout/LiveTVDrawer';
@@ -13,29 +13,31 @@ import Timeline from './components/Timeline/Timeline';
 import StatsPanel from './components/Stats/StatsPanel';
 import IranPanel from './components/Iran/IranPanel';
 import NuclearPanel from './components/Nuclear/NuclearPanel';
-import KsaLens from './components/Impact/KsaLens';
-import MarketsPanel from './components/Markets/MarketsPanel';
 import ReplayBar from './components/Map/ReplayBar';
 import EventDrawer from './components/Events/EventDrawer';
-import ReportView from './components/Report/ReportView';
-import ChainsModal from './components/Chains/ChainsModal';
 import ErrorBoundary from './components/common/ErrorBoundary';
-import { usePolling, useFilters } from './hooks/usePolling';
+import { useFilters } from './hooks/usePolling';
+import { useDashboardData } from './hooks/useDashboardData';
 import { useAudioAlert } from './hooks/useAudioAlert';
 import {
   Newspaper, Clock, BarChart3, PanelLeftClose, PanelLeftOpen, Crosshair, Map as MapIcon, X, Radiation,
   Landmark, Fuel,
 } from 'lucide-react';
-import {
-  getEvents, getMapEvents, getStats, getLiveFlights, refreshSources,
-  getIranStrikes, getNuclearFacilities, getNuclearRisk,
-  getCountryIndex, getMilitaryBases, getPipelines, getLatestEvents,
-  getEvent, getSchedule, getMarketsLatest,
-} from './utils/api';
+import { getEvent, refreshSources } from './utils/api';
 import { readEventId, writeEventId } from './utils/deepLink';
 
 // تحميل كسول للكرة الأرضية — Three.js كبير الحجم
 const RasadGlobe = lazy(() => import('./components/Map/RasadGlobe'));
+// والنوافذ واللوحات غير الافتراضية: لا تُحمَّل مع الصفحة الأولى بل عند فتحها
+const ChainsModal = lazy(() => import('./components/Chains/ChainsModal'));
+const ReportView = lazy(() => import('./components/Report/ReportView'));
+const MarketsPanel = lazy(() => import('./components/Markets/MarketsPanel'));
+const KsaLens = lazy(() => import('./components/Impact/KsaLens'));
+
+function PanelFallback() {
+  const { t } = useTranslation();
+  return <div className="p-3 text-xs text-slate-400" role="status">{t('common.loading')}</div>;
+}
 
 // الرصد النووي والإشعاعي هو التبويب الأول والافتراضي: مهمة المنصة الأساسية
 const TABS = [
@@ -67,6 +69,8 @@ export default function App() {
   const [detailEvent, setDetailEvent] = useState(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [chainsOpen, setChainsOpen] = useState(false);
+  const [reportMounted, setReportMounted] = useState(false);
+  const [chainsMounted, setChainsMounted] = useState(false);
   const [nuclearHours, setNuclearHours] = useState(24);
   const [activeTab, setActiveTab] = useState('nuclear');
   const [panelOpen, setPanelOpen] = useState(true);
@@ -86,89 +90,16 @@ export default function App() {
     setLayers(prev => ({ ...prev, [key]: value }));
   }, []);
 
-  // جلب البيانات مع تحديث تلقائي
-  const { data: eventsData, error: eventsError, loading: eventsLoading, refetch: refetchEvents } = usePolling(
-    useCallback(() => getEvents({ ...filters, limit: 200 }), [filters]),
-    30000, [filters]
-  );
+  // الاستطلاعات المشتركة بين الخريطة والهيدر واللوحات
+  const {
+    events, eventsError, eventsLoading, refetchEvents, liveMapEvents: liveMapEvts, latestEvents,
+    stats, statsError, refetchStats, statsFetchedAt, flights, iranStrikes, nuclearFacilities,
+    militaryBases, pipelines, nuclearRisk, nuclearRiskError, nuclearRiskStale, refetchRisk,
+    schedule, scheduleFetchedAt, marketsLatest, marketsError, countryIndex, countryLoading,
+  } = useDashboardData({ filters, nuclearHours });
 
-  // الحدّ نفسه الذي تطلبه القائمة (200 قصة) كي تعرض الخريطة والقائمة المجموعة نفسها
-  const { data: mapEvents } = usePolling(
-    useCallback(() => getMapEvents(filters.hours, 200), [filters.hours]),
-    30000, [filters.hours]
-  );
-
-  // تيار التنبيهات مستقل عن فلاتر العرض: فلتر «اقتصادي» أو بحث عن «غزة» لا
-  // يُسكت الضربات العسكرية خارج الفلتر بلا إشارة.
-  const { data: latestEvents } = usePolling(
-    useCallback(() => getLatestEvents(50), []),
-    30000
-  );
-
-  const { data: stats, error: statsError, refetch: refetchStats, lastFetchedAt: statsFetchedAt } = usePolling(
-    useCallback(() => getStats(filters.hours), [filters.hours]),
-    60000, [filters.hours]
-  );
-
-  const { data: flights } = usePolling(
-    useCallback(() => getLiveFlights(), []),
-    30000
-  );
-
-  const { data: iranData } = usePolling(
-    useCallback(() => getIranStrikes({ hours: 72, limit: 100 }), []),
-    1800000  // كل 30 دقيقة مثل iranstrikemap
-  );
-
-  // المنشآت النووية ☢️ — بيانات ثابتة، تكفي مرة واحدة كل ساعة
-  const { data: nuclearData } = usePolling(
-    useCallback(() => getNuclearFacilities(), []),
-    3600000
-  );
-
-  // قواعد عسكرية + خطوط أنابيب — بيانات ثابتة (v1.3)
-  const { data: basesData } = usePolling(
-    useCallback(() => getMilitaryBases(), []),
-    3600000
-  );
-  const { data: pipelinesData } = usePolling(
-    useCallback(() => getPipelines(), []),
-    3600000
-  );
-
-  // مؤشر المخاطر النووية والإشعاعية — يشاركه الهيدر ولوحة الرصد النووي
-  const { data: nuclearRisk, error: nuclearRiskError, refetch: refetchRisk } = usePolling(
-    useCallback(() => getNuclearRisk(nuclearHours), [nuclearHours]),
-    60000, [nuclearHours]
-  );
-
-  // وقت آخر تحليل وموعد المزامنة القادمة — للهيدر
-  const { data: schedule, lastFetchedAt: scheduleFetchedAt } = usePolling(
-    useCallback(() => getSchedule(), []),
-    60000
-  );
-
-  // الطاقة والأسواق (FRED يومي) — يشاركه شريط الهيدر ولوحة الأسواق. القيم
-  // من قاعدة الخادم، فنصف ساعة يكفي ليلتقط جلبه اليومي.
-  const { data: marketsLatest, error: marketsError } = usePolling(
-    useCallback(() => getMarketsLatest(), []),
-    1800000
-  );
-
-  // مؤشر استخبارات الدول (v1.3)
-  const { data: countryIndex, loading: countryLoading } = usePolling(
-    useCallback(() => getCountryIndex({ hours: 72, top: 15 }), []),
-    120000
-  );
-
-  const events = useMemo(() => eventsData?.events || [], [eventsData]);
-  const iranStrikes = useMemo(() => iranData?.strikes || [], [iranData]);
-  const liveMapEvts = useMemo(() => mapEvents || [], [mapEvents]);
   // `??` لا `||`: إطار إعادة فارغ (ساعة بلا أحداث) يعرض خريطة فارغة لا البيانات الحيّة
   const mapEvts = replayEvents ?? liveMapEvts;
-  const nuclearFacilities = useMemo(() => nuclearData?.facilities || [], [nuclearData]);
-  const militaryBases = useMemo(() => basesData?.bases || [], [basesData]);
-  const pipelines = useMemo(() => pipelinesData?.pipelines || [], [pipelinesData]);
   // الشريط العاجل: الأخبار النووية/الإشعاعية الحرجة والمرتفعة أولًا، ثم العسكرية
   const criticalEvents = useMemo(() => {
     const hot = events.filter(e => e.severity === 'critical' || e.severity === 'high');
@@ -185,7 +116,7 @@ export default function App() {
     clearRecent,
     testSound,
     requestDesktopPermission,
-  } = useAudioAlert(useMemo(() => latestEvents || [], [latestEvents]));
+  } = useAudioAlert(latestEvents);
 
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -246,15 +177,20 @@ export default function App() {
 
   const closeDetail = useCallback(() => setDetailEvent(null), []);
 
-  // فتح حدث بمعرّفه (سلاسل الترابط، استشهادات الموجز): يُجلب بقصته ثم يُفتح
+  // فتح حدث بمعرّفه (سلاسل الترابط، استشهادات الموجز، بنود «راقِب»): يُجلب
+  // بقصته ثم يُفتح. حارس تسلسل: نقرتان سريعتان يفوز فيهما الأحدث لا الأبطأ.
+  const openSeq = useRef(0);
   const openEventById = useCallback((id) => {
+    const mine = ++openSeq.current;
     getEvent(id)
       .then(ev => {
-        if (!ev) return;
+        if (mine !== openSeq.current || !ev) return;
         handleSelectEvent(ev);
         setPanelOpen(true);
       })
-      .catch(() => setToast({ kind: 'error', text: i18n.t('events.notFound') }));
+      .catch(() => {
+        if (mine === openSeq.current) setToast({ kind: 'error', text: i18n.t('events.notFound') });
+      });
   }, [handleSelectEvent, i18n]);
 
   const openEventFromModal = useCallback((id) => {
@@ -377,6 +313,7 @@ export default function App() {
           <NuclearPanel
             risk={nuclearRisk}
             riskError={nuclearRiskError}
+            riskStale={nuclearRiskStale}
             onRetryRisk={refetchRisk}
             hours={nuclearHours}
             onHoursChange={setNuclearHours}
@@ -386,11 +323,14 @@ export default function App() {
           />
         )}
         {activeTab === 'impact' && (
-          <KsaLens
-            onOpenEvent={handleSelectEvent}
-            onSelectSector={handleSelectSector}
-            activeId={detailEvent?.id}
-          />
+          <Suspense fallback={<PanelFallback />}>
+            <KsaLens
+              onOpenEvent={handleSelectEvent}
+              onOpenEventById={openEventById}
+              onSelectSector={handleSelectSector}
+              activeId={detailEvent?.id}
+            />
+          </Suspense>
         )}
         {activeTab === 'news' && (
           <NewsFeed
@@ -419,7 +359,9 @@ export default function App() {
           <StatsPanel stats={stats} countryIndex={countryIndex} countryLoading={countryLoading} />
         )}
         {activeTab === 'markets' && (
-          <MarketsPanel latest={marketsLatest} latestError={marketsError} />
+          <Suspense fallback={<PanelFallback />}>
+            <MarketsPanel latest={marketsLatest} latestError={marketsError} />
+          </Suspense>
         )}
         {activeTab === 'iran' && (
           // الضربات من الاستطلاع المشترك في App كي تطابق اللوحة الخريطة
@@ -443,8 +385,8 @@ export default function App() {
       <Header
         stats={stats}
         risk={nuclearRisk}
-        onOpenReport={() => setReportOpen(true)}
-        onOpenChains={() => setChainsOpen(true)}
+        onOpenReport={() => { setReportMounted(true); setReportOpen(true); }}
+        onOpenChains={() => { setChainsMounted(true); setChainsOpen(true); }}
         onOpenNuclear={() => { setActiveTab('nuclear'); setDetailEvent(null); setMobileView('panel'); setPanelOpen(true); }}
         isConnected={!statsError}
         onRefresh={handleRefresh}
@@ -577,9 +519,18 @@ export default function App() {
 
       <LiveTVDrawer />
 
-      <ReportView open={reportOpen} onClose={() => setReportOpen(false)} onOpenEvent={openEventFromModal} />
+      {/* تُركَّب عند أول فتح وتبقى بعده: الفترة والمرشّحات المختارة لا تضيع بين فتحة وأخرى */}
+      {reportMounted && (
+        <Suspense fallback={null}>
+          <ReportView open={reportOpen} onClose={() => setReportOpen(false)} onOpenEvent={openEventFromModal} />
+        </Suspense>
+      )}
 
-      <ChainsModal open={chainsOpen} onClose={() => setChainsOpen(false)} onOpenEvent={openEventFromModal} />
+      {chainsMounted && (
+        <Suspense fallback={null}>
+          <ChainsModal open={chainsOpen} onClose={() => setChainsOpen(false)} onOpenEvent={openEventFromModal} />
+        </Suspense>
+      )}
 
       <AlertSettings
         isOpen={alertsOpen}
