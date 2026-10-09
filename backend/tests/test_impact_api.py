@@ -343,3 +343,54 @@ class TestMigrationAndBackfill:
             assert ev.ksa_impact > 1.0                   # أُعيد حسابه بعد التصنيف الجديد
             await session.delete(ev)
             await session.commit()
+
+
+class TestRetentionAndCap:
+    @pytest.mark.asyncio
+    async def test_previous_window_beyond_retention_is_not_compared(self, impact_seed):
+        """720 ساعة: الفترة السابقة محذوفة بالاحتفاظ (30 يومًا) — لا «صعود» ولا
+        بنود «راقِب» من مقارنة بصفر."""
+        body = await impact_api.build_ksa_impact(720, now=NOW)
+        assert body["comparable"] is False
+        assert body["prev_index"] is None and body["delta"] is None and body["trend"] is None
+        assert body["watch"] == []
+        assert all(s["prev_index"] is None and s["trend"] is None for s in body["sectors"])
+        assert body["index"] > 0
+
+    @pytest.mark.asyncio
+    async def test_half_retention_is_still_compared(self, impact_seed):
+        body = await impact_api.build_ksa_impact(360, now=NOW)
+        assert body["comparable"] is True and body["trend"] in ("up", "down", "flat")
+
+    @pytest.mark.asyncio
+    async def test_rows_collapse_to_story_level_and_cap_keeps_the_highest(self, impact_seed):
+        from app.processors.impact_index import load_impact_rows
+
+        since, until = NOW - timedelta(hours=48), NOW
+        async with get_session_factory()() as session:
+            raw, _ = await load_impact_rows(session, since, until, story_level=False, cap=None)
+            reps, truncated = await load_impact_rows(session, since, until)
+            capped, capped_trunc = await load_impact_rows(session, since, until, cap=1)
+        assert truncated is False
+        assert len(reps) <= len(raw)
+        assert capped_trunc is True and len(capped) == 1
+        # القصّ يُسقط الأدنى أثرًا لا الأقدم: أرامكو (90) باقية
+        assert capped[0].score == max(r.score for r in raw) == 90.0
+
+    @pytest.mark.asyncio
+    async def test_duplicates_with_same_sectors_count_once(self, impact_seed):
+        from app.processors.impact_index import load_impact_rows
+
+        aramco = impact_seed["Houthi drone attack on Aramco facility in Abqaiq"]
+        async with get_session_factory()() as session:
+            for i in range(5):
+                await insert_event_if_new(session, **{
+                    **_fields(aramco.title, hours_ago=1, n=200 + i, lat=25.94, lon=49.67, severity="critical"),
+                    "cluster_id": aramco.id,
+                })
+            await session.commit()
+            reps, _ = await load_impact_rows(session, NOW - timedelta(hours=48), NOW)
+        assert sum(1 for r in reps if r.story == aramco.id and r.score == 90.0) == 1
+        body = await impact_api.build_ksa_impact(48, now=NOW)
+        assert body["events"] >= 8          # الأخبار كلها تُعدّ في «events»
+        assert body["truncated"] is False

@@ -18,22 +18,31 @@ from datetime import date, datetime, timedelta, timezone
 import httpx
 from sqlalchemy import func, select, update
 
+from .. import cache
 from ..config import get_settings
 from ..models.database import MarketQuote, get_session_factory
+from ..processors.markets import BRENT, SERIES  # noqa: F401 - BRENT يُعاد تصديره
 
 logger = logging.getLogger("rasad.markets")
 
-FRED_OBSERVATIONS_URL = "https://api.stlouisfed.org/fred/series/observations"
+# آخر محاولة جمع ونتيجتها — تعرضها `/api/collectors/status`. FRED لا يكتب
+# أحداثًا، فلا يُستنتج نشاطه من `Event.collected_at` كبقية الجامعين، ومفتاح
+# مرفوض كان لا يظهر إلا في السجل. متغيّر عملية كـ `_last_analysis_at`.
+_status: dict = {"last_attempt": None, "last_success": None, "error": None}
 
-#: السلاسل المجموعة بترتيب العرض. الأسماء المعروضة في ملفات الترجمة
-#: (`markets.series.<code>`)؛ هنا الوحدة وحدها لأنها جزء من البيانات.
-SERIES: dict[str, dict] = {
-    "DCOILBRENTEU": {"unit": "USD/bbl"},
-    "DCOILWTICO": {"unit": "USD/bbl"},
-    "DHHNGSP": {"unit": "USD/MMBtu"},
-    "VIXCLS": {"unit": "index"},
-}
-BRENT = "DCOILBRENTEU"
+
+def markets_status() -> dict:
+    return dict(_status)
+
+
+def _record(error: str | None) -> None:
+    now = datetime.now(timezone.utc)
+    _status["last_attempt"] = now
+    _status["error"] = error
+    if error is None:
+        _status["last_success"] = now
+
+FRED_OBSERVATIONS_URL = "https://api.stlouisfed.org/fred/series/observations"
 
 #: نعيد جلب أيام قليلة قبل آخر قيمة مخزّنة: FRED يراجع القيم الأخيرة أحيانًا،
 #: ويوم العطلة الذي نُشر متأخرًا يُلتقط في الجلب التالي.
@@ -159,6 +168,21 @@ async def collect_markets() -> int:
     if not session_factory:
         return 0
 
+    try:
+        new_rows = await _collect_all(session_factory, settings)
+    except PermissionError:
+        _record("rejected_key")
+        raise
+    except Exception:
+        _record("fetch_failed")
+        raise
+    _record(None)
+    cache.invalidate()   # القيم المراجَعة تتغيّر حتى بلا تواريخ جديدة
+    logger.info("FRED: %s قيمة يومية جديدة", new_rows)
+    return new_rows
+
+
+async def _collect_all(session_factory, settings) -> int:
     new_rows = 0
     failures = 0
     async with httpx.AsyncClient(timeout=30.0) as client:
@@ -180,5 +204,4 @@ async def collect_markets() -> int:
 
     if failures == len(SERIES):
         raise RuntimeError("FRED: تعذّر جلب كل السلاسل")
-    logger.info("FRED: %s قيمة يومية جديدة", new_rows)
     return new_rows

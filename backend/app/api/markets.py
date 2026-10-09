@@ -15,23 +15,22 @@ docs/markets-sync-methodology.md.
 """
 from __future__ import annotations
 
-import math
 from datetime import date, datetime, time, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import and_, desc, func, select
 
-from ..collectors.markets import BRENT, SERIES
+from .. import cache
 from ..config import get_settings
 from ..models.database import Event, MarketQuote, get_session_factory
-from . import impact as impact_api
+from ..processors.impact_index import load_impact_rows
+from ..processors.impact_index import snapshot as impact_snapshot
+from ..processors.markets import BRENT, MIN_CORRELATION_DAYS, SERIES, pearson
 from .nuclear import NUCLEAR_CATEGORIES, risk_snapshot
 
 router = APIRouter(prefix="/api/markets", tags=["markets"])
 
 SOURCE = {"name": "FRED", "publisher": "Federal Reserve Bank of St. Louis", "url": "https://fred.stlouisfed.org/"}
-#: أقل عدد أيام مشتركة يُحسب عليه معامل الارتباط — دونه رقم بلا معنى
-MIN_CORRELATION_DAYS = 10
 _MAX_DAYS = 400
 
 
@@ -167,18 +166,12 @@ def _utc_day(dt: datetime | None) -> date | None:
     return (dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)).astimezone(timezone.utc).date()
 
 
-def pearson(xs: list[float], ys: list[float]) -> float | None:
-    """معامل ارتباط بيرسون، أو None حين تقلّ الأيام أو تثبت إحدى السلسلتين."""
-    n = len(xs)
-    if n < MIN_CORRELATION_DAYS or n != len(ys):
-        return None
-    mx, my = sum(xs) / n, sum(ys) / n
-    sxx = sum((x - mx) ** 2 for x in xs)
-    syy = sum((y - my) ** 2 for y in ys)
-    if sxx == 0 or syy == 0:
-        return None
-    sxy = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
-    return round(sxy / math.sqrt(sxx * syy), 2)
+def _first_full_day(dt: datetime) -> date:
+    """أول يوم UTC رُصد كاملًا منذ `dt`."""
+    day = _utc_day(dt)
+    aware = dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    midnight = datetime.combine(day, time.min, tzinfo=timezone.utc)
+    return day if aware.astimezone(timezone.utc) == midnight else day + timedelta(days=1)
 
 
 def _pair(points: list[dict], key: str) -> dict:
@@ -193,8 +186,8 @@ async def build_correlation(days: int, now: datetime | None = None) -> dict:
     """سلسلة يومية: المؤشران محسوبان على أحداث كل يوم (UTC) وحده — أي القيمة
     التي كان مؤشر الـ24 ساعة سيعرضها في نهاية ذلك اليوم — مع برنت بتاريخه.
 
-    الأيام قبل أقدم حدث محفوظ (أو قبل نافذة احتفاظ الأحداث) تُعاد `null` لا
-    صفرًا: غياب البيانات ليس «لا خطر». وبرنت `null` في أيام بلا تداول.
+    الأيام قبل أول يوم جمع كامل (أو قبل نافذة احتفاظ الأحداث) تُعاد `null`
+    لا صفرًا: غياب البيانات ليس «لا خطر». وبرنت `null` في أيام بلا تداول.
     """
     now = now or datetime.now(timezone.utc)
     today = now.date()
@@ -212,17 +205,19 @@ async def build_correlation(days: int, now: datetime | None = None) -> dict:
                 ))
             )).all()
         ]
-        impact_rows = [
-            impact_api._Row(*r) for r in (await session.execute(
-                select(Event.id, Event.cluster_id, Event.event_date, Event.ksa_impact, Event.impact_sectors)
-                .where(and_(Event.event_date >= since, Event.event_date <= now, Event.ksa_impact.isnot(None)))
-            )).all()
-        ]
-        oldest = (await session.execute(select(func.min(Event.event_date)))).scalar()
+        impact_rows, _ = await load_impact_rows(session, since, now, story_level=False, cap=None)
+        # بداية الجمع لا أقدم تاريخ حدث: حدث UCDP أو GDELT مؤرَّخ قبل التثبيت
+        # بأسابيع لا يجعل تلك الأسابيع «مرصودة» بصفر خطر
+        first_collected = (await session.execute(select(func.min(Event.collected_at)))).scalar()
         brent = (await _load_quotes(session, [BRENT], first_day))[BRENT]
 
-    oldest_day = _utc_day(oldest)
-    coverage_start = max(retention_floor, oldest_day) if oldest_day else None
+    # يوم الحدّ نفسه محذوف جزئيًا (القطع عند ساعة التشغيل لا منتصف الليل)،
+    # وكذلك يوم بدء الجمع إن لم يبدأ عند منتصف الليل — فالتغطية تبدأ بعدهما
+    first_day_collected = _utc_day(first_collected)
+    coverage_start = (
+        max(retention_floor + timedelta(days=1), _first_full_day(first_collected))
+        if first_day_collected else None
+    )
 
     nuclear_by_day: dict[date, list] = {}
     for r in nuclear_rows:
@@ -238,7 +233,7 @@ async def build_correlation(days: int, now: datetime | None = None) -> dict:
         points.append({
             "date": d.isoformat(),
             "nuclear": risk_snapshot(nuclear_by_day.get(d, []))["index"] if covered else None,
-            "ksa": impact_api.snapshot(impact_by_day.get(d, []))["index"] if covered else None,
+            "ksa": impact_snapshot(impact_by_day.get(d, []))["index"] if covered else None,
             "brent": brent.get(d),
             # اليوم الجاري لم يكتمل: مؤشراه جزئيان
             "partial": d == today,
@@ -266,4 +261,5 @@ async def markets_correlation(days: int = Query(default=30, ge=7, le=90)):
 
     قراءة تزامن وليست تنبؤًا ولا نصيحة مالية.
     """
-    return await build_correlation(days)
+    ttl = get_settings().response_cache_seconds
+    return await cache.cached(("markets.correlation", days), ttl, lambda: build_correlation(days))

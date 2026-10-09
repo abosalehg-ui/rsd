@@ -35,6 +35,16 @@ async def _init_database():
         pass
 
 
+@pytest.fixture(autouse=True)
+def _fresh_response_cache():
+    """الاختبارات تكتب في القاعدة مباشرة بلا دورة تحليل تُبطل الذاكرة المؤقتة."""
+    from app import cache
+
+    cache.invalidate()
+    yield
+    cache.invalidate()
+
+
 @pytest.fixture
 def app() -> FastAPI:
     """التطبيق الحقيقي بلا lifespan — لا مجدول ولا جمع خارجي.

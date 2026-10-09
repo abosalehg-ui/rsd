@@ -285,3 +285,39 @@ class TestBrief:
 async def test_link_table_is_created(client):
     async with get_session_factory()() as session:
         assert (await session.execute(select(func.count(EventLink.id)))).scalar() >= 0
+
+
+class TestReviewFixes:
+    async def test_prune_keeps_links_of_a_story_whose_first_event_was_pruned(self, chain_seed):
+        """معرّف القصة = أول خبر فيها، وهو أول ما يحذفه الاحتفاظ؛ القصة حيّة ما
+        بقي فيها خبر."""
+        await _link_now()
+        async with get_session_factory()() as session:
+            rep = await session.get(Event, chain_seed["retaliation"])
+            rep.collected_at = datetime.now(timezone.utc) - timedelta(days=40)
+            await session.commit()
+        await database.prune_old_data(events_days=30)
+        remaining = {(lk.cause_id, lk.effect_id) for lk in await _links(chain_seed)}
+        assert (chain_seed["strike"], chain_seed["retaliation"]) in remaining
+
+    async def test_manual_refresh_rebuilds_chains(self, monkeypatch):
+        from app.api import system
+
+        calls = []
+
+        async def fake_cycle():
+            calls.append("cycle")
+            return {}
+
+        monkeypatch.setattr(system, "COLLECTORS", {})
+        monkeypatch.setattr(system, "run_analysis_cycle", fake_cycle)
+        await system.run_all_collectors()
+        assert calls == ["cycle"]
+
+    async def test_build_chains_reports_truncation(self, chain_seed, monkeypatch):
+        from app.api import chains as chains_api
+
+        await _link_now()
+        monkeypatch.setattr(chains_api, "_LINK_CAP", 1)
+        body = await chains_api.build_chains(72, 0.0, 10, now=NOW)
+        assert body["truncated"] is True and body["links"] == 1

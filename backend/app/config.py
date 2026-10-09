@@ -116,6 +116,10 @@ class Settings(BaseSettings):
     rate_limit_requests: int = 120
     rate_limit_window_seconds: int = 60
 
+    # صلاحية نتائج النقاط الثقيلة (التزامن، السلاسل، العدسة) بالثواني — انظر
+    # app/cache.py. تُبطَل فور تغيّر البيانات؛ 0 = بلا ذاكرة مؤقتة.
+    response_cache_seconds: int = Field(default=60, ge=0)
+
     # سلاسل السبب والأثر (processors/causal): أدنى ثقة يُخزَّن بها رابط (0-1).
     # الرابط الخاطئ يضلّل أكثر من غيابه، فلا تخفضه دون مراجعة حالات الفشل في
     # docs/causal-links-methodology.md.
