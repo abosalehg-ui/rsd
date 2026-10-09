@@ -5,23 +5,29 @@
  * الروابط ضعيفة الثقة» يعيد بناء السلاسل على الخادم دون الروابط الأضعف — فتنقسم
  * السلسلة عند حلقتها الضعيفة بدل أن تُعرض كاملة بثقة مضلِّلة.
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Workflow } from 'lucide-react';
 import { usePolling } from '../../hooks/usePolling';
+import { useModal } from '../../hooks/useModal';
 import { getChains } from '../../utils/api';
 import { LOW_CONFIDENCE, pct } from '../../utils/chains';
 import { ConfidenceBadge, LinkEvidence } from './LinkParts';
+import StaleNotice, { staleClass } from '../common/StaleNotice';
 
 const PERIODS = [24, 72, 168];
 
-function Node({ node, onOpenEvent }) {
+/** `confidence`: ثقة الرابط الواصل إلى هذه العقدة — تُنطق مع اسم الزر لأن
+ * aria-label الزر يطغى على محتواه. */
+function Node({ node, confidence, onOpenEvent }) {
   const { t } = useTranslation();
   return (
     <button
       onClick={() => onOpenEvent?.(node.id)}
       className="w-full text-start rounded-md border border-rasad-border bg-rasad-raised/60 px-3 py-2 hover:border-cyan-500 focus-ring"
-      aria-label={t('chains.openEvent', { title: node.title })}
+      aria-label={confidence == null
+        ? t('chains.openEvent', { title: node.title })
+        : t('chains.openEventConf', { title: node.title, confidence: pct(confidence) })}
     >
       <span className="block text-sm font-semibold text-slate-100 line-clamp-2">{node.title}</span>
       <span className="block text-2xs text-slate-400">
@@ -56,7 +62,7 @@ function Chain({ chain, onOpenEvent }) {
                 </span>
               </div>
             )}
-            <Node node={node} onOpenEvent={onOpenEvent} />
+            <Node node={node} confidence={i > 0 ? chain.links[i - 1].confidence : null} onOpenEvent={onOpenEvent} />
           </li>
         ))}
       </ol>
@@ -69,8 +75,9 @@ export default function ChainsModal({ open, onClose, onOpenEvent }) {
   const [hours, setHours] = useState(72);
   const [hideLow, setHideLow] = useState(false);
   const closeRef = useRef(null);
+  const dialogRef = useRef(null);
 
-  const { data, error, loading } = usePolling(
+  const { data, error, loading, stale, refetch } = usePolling(
     useCallback(
       () => (open ? getChains(hours, hideLow ? LOW_CONFIDENCE : undefined) : Promise.resolve(null)),
       [open, hours, hideLow],
@@ -78,26 +85,14 @@ export default function ChainsModal({ open, onClose, onOpenEvent }) {
     300000, [open, hours, hideLow],
   );
 
-  // onClose في ref: المستدعي يمرّر دالة جديدة في كل رسم، وربط الأثر بها يعيد
-  // التركيز إلى ما قبل النافذة مع كل تحديث دوري للتطبيق
-  const onCloseRef = useRef(onClose);
-  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const prev = document.activeElement;
-    closeRef.current?.focus();
-    const onKey = (e) => { if (e.key === 'Escape') onCloseRef.current?.(); };
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('keydown', onKey); prev?.focus?.(); };
-  }, [open]);
+  useModal(open, onClose, { containerRef: dialogRef, initialFocusRef: closeRef });
 
   if (!open) return null;
 
   const chains = data?.chains || [];
 
   return (
-    <div className="fixed inset-0 z-[10000] bg-black/70 flex items-start justify-center overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="chains-title">
+    <div ref={dialogRef} className="fixed inset-0 z-[10000] bg-black/70 flex items-start justify-center overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="chains-title">
       <div className="w-full max-w-2xl my-0 sm:my-6 min-h-full sm:min-h-0 bg-rasad-panel sm:rounded-xl border border-rasad-border shadow-2xl">
         <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 px-4 py-3 bg-rasad-panel/95 backdrop-blur border-b border-rasad-border sm:rounded-t-xl">
           <Workflow className="w-4 h-4 text-cyan-300" aria-hidden="true" />
@@ -106,18 +101,18 @@ export default function ChainsModal({ open, onClose, onOpenEvent }) {
           <label htmlFor="chains-period" className="text-xs text-slate-400">{t('chains.period')}</label>
           <select
             id="chains-period" value={hours} onChange={e => setHours(Number(e.target.value))}
-            className="bg-rasad-bg border border-rasad-border rounded px-2 py-1 text-xs text-slate-100 focus-ring"
+            className="min-h-11 bg-rasad-bg border border-rasad-border rounded px-2 py-2 text-xs text-slate-100 focus-ring"
           >
             {PERIODS.map(h => <option key={h} value={h}>{t(`chains.periods.${h}`)}</option>)}
           </select>
           <button ref={closeRef} onClick={onClose} aria-label={t('chains.close')}
-            className="min-w-9 min-h-9 flex items-center justify-center rounded-md text-slate-300 hover:text-white hover:bg-rasad-border focus-ring">
+            className="min-w-11 min-h-11 flex items-center justify-center rounded-md text-slate-300 hover:text-white hover:bg-rasad-border focus-ring">
             <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
         <div className="px-4 sm:px-6 py-4">
-          <label className="inline-flex items-center gap-2 text-xs text-slate-200 cursor-pointer">
+          <label className="min-h-11 inline-flex items-center gap-2 text-xs text-slate-200 cursor-pointer">
             <input
               type="checkbox" checked={hideLow} onChange={e => setHideLow(e.target.checked)}
               className="accent-cyan-500 w-4 h-4"
@@ -129,12 +124,21 @@ export default function ChainsModal({ open, onClose, onOpenEvent }) {
             <p className="mt-4 text-sm text-red-200" role="alert">{t('chains.loadFailed')}</p>
           ) : !data ? (
             <p className="mt-4 text-sm text-slate-300" aria-busy={loading}>{t('chains.loading')}</p>
-          ) : chains.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-400">{t('chains.empty')}</p>
           ) : (
-            <ol className="mt-4 space-y-3">
-              {chains.map(c => <Chain key={c.links.map(l => l.id).join('-')} chain={c} onOpenEvent={onOpenEvent} />)}
-            </ol>
+            <>
+              {/* فشل تحديث الفترة/المرشّح والسلاسل السابقة معروضة: نقول ذلك صراحةً */}
+              <StaleNotice error={error} stale={stale} onRetry={refetch} className="mt-4" />
+              {data.truncated && <p className="mt-3 text-2xs text-amber-200" role="note">{t('chains.truncated')}</p>}
+              <div className={staleClass(stale)} aria-busy={stale && !error ? true : undefined}>
+                {chains.length === 0 ? (
+                  <p className="mt-4 text-sm text-slate-400">{t('chains.empty')}</p>
+                ) : (
+                  <ol className="mt-4 space-y-3">
+                    {chains.map(c => <Chain key={c.links.map(l => l.id).join('-')} chain={c} onOpenEvent={onOpenEvent} />)}
+                  </ol>
+                )}
+              </div>
+            </>
           )}
 
           <p className="mt-5 text-2xs leading-relaxed text-slate-500">{t('chains.method')}</p>

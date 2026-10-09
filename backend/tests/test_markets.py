@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import httpx
 import pytest
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 
 from app.api import markets as markets_api
 from app.collectors import markets
@@ -317,12 +317,14 @@ NOW = datetime(2002, 6, 15, 12, 0, tzinfo=timezone.utc)
 FIRST = date(2002, 5, 17)           # NOW - 29 يومًا (نافذة 30 يومًا تشمل اليوم)
 
 
-def _event(day: date, hour: int, *, n: int, risk=None, ksa=None, category="nuclear", cluster=None):
+def _event(day: date, hour: int, *, n: int, risk=None, ksa=None, category="nuclear", cluster=None,
+           collected_at=None):
     when = datetime(day.year, day.month, day.day, hour, tzinfo=timezone.utc)
     return Event(
         source=SOURCE, source_id=f"{SOURCE}_{n}", title=f"t{n}", category=category, severity="high",
         risk_score=risk, ksa_impact=ksa, impact_sectors='["energy"]', cluster_id=cluster,
-        event_date=when, collected_at=datetime.now(timezone.utc),
+        # الجمع وقت الحدث نفسه: التغطية تُحسب من أول جمع
+        event_date=when, collected_at=collected_at or when,
     )
 
 
@@ -331,7 +333,7 @@ async def sync_seed():
     d1, d2 = date(2002, 6, 10), date(2002, 6, 11)
     async with get_session_factory()() as session:
         session.add_all([
-            _event(FIRST, 1, n=1, risk=10, ksa=5),                # يثبّت بداية التغطية
+            _event(FIRST, 0, n=1, risk=10, ksa=5),                # أول جمع عند منتصف الليل: يوم كامل
             _event(d1, 3, n=2, risk=80, ksa=40),
             _event(d1, 20, n=3, risk=40, ksa=None),
             _event(d1, 23, n=4, risk=None, ksa=70, category="military"),
@@ -353,7 +355,7 @@ class TestCorrelation:
         assert len(body["points"]) == 30
         assert body["points"][0]["date"] == FIRST.isoformat()
         assert body["points"][-1] == {**body["points"][-1], "date": "2002-06-15", "partial": True}
-        assert body["coverage_start"] <= FIRST.isoformat()
+        assert body["coverage_start"] == FIRST.isoformat()
 
         day1 = points[d1.isoformat()]
         # نووي: 0.6 × 80 + 0.4 × متوسط (80، 40) = 48 + 24
@@ -389,10 +391,23 @@ class TestCorrelation:
         monkeypatch.setenv("RETENTION_EVENTS_DAYS", "5")
         get_settings.cache_clear()
         body = await markets_api.build_correlation(30, now=NOW)
-        assert body["coverage_start"] == "2002-06-10"
-        before = next(p for p in body["points"] if p["date"] == "2002-06-09")
+        # الحدّ 06-10 عند ساعة التشغيل: يومه محذوف جزئيًا فلا يُعدّ مرصودًا
+        assert body["coverage_start"] == "2002-06-11"
+        before = next(p for p in body["points"] if p["date"] == "2002-06-10")
         assert before["nuclear"] is None and before["ksa"] is None
-        assert next(p for p in body["points"] if p["date"] == "2002-06-10")["nuclear"] == 72.0
+        assert next(p for p in body["points"] if p["date"] == "2002-06-11")["nuclear"] == 20.0
+
+    @pytest.mark.asyncio
+    async def test_backdated_events_do_not_extend_coverage(self, sync_seed):
+        """حدث مؤرَّخ قبل بدء الجمع (UCDP/GDELT) لا يجعل أيامه «مرصودة» بصفر."""
+        first_collect = datetime(2002, 6, 1, 9, tzinfo=timezone.utc)
+        async with get_session_factory()() as session:
+            await session.execute(update(Event).where(Event.source == SOURCE).values(collected_at=first_collect))
+            await session.commit()
+        body = await markets_api.build_correlation(30, now=NOW)
+        # 06-01 بدأ الجمع فيه ظهرًا: أول يوم كامل 06-02
+        assert body["coverage_start"] == "2002-06-02"
+        assert next(p for p in body["points"] if p["date"] == "2002-05-25")["ksa"] is None
 
     @pytest.mark.asyncio
     async def test_correlation_needs_enough_shared_days(self, sync_seed):
@@ -434,3 +449,35 @@ class TestPearson:
         points = [{"nuclear": float(i), "brent": 80.0 + i if i % 2 else None} for i in range(30)]
         pair = markets_api._pair(points, "nuclear")
         assert pair == {"r": 1.0, "n": 15}
+
+
+class TestPearsonConstantFloats:
+    def test_constant_float_series_is_undefined(self):
+        ys = [float(i) for i in range(12)]
+        assert markets_api.pearson([23.4] * 12, ys) is None
+        assert markets_api.pearson([0.1] * 12, ys) is None
+
+    def test_no_negative_zero(self):
+        r = markets_api.pearson([1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], [1, 1, 0, 0] * 3)
+        assert r == 0.0 and str(r) == "0.0"
+
+
+class TestFredStatus:
+    @pytest.mark.asyncio
+    async def test_rejected_key_shows_in_collector_status(self, client, monkeypatch):
+        _use_key(monkeypatch)
+        monkeypatch.setattr(markets, "_status", {"last_attempt": None, "last_success": None, "error": None})
+
+        async def rejected(*_a, **_k):
+            raise PermissionError("FRED: الطلب مرفوض (400)")
+
+        monkeypatch.setattr(markets, "_fetch_series", rejected)
+        with pytest.raises(PermissionError):
+            await markets.collect_markets()
+        fred = (await client.get("/api/collectors/status")).json()["fred"]
+        assert fred["healthy"] is False and fred["error"] == "rejected_key"
+
+    @pytest.mark.asyncio
+    async def test_absent_without_key(self, client, monkeypatch):
+        _no_key(monkeypatch)
+        assert "fred" not in (await client.get("/api/collectors/status")).json()

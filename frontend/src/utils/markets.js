@@ -5,6 +5,8 @@
  * بتوقيت UTC كي لا يزيحها فرق المنطقة الزمنية يومًا للخلف.
  */
 
+import { localeFor } from './constants';
+
 /** «84.27» — رقمان عشريان وأرقام لاتينية في اللغتين كبقية العدّادات. */
 export function formatQuote(value) {
   if (value == null || !Number.isFinite(Number(value))) return '—';
@@ -26,7 +28,6 @@ export function direction(pct) {
   return v > 0 ? 'up' : 'down';
 }
 
-const localeFor = (lang) => (lang === 'ar' ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB');
 
 /** تاريخ ملاحظة FRED بلغة الواجهة: «5 أكتوبر 2026». */
 export function formatObservedDate(iso, lang, opts = { day: 'numeric', month: 'short', year: 'numeric' }) {

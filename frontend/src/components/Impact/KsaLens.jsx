@@ -12,11 +12,12 @@ import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Landmark, Eye, ArrowUpRight } from 'lucide-react';
 import { usePolling } from '../../hooks/usePolling';
-import { getEvent, getKsaImpact } from '../../utils/api';
-import { IMPACT_SECTORS, riskColor } from '../../utils/constants';
+import { getKsaImpact } from '../../utils/api';
+import { IMPACT_SECTORS, THEME, riskColor } from '../../utils/constants';
 import { Icon } from '../../utils/icons';
 import RiskGauge, { TrendNote } from '../Nuclear/RiskGauge';
 import { ImpactFormula, ImpactPill, SectorChips } from './ImpactBreakdown';
+import { staleClass } from '../common/StaleNotice';
 
 export const LENS_WINDOWS = [24, 48, 72, 168];
 const FACTOR_TABLES = ['severity', 'proximity', 'mention'];
@@ -38,7 +39,7 @@ function SectorBars({ sectors, onSelectSector }) {
         const meta = IMPACT_SECTORS[s.key];
         if (!meta) return null;
         const label = t(`impact.sectors.${s.key}`);
-        const color = s.stories ? riskColor(s.index) : '#475569';
+        const color = s.stories ? riskColor(s.index) : THEME.idle;
         return (
           <li key={s.key}>
             <button
@@ -46,7 +47,7 @@ function SectorBars({ sectors, onSelectSector }) {
               disabled={!onSelectSector}
               aria-label={`${label}: ${s.index.toFixed(1)} — ${t('impact.sectorStories', { count: s.stories })}`}
               title={onSelectSector ? t('impact.openSector', { sector: label }) : undefined}
-              className="w-full grid grid-cols-[7.5rem_1fr_auto] items-center gap-2 rounded px-1 py-1 text-xs hover:bg-rasad-raised focus-ring disabled:hover:bg-transparent"
+              className="w-full min-h-11 grid grid-cols-[7.5rem_1fr_auto] items-center gap-2 rounded px-1 py-1 text-xs hover:bg-rasad-raised focus-ring disabled:hover:bg-transparent"
             >
               <span className="flex items-center gap-1.5 min-w-0 text-slate-200">
                 <Icon name={meta.icon} className="w-3.5 h-3.5 shrink-0" style={{ color: meta.color }} />
@@ -71,7 +72,7 @@ function SectorBars({ sectors, onSelectSector }) {
   );
 }
 
-function WatchList({ items, topEvents, rule, onOpenEvent }) {
+function WatchList({ items, topEvents, rule, onOpenEvent, onOpenEventById }) {
   const { t } = useTranslation();
   const byId = Object.fromEntries((topEvents || []).map(e => [e.id, e]));
   return (
@@ -85,10 +86,9 @@ function WatchList({ items, topEvents, rule, onOpenEvent }) {
         <ul className="mt-1.5 space-y-1.5">
           {items.map(w => {
             const top = byId[w.top_event_id];
-            // أبرز حدث في القطاع قد لا يكون بين العشرة الأعلى عمومًا: يُجلب برقمه
-            const open = () => (top
-              ? onOpenEvent?.(top)
-              : getEvent(w.top_event_id).then(ev => onOpenEvent?.(ev)).catch(() => {}));
+            // أبرز حدث في القطاع قد لا يكون بين العشرة الأعلى عمومًا: يفتحه App
+            // برقمه (يجلبه ويعرض تنبيهًا إن فشل) بدل جلب صامت هنا
+            const open = () => (top ? onOpenEvent?.(top) : onOpenEventById?.(w.top_event_id));
             return (
               <li key={w.key} className="text-xs text-slate-200">
                 <span className="font-semibold">{t(`impact.sectors.${w.key}`)}</span>{' '}
@@ -179,10 +179,10 @@ function FactorTables({ formula }) {
   );
 }
 
-export default function KsaLens({ onOpenEvent, onSelectSector, activeId, initialHours = 48 }) {
+export default function KsaLens({ onOpenEvent, onOpenEventById, onSelectSector, activeId, initialHours = 48 }) {
   const { t } = useTranslation();
   const [hours, setHours] = useState(initialHours);
-  const { data, error, loading, refetch } = usePolling(
+  const { data, error, loading, stale, refetch } = usePolling(
     useCallback(() => getKsaImpact(hours), [hours]),
     60000, [hours],
   );
@@ -199,7 +199,7 @@ export default function KsaLens({ onOpenEvent, onSelectSector, activeId, initial
             id="impact-window"
             value={hours}
             onChange={(e) => setHours(Number(e.target.value))}
-            className="bg-rasad-bg border border-rasad-border rounded px-2 py-1 text-xs text-slate-100 focus-ring"
+            className="min-h-11 bg-rasad-bg border border-rasad-border rounded px-2 py-2 text-xs text-slate-100 focus-ring"
           >
             {LENS_WINDOWS.map(h => <option key={h} value={h}>{t(`impact.periods.${h}`)}</option>)}
           </select>
@@ -210,6 +210,7 @@ export default function KsaLens({ onOpenEvent, onSelectSector, activeId, initial
           risk={data}
           loading={loading}
           error={error}
+          stale={stale}
           onRetry={refetch}
           title={t('impact.title')}
           icon={Landmark}
@@ -219,25 +220,29 @@ export default function KsaLens({ onOpenEvent, onSelectSector, activeId, initial
           loadFailedText={t('impact.loadFailed')}
           notes={<p className="text-slate-400">{t('impact.eventFormula')}</p>}
         />
+        {data?.truncated && <p className="text-2xs text-amber-200" role="note">{t('impact.truncated')}</p>}
 
         {data && (
-          <WatchList
-            items={data.watch || []}
-            topEvents={data.top_events}
-            onOpenEvent={onOpenEvent}
-            rule={t('impact.watchRule', {
-              delta: formula?.watch_min_delta ?? 10,
-              min: formula?.watch_min_index ?? 25,
-            })}
-          />
+          <div className={staleClass(stale)}>
+            <WatchList
+              items={data.watch || []}
+              topEvents={data.top_events}
+              onOpenEvent={onOpenEvent}
+              onOpenEventById={onOpenEventById}
+              rule={t('impact.watchRule', {
+                delta: formula?.watch_min_delta ?? 10,
+                min: formula?.watch_min_index ?? 25,
+              })}
+            />
+          </div>
         )}
       </div>
 
       {sectors.length > 0 && (
-        <section className="px-3 pb-3" aria-labelledby="impact-sectors-title">
+        <section className={`px-3 pb-3 ${staleClass(stale)}`} aria-labelledby="impact-sectors-title">
           <div className="flex items-center justify-between">
             <h3 id="impact-sectors-title" className="text-xs font-semibold text-slate-300">{t('impact.sectorsTitle')}</h3>
-            {data && <TrendNote delta={data.delta} className="text-2xs" />}
+            {data && <TrendNote delta={data.comparable === false ? null : data.delta} className="text-2xs" />}
           </div>
           <div className="mt-2">
             <SectorBars sectors={sectors} onSelectSector={onSelectSector} />
@@ -246,7 +251,7 @@ export default function KsaLens({ onOpenEvent, onSelectSector, activeId, initial
       )}
 
       {data?.top_events?.length > 0 && (
-        <section className="border-t border-rasad-border" aria-labelledby="impact-top-title">
+        <section className={`border-t border-rasad-border ${staleClass(stale)}`} aria-labelledby="impact-top-title">
           <h3 id="impact-top-title" className="px-3 pt-3 pb-1 text-xs font-semibold text-slate-300">{t('impact.topTitle')}</h3>
           <TopEvents events={data.top_events} onOpenEvent={onOpenEvent} activeId={activeId} />
         </section>

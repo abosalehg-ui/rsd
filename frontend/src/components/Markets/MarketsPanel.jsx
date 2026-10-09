@@ -13,11 +13,12 @@ import { useTranslation } from 'react-i18next';
 import { KeyRound, Info, AlertTriangle } from 'lucide-react';
 import { usePolling } from '../../hooks/usePolling';
 import { getMarketSeries, getMarketsCorrelation } from '../../utils/api';
-import { MARKET_SERIES, THEME } from '../../utils/constants';
+import { MARKET_SERIES, THEME, localeFor } from '../../utils/constants';
 import { daysSince, formatObservedDate, formatQuote } from '../../utils/markets';
 import Sparkline from '../Nuclear/Sparkline';
 import { ChangeBadge } from './MarketTicker';
 import SyncChart from './SyncChart';
+import StaleNotice, { staleClass } from '../common/StaleNotice';
 
 export const SYNC_WINDOWS = [30, 60, 90];
 // القيم يومية: استطلاع كل نصف ساعة يكفي ليلتقط جلب الخادم اليومي
@@ -42,7 +43,7 @@ function DataDateNote({ latest }) {
   const { t, i18n } = useTranslation();
   const age = daysSince(latest.as_of);
   const fetched = latest.fetched_at
-    ? new Date(latest.fetched_at).toLocaleString(i18n.language === 'ar' ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB', {
+    ? new Date(latest.fetched_at).toLocaleString(localeFor(i18n.language), {
       day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false,
     })
     : null;
@@ -124,7 +125,7 @@ export default function MarketsPanel({ latest, latestError = null }) {
     useCallback(() => getMarketSeries(MARKET_SERIES, 90), []),
     POLL_MS,
   );
-  const { data: sync, error: syncError, loading: syncLoading } = usePolling(
+  const { data: sync, error: syncError, stale: syncStale, refetch: refetchSync } = usePolling(
     useCallback(() => getMarketsCorrelation(days), [days]),
     POLL_MS, [days],
   );
@@ -168,7 +169,7 @@ export default function MarketsPanel({ latest, latestError = null }) {
             id="markets-sync-window"
             value={days}
             onChange={(e) => setDays(Number(e.target.value))}
-            className="bg-rasad-bg border border-rasad-border rounded px-2 py-1 text-xs text-slate-100 focus-ring"
+            className="min-h-11 bg-rasad-bg border border-rasad-border rounded px-2 py-2 text-xs text-slate-100 focus-ring"
           >
             {SYNC_WINDOWS.map(d => <option key={d} value={d}>{t('markets.sync.days', { count: d })}</option>)}
           </select>
@@ -178,12 +179,16 @@ export default function MarketsPanel({ latest, latestError = null }) {
           {t('markets.sync.disclaimer')}
         </p>
 
-        <div className={`mt-2 ${syncLoading && sync ? 'opacity-60' : ''}`}>
+        <div className="mt-2">
           {syncError && !sync && (
             <p role="alert" className="text-xs text-red-300">{t('markets.sync.loadFailed')}</p>
           )}
+          {!syncError && !sync && (
+            <p role="status" className="text-xs text-slate-400">{t('common.loading')}</p>
+          )}
+          {sync && <StaleNotice error={syncError} stale={syncStale} onRetry={refetchSync} className="mb-2" />}
           {sync && (
-            <>
+            <div className={staleClass(syncStale)} aria-busy={syncStale && !syncError ? true : undefined}>
               <SyncChart points={sync.points || []} />
               <CorrelationNote corr={sync.correlation} />
               <p className="mt-2 text-2xs text-slate-400">
@@ -195,7 +200,7 @@ export default function MarketsPanel({ latest, latestError = null }) {
                   <> {t('markets.sync.brentAsOf', { date: formatObservedDate(sync.brent_as_of, i18n.language) })}</>
                 )}
               </p>
-            </>
+            </div>
           )}
         </div>
       </section>

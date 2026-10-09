@@ -34,7 +34,11 @@
     "scheduleHelp": "Last completed news analysis, and the countdown to the next collection cycle"
   },
   "common": {
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "refreshFailed": "Couldn't refresh — showing the last successful load.",
+    "staleFailed": "Couldn't load the selected period — showing the previous period.",
+    "updating": "Updating for the selected period…",
+    "retry": "Retry"
   },
   "tabs": {
     "news": "Events",
@@ -64,7 +68,8 @@
     "byCategory": "By category",
     "bySector": "By sector (Kingdom impact)",
     "allSectors": "All sectors",
-    "countTitle": "{{count}} events in this period"
+    "countTitle_one": "{{count}} event in this period",
+    "countTitle_other": "{{count}} events in this period"
   },
   "timeline": {
     "title": "Timeline",
@@ -289,7 +294,8 @@
   "trend": {
     "up": "Up {{value}} on the previous period",
     "down": "Down {{value}} on the previous period",
-    "flat": "No change on the previous period"
+    "flat": "No change on the previous period",
+    "noComparison": "No comparison: previous period is beyond data retention"
   },
   "risk": {
     "title": "Nuclear & radiological risk index",
@@ -432,7 +438,8 @@
       "template": "Automatic summary built from text templates over the period's data — no AI wording. E+number is the event's Rasad ID.",
       "trendUp": "up {{value}} on the previous period",
       "trendDown": "down {{value}} on the previous period",
-      "trendFlat": "little changed on the previous period"
+      "trendFlat": "little changed on the previous period",
+      "ksaNoCompare": "The Kingdom impact index is {{index}} ({{level}}); no comparison: the previous period is beyond data retention."
     }
   },
   "impact": {
@@ -453,7 +460,8 @@
     "factorsTitle": "Formula factors",
     "method": "Weights are an initial operational estimate open to calibration; tagging is automatic from open sources and needs human verification before any decision.",
     "sectorsTitle": "Impact by sector",
-    "sectorStories": "{{count}} stories",
+    "sectorStories_one": "{{count}} story",
+    "sectorStories_other": "{{count}} stories",
     "openSector": "Show {{sector}} events",
     "topTitle": "Highest-impact events",
     "watchTitle": "Watch",
@@ -502,7 +510,8 @@
       "diplomacy": "Diplomacy"
     },
     "colIndex": "Index",
-    "colStories": "Stories"
+    "colStories": "Stories",
+    "truncated": "Large window: the index uses the most recent reports only, so older ones may be left out."
   },
   "replay": {
     "open": "Time replay",
@@ -517,10 +526,17 @@
     },
     "slider": "Hour shown",
     "until": "Up to {{time}}",
-    "count": "{{count}} events",
+    "count_one": "{{count}} event",
+    "count_other": "{{count}} events",
     "loading": "Loading events for the period…",
     "failed": "Couldn't load replay events.",
-    "active": "Replay mode: the map shows events up to the chosen hour"
+    "active": "Replay mode: the map shows events up to the chosen hour",
+    "failedShort": "Load failed",
+    "announce": {
+      "started": "Replay started",
+      "paused": "Replay paused",
+      "ended": "Replay finished"
+    }
   },
   "markets": {
     "title": "Energy & markets",
@@ -645,6 +661,8 @@
       "168": "Last week"
     },
     "close": "Close chains",
-    "method": "Each link comes from an explicit relation template, not AI: the effect follows the cause by 1 to 72 hours, both headlines share an entity (country, city, facility, waterway, leader or Saudi asset), and confidence = template weight × entity × time × source trust; nothing below 40% is stored. A chain is as strong as its weakest link. A link is a hypothesis that needs human verification before any decision."
+    "method": "Each link comes from an explicit relation template, not AI: the effect follows the cause by 1 to 72 hours, both headlines share an entity (country, city, facility, waterway, leader or Saudi asset), and confidence = template weight × entity × time × source trust; nothing below 40% is stored. A chain is as strong as its weakest link. A link is a hypothesis that needs human verification before any decision.",
+    "openEventConf": "Open event: {{title}} — link confidence {{confidence}}",
+    "truncated": "Links in this period exceed the display cap: older chains may be missing."
   }
 }

@@ -15,8 +15,10 @@ import json
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
+from sqlalchemy.orm import aliased
 
+from .. import cache
 from ..config import get_settings
 from ..models.database import Event, EventLink, get_session_factory
 from ..processors.causal import (
@@ -145,7 +147,9 @@ def rank_chains(links: list[dict], limit: int) -> list[list[dict]]:
         has_cause.add(lk["effect_id"])
     for lst in adj.values():
         lst.sort(key=lambda lk: -lk["confidence"])
-    sources = sorted(n for n in adj if n not in has_cause)
+    # الأحدث أولًا (المعرّفات تتزايد مع الزمن): إن بلغ العدّ سقف `MAX_PATHS`
+    # فالمتروك سلاسل قديمة لا سلاسل اليوم
+    sources = sorted((n for n in adj if n not in has_cause), reverse=True)
     paths = _paths(adj, sources)
     paths.sort(key=lambda p: (
         -len(p),
@@ -169,26 +173,26 @@ def rank_chains(links: list[dict], limit: int) -> list[list[dict]]:
 async def build_chains(hours: int, min_confidence: float, limit: int, now: datetime | None = None) -> dict:
     now = now or datetime.now(timezone.utc)
     since = now - timedelta(hours=hours)
+    cause_ev, effect_ev = aliased(Event), aliased(Event)
     async with get_session_factory()() as session:
+        # رابط في الفترة: أثره رُصد خلالها، وطرفاه ما زالا مخزّنين — يُصفّى في
+        # SQL فلا تُحمَّل روابط الشهر كله لعرض ثلاثة أيام
         rows = list((await session.execute(
             select(EventLink)
-            .where(EventLink.confidence >= min_confidence)
+            .join(effect_ev, effect_ev.id == EventLink.effect_id)
+            .join(cause_ev, cause_ev.id == EventLink.cause_id)
+            .where(and_(
+                EventLink.confidence >= min_confidence,
+                effect_ev.event_date >= since, effect_ev.event_date <= now,
+            ))
             .order_by(EventLink.id.desc())
-            .limit(_LINK_CAP)
+            .limit(_LINK_CAP + 1)
         )).scalars())
+        truncated = len(rows) > _LINK_CAP
+        rows = rows[:_LINK_CAP]
         nodes = await _events_by_id(session, [i for lk in rows for i in (lk.cause_id, lk.effect_id)])
 
-    def _recent(ev: Event | None) -> bool:
-        if ev is None or ev.event_date is None:
-            return False
-        date = ev.event_date if ev.event_date.tzinfo else ev.event_date.replace(tzinfo=timezone.utc)
-        return since <= date <= now
-
-    # رابط في الفترة: أثره رُصد خلالها، وطرفاه ما زالا مخزّنين
-    links = [
-        _link(lk) for lk in rows
-        if nodes.get(lk.cause_id) is not None and _recent(nodes.get(lk.effect_id))
-    ]
+    links = [_link(lk) for lk in rows if lk.cause_id in nodes and lk.effect_id in nodes]
     chains = []
     for path in rank_chains(links, limit):
         ids = [path[0]["cause_id"]] + [lk["effect_id"] for lk in path]
@@ -203,6 +207,7 @@ async def build_chains(hours: int, min_confidence: float, limit: int, now: datet
         "generated_at": now.isoformat(),
         "min_confidence": min_confidence,
         "links": len(links),
+        "truncated": truncated,
         "chains": chains,
     }
 
@@ -217,7 +222,10 @@ async def chains(
     `min_confidence` يُسقط الروابط الأضعف قبل بناء السلاسل (الافتراضي حدّ
     التخزين `CAUSAL_MIN_CONFIDENCE`)."""
     threshold = _default_min() if min_confidence is None else min_confidence
-    return await build_chains(hours, threshold, limit)
+    ttl = get_settings().response_cache_seconds
+    return await cache.cached(
+        ("chains", hours, threshold, limit), ttl, lambda: build_chains(hours, threshold, limit),
+    )
 
 
 @router.get("/chains/rules")

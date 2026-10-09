@@ -24,8 +24,9 @@ from ..collectors import (
     collect_rss_feeds,
     collect_ucdp_events,
 )
+from ..collectors.markets import markets_status
 from ..config import get_settings
-from ..models.database import Event, get_session_factory, last_analysis_at, run_story_clustering
+from ..models.database import Event, get_session_factory, last_analysis_at, run_analysis_cycle
 from ..processors.dates import utcnow
 
 logger = logging.getLogger("rasad.system")
@@ -72,10 +73,11 @@ async def run_all_collectors() -> tuple[dict, int]:
             summary[name] = {"status": "ok", "new_events": result}
             total += result
 
-    # تجميع القصص فور انتهاء الجمع كي لا تظهر الأخبار المكررة حتى الدورة التالية
+    # تجميع القصص وربط السلاسل فور انتهاء الجمع، كي لا تظهر الأخبار المكررة
+    # والسلاسل القديمة حتى دورة المجدول التالية
     try:
-        await run_story_clustering()
-    except Exception as e:  # noqa: BLE001 - التجميع تحسين، فشله لا يُفشل الجمع
+        await run_analysis_cycle()
+    except Exception as e:  # noqa: BLE001 - التحليل تحسين، فشله لا يُفشل الجمع
         logger.warning("تعذّر تجميع القصص: %s", e)
     return summary, total
 
@@ -185,7 +187,23 @@ async def get_collectors_status():
                 last_collect and (now - last_collect) < timedelta(seconds=interval * 2)
             ),
         }
+    if settings.fred_api_key:
+        status["fred"] = _fred_status(settings.markets_interval, now)
     return status
+
+
+def _fred_status(interval: int, now: datetime) -> dict:
+    """FRED لا يكتب أحداثًا، فحالته من آخر محاولة جمع لا من `Event`.
+    `error`: `rejected_key` (المفتاح مرفوض) أو `fetch_failed`، وإلا None."""
+    st = markets_status()
+    last = st["last_success"]
+    return {
+        "last_collect": last.isoformat() if last else None,
+        "recent_count": None,
+        "interval_seconds": interval,
+        "healthy": bool(last and st["error"] is None and (now - last) < timedelta(seconds=interval * 2)),
+        "error": st["error"],
+    }
 
 
 @router.get("/sources")

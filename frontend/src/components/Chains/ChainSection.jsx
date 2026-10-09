@@ -8,6 +8,7 @@ import React, { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePolling } from '../../hooks/usePolling';
 import { getEventChain } from '../../utils/api';
+import { pct } from '../../utils/chains';
 import { ConfidenceBadge, LinkEvidence } from './LinkParts';
 
 function LinkList({ title, items, onOpenEvent }) {
@@ -19,10 +20,11 @@ function LinkList({ title, items, onOpenEvent }) {
       <ul className="mt-1 space-y-2">
         {items.map(item => (
           <li key={item.id} className="rounded-md border border-rasad-border/70 bg-rasad-raised/40 px-2.5 py-2">
+            {/* aria-label الزر يطغى على محتواه، فنسبة الثقة جزء منه لا من الشارة وحدها */}
             <button
               onClick={() => onOpenEvent?.(item.event.id)}
               className="w-full flex items-start gap-2 text-start text-sm text-slate-100 hover:text-cyan-200 focus-ring rounded"
-              aria-label={t('chains.openEvent', { title: item.event.title })}
+              aria-label={t('chains.openEventConf', { title: item.event.title, confidence: pct(item.confidence) })}
             >
               <ConfidenceBadge value={item.confidence} className="mt-0.5" />
               <span className="min-w-0">

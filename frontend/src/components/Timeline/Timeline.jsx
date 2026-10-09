@@ -7,7 +7,7 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '../../utils/icons';
-import { CATEGORIES, TIME_WINDOWS, categoryOf, severityOf } from '../../utils/constants';
+import { CATEGORIES, TIME_WINDOWS, categoryOf, localeFor, severityOf } from '../../utils/constants';
 import { Clock, Calendar } from 'lucide-react';
 
 export default function Timeline({ events = [], loading = false, hours = 24, onHoursChange, onSelectEvent }) {
@@ -34,7 +34,7 @@ export default function Timeline({ events = [], loading = false, hours = 24, onH
 
   const hourFormatter = useMemo(
     // تقويم ميلادي وأرقام لاتينية (ar-SA وحده هجري/هندي)
-    () => new Intl.DateTimeFormat(i18n.language === 'ar' ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-US', {
+    () => new Intl.DateTimeFormat(localeFor(i18n.language, 'en-US'), {
       month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
     }),
     [i18n.language]

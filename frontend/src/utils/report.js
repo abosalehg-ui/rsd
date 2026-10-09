@@ -12,7 +12,7 @@
  * روابط المصادر في قائمة مراجع — فتبقى صياغة واحدة للمكانين.
  */
 import { esc, safeUrl } from './security';
-import { ksaPlace, riskLevel } from './constants';
+import { ksaPlace, localeFor, riskLevel } from './constants';
 import { pct } from './chains';
 
 const LEVEL_COLORS = { low: '#2f8a5f', medium: '#a8860f', high: '#c2610f', critical: '#c4262b' };
@@ -114,11 +114,13 @@ export function buildNarrative(brief, t) {
   }));
 
   const k = brief.ksa_impact;
+  // نافذة أطول من نصف مدة الاحتفاظ: الفترة السابقة محذوفة، فالمقارنة بها «صعود» كاذب
+  const kComparable = Boolean(k) && k.comparable !== false && k.delta != null;
   if (k) {
-    out.push(N('ksa', {
-      index: fmt1(k.index), level: t(`risk.levels.${k.level || 'low'}`),
-      trend: narrativeTrend(k.delta, t, k.trend), prev: fmt1(k.prev_index),
-    }));
+    const level = t(`risk.levels.${k.level || 'low'}`);
+    out.push(kComparable
+      ? N('ksa', { index: fmt1(k.index), level, trend: narrativeTrend(k.delta, t, k.trend), prev: fmt1(k.prev_index) })
+      : N('ksaNoCompare', { index: fmt1(k.index), level }));
   }
 
   const top = (brief.top_stories || []).slice(0, 3);
@@ -130,7 +132,7 @@ export function buildNarrative(brief, t) {
   const ksaTop = (k?.top_events || []).filter(e => !seen.has(e.id)).slice(0, 2);
   if (ksaTop.length) out.push(N('ksaTop', { items: joinSegs(ksaTop.map(e => storyItem(t, e)), sep) }));
 
-  if (k) {
+  if (kComparable) {
     const rising = (k.sectors || [])
       .filter(s => s.trend === 'up' && s.delta > 0)
       .sort((a, b) => b.delta - a.delta)
@@ -151,11 +153,27 @@ export function buildNarrative(brief, t) {
   return out;
 }
 
-/** الموجز نصًّا عاديًا: الاستشهاد يُكتب `E<id>`. */
-export function narrativeText(sentences) {
+/**
+ * الموجز نصًّا عاديًا: الاستشهاد يُكتب `E<id>`. `escTitle` يهرّب العناوين
+ * (نص خارجي من الخلاصات) دون نص القوالب — Markdown يمرّر `mdEsc`.
+ */
+export function narrativeText(sentences, escTitle = (x) => x) {
   return sentences
-    .map(segs => segs.map(s => (s.type === 'cite' ? `E${s.id}` : s.text)).join(''))
+    .map(segs => segs.map(s => (s.type === 'cite' ? `E${s.id}` : s.type === 'title' ? escTitle(s.text) : s.text)).join(''))
     .join(' ');
+}
+
+/**
+ * تهريب نص خارجي (عنوان RSS) داخل Markdown: عنوان فيه `](` يكسر الرابط، و`<…>`
+ * يُحقن HTML في العارضات التي تعرض HTML الخام داخل Markdown.
+ */
+export function mdEsc(value) {
+  return String(value ?? '').replace(/[\\`*_[\]()<>]/g, '\\$&');
+}
+
+/** رابط داخل `(…)` أو `<…>`: الأقواس والمسافة تُنهيان الرابط مبكرًا فتُشفَّر. */
+export function mdUrl(url) {
+  return String(url ?? '').replace(/[()<> ]/g, c => `%${c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')}`);
 }
 
 /** الموجز HTML مُهرَّبًا: العناوين معزولة الاتجاه، والاستشهاد نص `E<id>`. */
@@ -191,11 +209,12 @@ function storyMeta(s, t) {
   return parts.filter(Boolean).join(' · ');
 }
 
+/** تاريخ تالف من الخادم يُعرض كما هو: format() يرمي RangeError فيُسقط النافذة كلها. */
 export function formatDate(iso, lang) {
   if (!iso) return '';
-  return new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB', {
-    dateStyle: 'long', timeStyle: 'short',
-  }).format(new Date(iso));
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso);
+  return new Intl.DateTimeFormat(localeFor(lang), { dateStyle: 'long', timeStyle: 'short' }).format(d);
 }
 
 export function toMarkdown(brief, t, lang = 'ar') {
@@ -208,14 +227,14 @@ export function toMarkdown(brief, t, lang = 'ar') {
     '',
     `## ${t('report.narrative.title')}`,
     '',
-    narrativeText(narrative),
+    narrativeText(narrative, mdEsc),
     '',
     `_${t('report.narrative.template')}_`,
     '',
   ];
   if (notes.length) {
     lines.push(`### ${t('report.narrative.notes')}`, '');
-    notes.forEach((n, i) => lines.push(`${i + 1}. **E${n.id}** — ${n.title}${n.url ? ` — <${n.url}>` : ''}`));
+    notes.forEach((n, i) => lines.push(`${i + 1}. **E${n.id}** — ${mdEsc(n.title)}${n.url ? ` — <${mdUrl(n.url)}>` : ''}`));
     lines.push('');
   }
   lines.push(
@@ -231,8 +250,8 @@ export function toMarkdown(brief, t, lang = 'ar') {
     if (!items.length) lines.push(`_${t('report.none')}_`, '');
     items.forEach(s => {
       const link = safeUrl(s.url);
-      const title = link ? `[${s.title}](${link})` : s.title;
-      lines.push(`- **${Math.round(s.risk_score ?? 0)}** — ${title}  `, `  ${storyMeta(s, t)}`);
+      const title = link ? `[${mdEsc(s.title)}](${mdUrl(link)})` : mdEsc(s.title);
+      lines.push(`- **${Math.round(s.risk_score ?? 0)}** — ${title}  `, `  ${mdEsc(storyMeta(s, t))}`);
     });
     lines.push('');
   });
@@ -243,10 +262,10 @@ export function toMarkdown(brief, t, lang = 'ar') {
     const name = lang === 'ar' ? f.name_ar : f.name_en;
     const dist = f.distance_to_ksa_km != null
       ? ` — ${t('facilities.distance', { km: Math.round(f.distance_to_ksa_km), place: ksaPlace(f, lang) })}` : '';
-    lines.push(`- ${name}: ${t('facilities.stories', { count: f.stories })}, ${t('risk.score')} ${Math.round(f.max_risk)}${dist}`);
+    lines.push(`- ${mdEsc(name)}: ${t('facilities.stories', { count: f.stories })}, ${t('risk.score')} ${Math.round(f.max_risk)}${dist}`);
   });
   lines.push('', `## ${t('report.sections.sources')}`, '');
-  Object.entries(brief.sources || {}).forEach(([name, n]) => lines.push(`- ${name}: ${n}`));
+  Object.entries(brief.sources || {}).forEach(([name, n]) => lines.push(`- ${mdEsc(name)}: ${n}`));
   lines.push('', `## ${t('report.sections.method')}`, '', t('report.method'), '');
   return lines.join('\n');
 }

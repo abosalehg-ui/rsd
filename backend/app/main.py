@@ -78,13 +78,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:  # noqa: BLE001 - الترقية تحسين؛ فشلها لا يمنع الإقلاع
         logger.warning("تعذّرت إعادة تحليل الأحداث القديمة: %s", e)
 
-    # تحذير من سوء إعداد صامت: خادم مكشوف على الشبكة بلا مفتاح API يعني
-    # واجهة مفتوحة بالكامل. نُبرز هذا بدل تركه fail-open صامتاً.
-    if settings.backend_host not in _LOOPBACK_HOSTS and not settings.api_key:
+    # تحذير من سوء إعداد صامت عند الاستماع على الشبكة. `API_KEY` يحمي التحديث
+    # اليدوي وحده؛ نقاط القراءة (GET) مكشوفة دائمًا بلا مصادقة، فلا نوحي بغير ذلك.
+    if settings.backend_host not in _LOOPBACK_HOSTS:
+        refresh = "" if settings.api_key else " والتحديث اليدوي أيضًا غير محمي (API_KEY فارغ)."
         logger.warning(
-            "⚠️ الخادم يستمع على %s بلا API_KEY — الواجهة مكشوفة بلا مصادقة. "
-            "اضبط API_KEY وضعه خلف وكيل عكسي + TLS قبل النشر.",
-            settings.backend_host,
+            "⚠️ الخادم يستمع على %s — نقاط القراءة مكشوفة لكل من يصل إليه (API_KEY لا يحميها).%s "
+            "ضعه خلف وكيل عكسي بمصادقة + TLS قبل النشر.",
+            settings.backend_host, refresh,
         )
 
     # الجمع الأولي في الخلفية لا قبل `yield`: يستجيب الخادم فورًا بما في قاعدة

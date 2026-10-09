@@ -69,7 +69,10 @@ describe('<ChainSection> in the event drawer', () => {
     vi.spyOn(api, 'getEventChain').mockResolvedValue(chainBody);
     const onOpenEvent = vi.fn();
     render(<ChainSection eventId={2} onOpenEvent={onOpenEvent} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Open event: Oil prices jump as Iran retaliation spreads' }));
+    // نسبة الثقة في اسم الزر: aria-label الزر يطغى على الشارة داخله
+    fireEvent.click(await screen.findByRole('button', {
+      name: 'Open event: Oil prices jump as Iran retaliation spreads — link confidence 46%',
+    }));
     expect(onOpenEvent).toHaveBeenCalledWith(3);
   });
 
@@ -167,10 +170,28 @@ describe('<ChainsModal>', () => {
     const onOpenEvent = vi.fn();
     const onClose = vi.fn();
     render(<ChainsModal open onClose={onClose} onOpenEvent={onOpenEvent} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Open event: Oil prices jump' }));
+    // أول عقدة بلا رابط واصل إليها؛ البقية تحمل ثقة رابطها
+    expect(await screen.findByRole('button', { name: 'Open event: Israel strikes targets in Iran' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Open event: Oil prices jump — link confidence 46%' }));
     expect(onOpenEvent).toHaveBeenCalledWith(3);
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('flags the previous chains when a new period fails instead of hiding the error', async () => {
+    const spy = vi.spyOn(api, 'getChains').mockResolvedValue(chains);
+    render(<ChainsModal open onClose={() => {}} />);
+    await screen.findByText('Israel strikes targets in Iran');
+    spy.mockRejectedValue(new Error('down'));
+    fireEvent.change(screen.getByLabelText('Period'), { target: { value: '168' } });
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load the selected period — showing the previous period.");
+    expect(screen.getByText('Israel strikes targets in Iran')).toBeInTheDocument();
+  });
+
+  it('notes when the server capped the links', async () => {
+    vi.spyOn(api, 'getChains').mockResolvedValue({ ...chains, truncated: true });
+    render(<ChainsModal open onClose={() => {}} />);
+    expect(await screen.findByText(/exceed the display cap/)).toBeInTheDocument();
   });
 
   it('shows a failure and renders nothing when closed', async () => {

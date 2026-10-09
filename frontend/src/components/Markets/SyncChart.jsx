@@ -18,15 +18,18 @@ import { useTranslation } from 'react-i18next';
 import { SYNC_COLORS, THEME } from '../../utils/constants';
 import { formatObservedDate, formatQuote } from '../../utils/markets';
 
+// نص المحاور 11 وحدة على عرض 360: نحو 9 بكسل على جوال عرضه 300، ولا يقرأ
+// أصغر منه. الهامشان يتّسعان لثلاثة أرقام («100») بهذا الحجم.
 const W = 360;
-const LEFT = 26;
-const RIGHT = 30;
+const FONT = 11;
+const LEFT = 30;
+const RIGHT = 32;
 const A_TOP = 8;
 const A_BOTTOM = 112;
 const B_TOP = 128;
 const B_BOTTOM = 188;
-const AXIS_Y = 202;
-const H = 208;
+const AXIS_Y = 206;
+const H = 212;
 const PLOT_W = W - LEFT - RIGHT;
 
 /** مسار SVG يقطع الخط عند القيم الفارغة (`connect=false`) أو يصلها. */
@@ -113,7 +116,7 @@ export default function SyncChart({ points = [] }) {
         <svg
           ref={svgRef}
           viewBox={`0 0 ${W} ${H}`}
-          className="w-full h-auto block touch-none focus-ring rounded"
+          className="w-full h-auto block touch-pan-y focus-ring rounded"
           role="img"
           aria-label={t('markets.sync.chartLabel', { days: geo.n })}
           tabIndex={0}
@@ -127,19 +130,19 @@ export default function SyncChart({ points = [] }) {
           {[0, 50, 100].map(v => (
             <g key={v}>
               <line x1={LEFT} x2={W - RIGHT} y1={geo.yA(v)} y2={geo.yA(v)} stroke={THEME.border} strokeWidth="1" />
-              <text x={LEFT - 4} y={geo.yA(v) + 3} textAnchor="end" fontSize="8" fill={THEME.textMuted}>{v}</text>
+              <text x={LEFT - 4} y={geo.yA(v) + 4} textAnchor="end" fontSize={FONT} fill={THEME.textMuted}>{v}</text>
             </g>
           ))}
           {/* لوحة برنت: حدّاها الأدنى والأعلى في النافذة */}
           <line x1={LEFT} x2={W - RIGHT} y1={B_BOTTOM} y2={B_BOTTOM} stroke={THEME.border} strokeWidth="1" />
           {geo.hasBrent && (
             <>
-              <text x={LEFT - 4} y={B_TOP + 6} textAnchor="end" fontSize="8" fill={THEME.textMuted}>{Math.round(geo.hi)}</text>
-              <text x={LEFT - 4} y={B_BOTTOM} textAnchor="end" fontSize="8" fill={THEME.textMuted}>{Math.round(geo.lo)}</text>
+              <text x={LEFT - 4} y={B_TOP + 8} textAnchor="end" fontSize={FONT} fill={THEME.textMuted}>{Math.round(geo.hi)}</text>
+              <text x={LEFT - 4} y={B_BOTTOM} textAnchor="end" fontSize={FONT} fill={THEME.textMuted}>{Math.round(geo.lo)}</text>
             </>
           )}
           {!geo.hasBrent && (
-            <text x={LEFT + PLOT_W / 2} y={(B_TOP + B_BOTTOM) / 2} textAnchor="middle" fontSize="9" fill={THEME.textMuted}>
+            <text x={LEFT + PLOT_W / 2} y={(B_TOP + B_BOTTOM) / 2} textAnchor="middle" fontSize={FONT} fill={THEME.textMuted}>
               {t('markets.sync.noBrent')}
             </text>
           )}
@@ -151,7 +154,7 @@ export default function SyncChart({ points = [] }) {
                 <path d={linePath(s.values, geo.x, s.y)} fill="none" stroke={s.color} strokeWidth="2"
                   strokeLinejoin="round" strokeLinecap="round" data-testid={`sync-line-${s.key}`} />
                 {li >= 0 && (
-                  <text x={W - RIGHT + 3} y={s.y(s.values[li]) + 3} fontSize="8" fill={THEME.textSecondary}>
+                  <text x={W - RIGHT + 3} y={s.y(s.values[li]) + 4} fontSize={FONT} fill={THEME.textSecondary}>
                     {s.values[li].toFixed(0)}
                   </text>
                 )}
@@ -165,7 +168,7 @@ export default function SyncChart({ points = [] }) {
               {(() => {
                 const li = lastIndex(geo.brent);
                 return (
-                  <text x={W - RIGHT + 3} y={geo.yB(geo.brent[li]) + 3} fontSize="8" fill={THEME.textSecondary}>
+                  <text x={W - RIGHT + 3} y={geo.yB(geo.brent[li]) + 4} fontSize={FONT} fill={THEME.textSecondary}>
                     {geo.brent[li].toFixed(0)}
                   </text>
                 );
@@ -174,7 +177,7 @@ export default function SyncChart({ points = [] }) {
           )}
 
           {tickIdx.map(i => (
-            <text key={i} x={geo.x(i)} y={AXIS_Y} fontSize="8" fill={THEME.textMuted}
+            <text key={i} x={geo.x(i)} y={AXIS_Y} fontSize={FONT} fill={THEME.textMuted}
               textAnchor={i === 0 ? 'start' : i === geo.n - 1 ? 'end' : 'middle'}>
               {dateLabel(i)}
             </text>

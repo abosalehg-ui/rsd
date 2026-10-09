@@ -6,6 +6,7 @@
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useModal } from '../../hooks/useModal';
 import { Tv, X } from 'lucide-react';
 
 const CHANNELS = [
@@ -103,13 +104,8 @@ export default function LiveTVDrawer() {
     return () => window.removeEventListener('resize', onResize);
   }, [isMobile, clamp]);
 
-  // إغلاق بمفتاح Escape
-  useEffect(() => {
-    if (!isOpen) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') setIsOpen(false); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [isOpen]);
+  // Escape عبر مكدّس الطبقات: نافذة عائمة غير حاجبة، فلا حبس Tab ولا نقل تركيز
+  useModal(isOpen, () => setIsOpen(false), { trap: false, autoFocus: false });
 
   const floatingStyle = isMobile || !position
     ? undefined

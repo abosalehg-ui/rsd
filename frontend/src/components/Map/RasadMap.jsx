@@ -8,13 +8,16 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { CATEGORIES, CONFIDENCE, IRAN_EVENT_TYPES, THEME, categoryOf, riskColor, timeAgo } from '../../utils/constants';
-import { esc } from '../../utils/security';
-import { Icon, iconSvg } from '../../utils/icons';
-import {
-  basePopup, clusterPopup, eventPopup, flightPopup,
-  iranPopup, nuclearPopup, pipelinePopup,
-} from './popups';
+import { CATEGORIES, timeAgo } from '../../utils/constants';
+import { Icon } from '../../utils/icons';
+import { CLUSTER_PX, Z_OFFSET } from './layers/shared';
+import { buildEventsLayer } from './layers/events';
+import { buildFlightsLayer } from './layers/flights';
+import { buildIranLayer } from './layers/iran';
+import { buildNuclearLayer } from './layers/nuclear';
+import { buildBasesLayer } from './layers/bases';
+import { buildPipelinesLayer } from './layers/pipelines';
+import { buildZonesLayer } from './layers/zones';
 import { ZoomIn, ZoomOut, Crosshair, Clock } from 'lucide-react';
 import LayerToggles from './LayerToggles';
 
@@ -38,9 +41,8 @@ const CONTROL_BTN =
 // المسافة بالبكسل على الشاشة لا بالدرجات: التجميع بالدرجات يترك نقاطاً
 // متجاورة تتراكب بصرياً في كل مستويات التقريب فيتعذّر الضغط على حدث بعينه.
 // الإسقاط عبر EPSG3857 يجعل العتبة ثابتة بصرياً، وتنفكّ المجموعات تلقائياً
-// كلما كبّر المستخدم وتباعدت النقاط على الشاشة.
-const CLUSTER_PX = 42;
-
+// كلما كبّر المستخدم وتباعدت النقاط على الشاشة. العتبة `CLUSTER_PX` في
+// `layers/shared.js` لأن طبقة الأحداث تحكم بها أيضًا هل يفكّ التقريب المجموعة.
 function clusterEvents(events, zoom) {
   const clusters = [];
   events.forEach(ev => {
@@ -79,8 +81,8 @@ const OVERLAP_PX = 26;
 // أولوية الظهور: الأعلى يأخذ الموضع الأول في الحلقة ويُرسم فوق غيره
 const LAYER_PRIORITY = { iran: 4, nuclear: 3, base: 2, event: 1 };
 
-// ترتيب الرسم في Leaflet — الضربات والمنشآت فوق نقاط الأحداث دائماً
-export const Z_OFFSET = { iran: 400, nuclear: 300, base: 200, event: 0, flight: -100 };
+// ترتيب الرسم في Leaflet (مُعاد تصديره للاختبارات)
+export { Z_OFFSET };
 
 export function computeMarkerNudges(items, zoom) {
   const groups = [];
@@ -105,29 +107,6 @@ export function computeMarkerNudges(items, zoom) {
   });
   return out;
 }
-
-const NO_NUDGE = { dx: 0, dy: 0 };
-
-// ===== ألوان أنواع المنشآت النووية (التسميات من i18n) =====
-const NUCLEAR_TYPES = {
-  power:       { color: '#f2c230' },
-  research:    { color: '#22d3ee' },
-  enrichment:  { color: '#f97316' },
-  conversion:  { color: '#a78bfa' },
-  heavy_water: { color: '#38bdf8' },
-  fuel:        { color: '#fb7185' },
-};
-
-const NUCLEAR_CATEGORIES = new Set(['nuclear', 'radiological']);
-const THEME_BG = THEME.bg;
-
-const NUCLEAR_STATUS_COLORS = {
-  operational: '#22c55e',
-  construction: '#f59e0b',
-  planned: '#94a3b8',
-  shutdown: '#ef4444',
-  modified: '#a78bfa',
-};
 
 /**
  * شارة الطيران: العدد الكلي والعسكري، وعند `stale` (آخر جمع فشل) أيقونة ساعة
@@ -285,87 +264,8 @@ export default function RasadMap({
     markersRef.current.clearLayers();
     if (!showEvents) return;
 
-    clusters.forEach((cluster, ci) => {
-      const { dx, dy } = nudges.get(`ev:${ci}`) || NO_NUDGE;
-      if (cluster.events.length === 1) {
-        const ev = cluster.events[0];
-        const cat = categoryOf(ev.category);
-        const approx = ev.geo_precision === 'country' ? 'approx' : '';
-        const critical = ev.severity === 'critical' ? 'critical' : '';
-        // iconAnchor مُزاح: العلامة تُرسم بعيداً عن نقطتها بمقدار (dx,dy) بكسل
-        // فتظهر بجانب العلامات المتطابقة الموقع بدل الاختفاء تحتها،
-        // وpopupAnchor يتبعها كي تبقى النافذة ملتصقة بالعلامة المرئية.
-        let sz;
-        let html;
-        if (NUCLEAR_CATEGORIES.has(ev.category)) {
-          // الخبر النووي/الإشعاعي: أيقونة تصنيفه داخل قرص بلون درجة خطره
-          sz = ev.severity === 'critical' ? 26 : ev.severity === 'high' ? 22 : 18;
-          const rc = riskColor(ev.risk_score);
-          html = `<div class="event-marker ${critical} ${approx}" style="width:${sz}px;height:${sz}px;display:flex;align-items:center;justify-content:center;background:${THEME_BG};border-color:${rc};box-shadow:0 0 ${sz}px ${rc}55;">${iconSvg(cat.icon, { size: sz - 10, color: rc, strokeWidth: 2.25 })}</div>`;
-        } else {
-          sz = ev.severity === 'critical' ? 14 : ev.severity === 'high' ? 11 : 8;
-          html = `<div class="event-marker ${critical} ${approx}" style="width:${sz}px;height:${sz}px;background:${cat.color};border-color:${cat.color};"></div>`;
-        }
-        const icon = L.divIcon({
-          className: '', iconSize: [sz, sz],
-          iconAnchor: [sz / 2 - dx, sz / 2 - dy],
-          popupAnchor: [dx, dy - sz / 2],
-          html,
-        });
-        const m = L.marker([ev.latitude, ev.longitude], { icon, zIndexOffset: Z_OFFSET.event })
-          .bindPopup(eventPopup(ev, popupCtx), { maxWidth: 280 });
-        m.on('click', () => onSelectEvent?.(ev));
-        markersRef.current.addLayer(m);
-      } else {
-        // مجموعة نقاط — دائرة تجميع
-        const count = cluster.events.length;
-        const hasCritical = cluster.events.some(e => e.severity === 'critical' || e.severity === 'high');
-        const hasNuclear = cluster.events.some(e => NUCLEAR_CATEGORIES.has(e.category));
-        const color = hasCritical ? '#f4585d' : hasNuclear ? '#f2c230' : '#67e8f9';
-        const sz = Math.min(20 + count * 2, 44);
-        const icon = L.divIcon({
-          className: '', iconSize: [sz, sz],
-          iconAnchor: [sz / 2 - dx, sz / 2 - dy],
-          popupAnchor: [dx, dy - sz / 2],
-          html: `<div style="width:${sz}px;height:${sz}px;background:${color}30;border:2px solid ${color};border-radius:50%;display:flex;align-items:center;justify-content:center;color:${color};font-weight:700;font-size:${sz > 30 ? 13 : 11}px;font-family:monospace;box-shadow:0 0 12px ${color}50;cursor:pointer">${count}</div>`,
-        });
-
-        const m = L.marker([cluster.lat, cluster.lng], { icon, zIndexOffset: Z_OFFSET.event })
-          .bindPopup(clusterPopup(cluster, popupCtx), { maxWidth: 300 });
-
-        // تفويض حدث واحد على عنصر الـ popup نفسه (بدل مستمعات عامة على المستند
-        // تتراكم عند كل فتح) — يُنظَّف تلقائياً مع إزالة الـ popup.
-        m.on('popupopen', (e) => {
-          const root = e.popup.getElement();
-          if (!root || root.dataset.rsdBound) return;  // لا نُكرّر الربط عند إعادة الفتح
-          root.dataset.rsdBound = '1';
-          const activate = (target) => {
-            const item = target.closest('.rasad-cluster-item');
-            if (!item) return;
-            const id = parseInt(item.dataset.id, 10);
-            const found = events.find(x => x.id === id);
-            if (found) onSelectEvent?.(found);
-          };
-          root.addEventListener('click', (ev2) => activate(ev2.target));
-          root.addEventListener('keydown', (ev2) => {
-            if (ev2.key === 'Enter' || ev2.key === ' ') {
-              ev2.preventDefault();
-              activate(ev2.target);
-            }
-          });
-        });
-
-        // نقرّب فقط إن كان التقريب سيفكّ المجموعة فعلاً (نقاط متباعدة)؛ الأحداث
-        // متطابقة الإحداثيات لا يفكّها أي تقريب فتبقى قائمتها المنبثقة هي الواجهة.
-        m.on('click', () => {
-          const willSplit = cluster.spreadPx * 4 > CLUSTER_PX;
-          if (mapInstance.current && willSplit && zoomLevel < 17) {
-            mapInstance.current.flyTo([cluster.lat, cluster.lng], zoomLevel + 2, { duration: 0.5 });
-          }
-        });
-
-        markersRef.current.addLayer(m);
-      }
+    buildEventsLayer(markersRef.current, { events, clusters, nudges, zoomLevel }, {
+      popupCtx, onSelectEvent, getMap: () => mapInstance.current,
     });
   }, [events, clusters, nudges, nudgeSig, showEvents, ready, zoomLevel, onSelectEvent, popupCtx]);
 
@@ -374,23 +274,7 @@ export default function RasadMap({
     if (!ready || !flightsRef.current) return;
     flightsRef.current.clearLayers();
     if (!showFlights || !flights?.flights) return;
-    flights.flights.forEach(f => {
-      if (!f.latitude || !f.longitude) return;
-      const isMil = f.is_military;
-      // الطوارئ (سكواك 7500/7600/7700) أبرز من العسكري: معلومة OSINT لا تُهدر
-      const isEmergency = Boolean(f.is_emergency);
-      const sz = isEmergency ? 20 : isMil ? 18 : 10;
-      const color = isEmergency ? THEME.emergency : isMil ? THEME.flightMilitary : THEME.flightCivil;
-      const icon = L.divIcon({
-        className: '', iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2],
-        // أيقونة plane في lucide تتجه 45° — نطرحها كي يطابق الاتجاه المسار
-        html: `<div style="transform:rotate(${(Number(f.heading) || 0) - 45}deg);display:flex;opacity:${isMil || isEmergency ? 1 : 0.7};${isEmergency ? `filter:drop-shadow(0 0 6px ${THEME.emergency})` : ''}">${iconSvg('plane', { size: sz, color })}</div>`,
-      });
-      // ترتيب رسم أدنى: الطائرات لا تحجب الضربات والمنشآت الثابتة
-      L.marker([f.latitude, f.longitude], { icon, zIndexOffset: Z_OFFSET.flight })
-        .bindPopup(flightPopup(f, popupCtx))
-        .addTo(flightsRef.current);
-    });
+    buildFlightsLayer(flightsRef.current, flights, { popupCtx });
   }, [flights, showFlights, ready, popupCtx]);
 
   // ===== طبقة أحداث إيران OSINT =====
@@ -404,44 +288,7 @@ export default function RasadMap({
     iranRef.current.clearLayers();
     if (!showIran) return;
 
-    iranStrikes.forEach((strike, si) => {
-      if (!strike.latitude || !strike.longitude) return;
-      const { dx, dy } = nudges.get(`ir:${strike.id ?? si}`) || NO_NUDGE;
-      const conf = CONFIDENCE[strike.confidence] || CONFIDENCE.LOW;
-      const evType = IRAN_EVENT_TYPES[strike.event_type] || IRAN_EVENT_TYPES.strike;
-      const sz = strike.confidence === 'HIGH' ? 18 : strike.confidence === 'MEDIUM' ? 14 : 10;
-
-      const icon = L.divIcon({
-        className: '',
-        iconSize: [sz + 8, sz + 8],
-        iconAnchor: [(sz + 8) / 2 - dx, (sz + 8) / 2 - dy],
-        popupAnchor: [dx, dy - (sz + 8) / 2],
-        html: `<div style="
-          width:${sz}px;height:${sz}px;
-          background:${evType.color}30;
-          border:2px solid ${evType.color};
-          border-radius:50%;
-          display:flex;align-items:center;justify-content:center;
-          box-shadow:0 0 ${sz}px ${conf.color}80;
-          position:relative;
-        ">
-          ${iconSvg(evType.icon, { size: Math.max(sz - 6, 8), color: evType.color })}
-          <div style="
-            position:absolute;bottom:-4px;inset-inline-end:-4px;
-            width:8px;height:8px;
-            border-radius:50%;
-            background:${conf.color};
-            border:1px solid #000;
-          "></div>
-        </div>`,
-      });
-
-      const m = L.marker([strike.latitude, strike.longitude], { icon, zIndexOffset: Z_OFFSET.iran })
-        .bindPopup(iranPopup(strike, popupCtx), { maxWidth: 300 });
-
-      m.on('click', () => onSelectEvent?.(strike));
-      iranRef.current.addLayer(m);
-    });
+    buildIranLayer(iranRef.current, { iranStrikes, nudges }, { popupCtx, onSelectEvent });
   }, [iranStrikes, nudges, nudgeSig, showIran, ready, onSelectEvent, popupCtx]);
 
   // ===== طبقة المنشآت النووية ☢️ =====
@@ -450,43 +297,7 @@ export default function RasadMap({
     nuclearRef.current.clearLayers();
     if (!showNuclear) return;
 
-    nuclearFacilities.forEach((fac, fi) => {
-      if (typeof fac.latitude !== 'number' || typeof fac.longitude !== 'number') return;
-      const { dx, dy } = nudges.get(`nu:${fac.id ?? fi}`) || NO_NUDGE;
-      const typeInfo = NUCLEAR_TYPES[fac.type] || NUCLEAR_TYPES.research;
-      const statusColor = NUCLEAR_STATUS_COLORS[fac.status] || '#94a3b8';
-      const isOperational = fac.status === 'operational';
-      const sz = fac.type === 'power' ? 22 : 18;
-      const name = fac.name_ar || fac.name_en || '';
-
-      const pulse = isOperational
-        ? `box-shadow:0 0 ${sz}px ${typeInfo.color}80;animation:nuclear-pulse 2.5s ease-in-out infinite;`
-        : `box-shadow:0 0 6px ${typeInfo.color}40;opacity:0.7;`;
-
-      const icon = L.divIcon({
-        className: '',
-        iconSize: [sz + 6, sz + 6],
-        iconAnchor: [(sz + 6) / 2 - dx, (sz + 6) / 2 - dy],
-        popupAnchor: [dx, dy - (sz + 6) / 2],
-        // esc() على سمة title أيضاً
-        html: `<div title="${esc(name)}" style="
-          width:${sz}px;height:${sz}px;
-          background:${typeInfo.color}20;
-          border:2px solid ${typeInfo.color};
-          border-radius:50%;
-          display:flex;align-items:center;justify-content:center;
-          ${pulse}
-          cursor:pointer;
-        ">${iconSvg('radiation', { size: sz - 6, color: typeInfo.color, strokeWidth: 2.25 })}</div>`,
-      });
-
-      const m = L.marker([fac.latitude, fac.longitude], { icon, zIndexOffset: Z_OFFSET.nuclear })
-        .bindPopup(
-          nuclearPopup(fac, { ...popupCtx, typeColor: typeInfo.color, statusColor }),
-          { maxWidth: 320 },
-        );
-      nuclearRef.current.addLayer(m);
-    });
+    buildNuclearLayer(nuclearRef.current, { nuclearFacilities, nudges }, { popupCtx });
   }, [nuclearFacilities, nudges, showNuclear, ready, popupCtx]);
 
   // ===== طبقة القواعد العسكرية ⚔️ =====
@@ -494,21 +305,7 @@ export default function RasadMap({
     if (!ready || !basesRef.current) return;
     basesRef.current.clearLayers();
     if (!showBases) return;
-    militaryBases.forEach((b, bi) => {
-      if (typeof b.latitude !== 'number' || typeof b.longitude !== 'number') return;
-      const { dx, dy } = nudges.get(`ba:${b.id ?? bi}`) || NO_NUDGE;
-      const typeIcon = iconSvg(b.type === 'naval' ? 'anchor' : b.type === 'air' ? 'plane' : 'shield', { size: 11, color: '#c4b5fd' });
-      const icon = L.divIcon({
-        className: '',
-        iconSize: [18, 18],
-        iconAnchor: [9 - dx, 9 - dy],
-        popupAnchor: [dx, dy - 9],
-        html: `<div title="${esc(b.name_ar || b.name_en || '')}" style="width:18px;height:18px;background:rgba(167,139,250,0.15);border:1.5px solid #a78bfa;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 0 6px rgba(167,139,250,0.4)">${typeIcon}</div>`,
-      });
-      const m = L.marker([b.latitude, b.longitude], { icon, zIndexOffset: Z_OFFSET.base })
-        .bindPopup(basePopup(b, popupCtx), { maxWidth: 280 });
-      basesRef.current.addLayer(m);
-    });
+    buildBasesLayer(basesRef.current, { militaryBases, nudges }, { popupCtx });
   }, [militaryBases, nudges, showBases, ready, popupCtx]);
 
   // ===== طبقة خطوط الأنابيب 🛢️ =====
@@ -516,15 +313,7 @@ export default function RasadMap({
     if (!ready || !pipelinesRef.current) return;
     pipelinesRef.current.clearLayers();
     if (!showPipelines) return;
-    pipelines.forEach(p => {
-      if (!Array.isArray(p.coordinates) || p.coordinates.length < 2) return;
-      const color = p.type === 'oil' ? '#fbbf24' : '#60a5fa';
-      const line = L.polyline(p.coordinates, {
-        color, weight: 3, opacity: 0.8, dashArray: p.status === 'partial' ? '5, 8' : null,
-      });
-      line.bindPopup(pipelinePopup(p, { ...popupCtx, color }));
-      pipelinesRef.current.addLayer(line);
-    });
+    buildPipelinesLayer(pipelinesRef.current, pipelines, { popupCtx });
   }, [pipelines, showPipelines, ready, popupCtx]);
 
   // ===== مسافات التخطيط للطوارئ حول محطات القوى =====
@@ -534,34 +323,7 @@ export default function RasadMap({
     if (!ready || !zonesRef.current) return;
     zonesRef.current.clearLayers();
     if (!showZones) return;
-    nuclearFacilities.forEach(fac => {
-      if (!fac.planning_zones?.length || !['operational', 'construction'].includes(fac.status)) return;
-      fac.planning_zones.forEach((z, i) => {
-        const circle = L.circle([fac.latitude, fac.longitude], {
-          radius: z.km * 1000,
-          color: '#f2c230',
-          weight: i < 2 ? 1.25 : 1,
-          opacity: 0.55 - i * 0.1,
-          dashArray: i < 2 ? null : '4 6',
-          fill: i === 0,
-          fillOpacity: 0.08,
-          interactive: false,
-        });
-        zonesRef.current.addLayer(circle);
-      });
-      // تسمية واحدة على الدائرة الأكبر
-      const outer = fac.planning_zones[fac.planning_zones.length - 1];
-      const labelLat = fac.latitude + (outer.km / 111);
-      zonesRef.current.addLayer(L.marker([labelLat, fac.longitude], {
-        interactive: false,
-        icon: L.divIcon({
-          className: '',
-          iconSize: [80, 14],
-          iconAnchor: [40, 7],
-          html: `<div dir="ltr" style="font:10px 'IBM Plex Mono',monospace;color:#f2c230aa;text-align:center">${esc(outer.key)} ${esc(outer.km)} km</div>`,
-        }),
-      }));
-    });
+    buildZonesLayer(zonesRef.current, nuclearFacilities);
   }, [nuclearFacilities, showZones, ready]);
 
   useEffect(() => {

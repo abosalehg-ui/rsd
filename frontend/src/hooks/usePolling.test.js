@@ -52,6 +52,38 @@ describe('usePolling', () => {
     expect(result.current.data).toEqual({ v: 'fresh' });
   });
 
+  it('marks data stale and loading while a changed window loads, keeping the old data', async () => {
+    let resolveNew;
+    const fn = vi.fn((h) => (h === 48 ? Promise.resolve({ h }) : new Promise(res => { resolveNew = () => res({ h }); })));
+    const { result, rerender } = renderHook(({ h }) => usePolling(() => fn(h), 100000, [h]), { initialProps: { h: 48 } });
+    await act(async () => { await Promise.resolve(); });
+    expect(result.current).toMatchObject({ data: { h: 48 }, stale: false, loading: false });
+
+    rerender({ h: 168 });
+    // البيانات السابقة باقية (لا وميض)، لكنها معلَّمة قديمة
+    expect(result.current).toMatchObject({ data: { h: 48 }, stale: true, loading: true });
+
+    await act(async () => { resolveNew(); await Promise.resolve(); });
+    expect(result.current).toMatchObject({ data: { h: 168 }, stale: false, loading: false });
+  });
+
+  it('keeps the stale flag with the error when the new window fails', async () => {
+    const fn = vi.fn((h) => (h === 48 ? Promise.resolve({ h }) : Promise.reject(new Error('down'))));
+    const { result, rerender } = renderHook(({ h }) => usePolling(() => fn(h), 100000, [h]), { initialProps: { h: 48 } });
+    await act(async () => { await Promise.resolve(); });
+    rerender({ h: 168 });
+    await act(async () => { await Promise.resolve(); });
+    expect(result.current).toMatchObject({ data: { h: 48 }, stale: true, error: 'down', loading: false });
+  });
+
+  it('does not mark data stale on a periodic refetch', async () => {
+    const fn = vi.fn().mockResolvedValueOnce({ v: 1 }).mockRejectedValue(new Error('blip'));
+    const { result } = renderHook(() => usePolling(fn, 1000, ['same']));
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => { vi.advanceTimersByTime(1000); await Promise.resolve(); });
+    expect(result.current).toMatchObject({ data: { v: 1 }, stale: false, error: 'blip' });
+  });
+
   it('skips the interval tick while the tab is hidden', async () => {
     const fn = vi.fn().mockResolvedValue({});
     const spy = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');

@@ -20,6 +20,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import and_, desc, select
 
+from .. import cache
 from ..config import get_settings
 from ..models.database import Event, get_session_factory
 from ..processors.gazetteer import ksa_point_en, nearest_ksa_point
@@ -339,6 +340,11 @@ async def nuclear_risk(hours: int = Query(default=24, ge=1, le=720)):
 async def nuclear_brief(hours: int = Query(default=24, ge=1, le=168)):
     """تقرير الرصد النووي والإشعاعي للفترة — بيانات منظّمة؛ الواجهة تعرضه
     وتصدّره (طباعة/PDF، HTML، Markdown)."""
+    ttl = get_settings().response_cache_seconds
+    return await cache.cached(("nuclear.brief", hours), ttl, lambda: build_brief(hours))
+
+
+async def build_brief(hours: int) -> dict:
     # تحميل واحد لأحداث الفترة يتشاركه المؤشر والأقسام ورصد المنشآت
     now = datetime.now(timezone.utc)
     events, previous = await _load_windows(hours, now)

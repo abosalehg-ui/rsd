@@ -1,10 +1,11 @@
 /**
  * رصد - قائمة إعدادات التنبيهات الصوتية + قائمة التنبيهات الأخيرة
  */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bell, Volume2, X, Check, Trash2 } from 'lucide-react';
 import { timeAgo } from '../../utils/constants';
+import { useModal } from '../../hooks/useModal';
 
 const SEVERITY_VALUES = [
   { value: 'low',      color: '#64748b' },
@@ -30,21 +31,9 @@ export default function AlertSettings({
   const [permResult, setPermResult] = useState(null);
   const isAr = i18n.language === 'ar';
   const dialogRef = useRef(null);
-  const lastFocusedRef = useRef(null);
 
-  // إدارة تركيز النافذة: حفظ العنصر النشط، نقل التركيز للنافذة، Escape للإغلاق،
-  // واستعادة التركيز عند الإغلاق — وإلا يتسرّب Tab خلف الباكدروب.
-  useEffect(() => {
-    if (!isOpen) return undefined;
-    lastFocusedRef.current = document.activeElement;
-    dialogRef.current?.focus();
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      if (lastFocusedRef.current instanceof HTMLElement) lastFocusedRef.current.focus();
-    };
-  }, [isOpen, onClose]);
+  // التركيز على النافذة نفسها، وTab محبوس داخلها كي لا يتسرّب خلف الباكدروب
+  useModal(isOpen, onClose, { containerRef: dialogRef });
 
   if (!isOpen) return null;
 

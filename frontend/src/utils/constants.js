@@ -26,6 +26,7 @@ export const THEME = {
   text: '#e2e8f0',      // نص أساسي داخل النوافذ
   textSecondary: '#cbd5e1',
   textMuted: '#94a3b8',
+  idle: '#475569',      // مؤشر بلا بيانات (قطاع بلا قصص) — أبهت من النص الثانوي عمدًا
   accent: '#67e8f9',    // روابط وعناوين
   highlight: '#fbbf24', // قيم مُبرَزة (سعة، مُشغّل)
   violet: '#a78bfa',    // القواعد العسكرية
@@ -220,6 +221,13 @@ export function timeAgo(dateStr, t) {
   if (diff < 86400) return t('time.hours', { count: Math.floor(diff / 3600) });
   return t('time.days', { count: Math.floor(diff / 86400) });
 }
+
+/**
+ * معرّف اللغة للتواريخ والأرقام: تقويم ميلادي وأرقام لاتينية بالعربية (كبقية
+ * العدّادات)، و`en` للإنجليزية (en-GB افتراضيًا: يوم/شهر بلا AM/PM).
+ */
+export const AR_LOCALE = 'ar-SA-u-ca-gregory-nu-latn';
+export const localeFor = (lang, en = 'en-GB') => (lang === 'ar' ? AR_LOCALE : en);
 
 export function formatNumber(num) {
   if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;

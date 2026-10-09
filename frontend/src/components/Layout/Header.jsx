@@ -16,8 +16,9 @@ import {
   Radiation, RefreshCw, Bell, BellOff, Settings, Globe2, Box, Map as MapIcon, FileText, Radio,
   ArrowUpRight, ArrowDownRight, Minus, Timer, Workflow,
 } from 'lucide-react';
-import { SEVERITIES, escalationColor, riskLevel } from '../../utils/constants';
+import { SEVERITIES, escalationColor, localeFor, riskLevel } from '../../utils/constants';
 import MarketTicker from '../Markets/MarketTicker';
+import { useModal } from '../../hooks/useModal';
 
 /** ثوانٍ → «m:ss» أو «h:mm:ss» (أرقام لاتينية في اللغتين كبقية العدّادات). */
 export function formatCountdown(totalSeconds) {
@@ -54,13 +55,15 @@ function SettingsMenu({ viewMode, onToggleView, onOpenReport }) {
   const ref = useRef(null);
   const isAr = i18n.language === 'ar';
 
+  // قائمة لا نافذة: Escape عبر مكدّس الطبقات (يغلقها وحدها لا الدرج تحتها)،
+  // بلا حبس Tab ولا نقل تركيز
+  useModal(open, () => setOpen(false), { containerRef: ref, trap: false, autoFocus: false });
+
   useEffect(() => {
     if (!open) return undefined;
     const onDoc = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
     document.addEventListener('mousedown', onDoc);
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
+    return () => document.removeEventListener('mousedown', onDoc);
   }, [open]);
 
   const item = 'w-full flex items-center gap-2 px-3 py-2.5 text-sm text-slate-200 hover:bg-rasad-raised focus-ring rounded';
@@ -111,8 +114,7 @@ export default function Header({
   markets = null, onOpenMarkets,
 }) {
   const { t, i18n } = useTranslation();
-  const isAr = i18n.language === 'ar';
-  const localeCode = isAr ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB';
+  const localeCode = localeFor(i18n.language);
   const [now, setNow] = useState(() => new Date());
   const [bellShake, setBellShake] = useState(false);
   const lastAlertIdRef = useRef(null);

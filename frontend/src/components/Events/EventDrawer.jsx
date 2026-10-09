@@ -10,12 +10,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, ExternalLink, Crosshair, Link2, Check } from 'lucide-react';
-import { categoryOf, ksaPlace, severityOf, timeAgo } from '../../utils/constants';
+import { categoryOf, ksaPlace, localeFor, severityOf, timeAgo } from '../../utils/constants';
 import { safeUrl } from '../../utils/security';
 import { copyText, eventLink } from '../../utils/deepLink';
 import { Icon } from '../../utils/icons';
 import ImpactBreakdown, { ImpactPill } from '../Impact/ImpactBreakdown';
 import ChainSection from '../Chains/ChainSection';
+import { useModal } from '../../hooks/useModal';
 import { RiskPill, placeLabel } from './EventCard';
 
 const COMPONENT_ORDER = ['base', 'intensity', 'dampening', 'reassurance', 'statement', 'specificity', 'proximity'];
@@ -95,19 +96,20 @@ function Row({ label, children }) {
 export default function EventDrawer({ event, onClose, onShowOnMap, onOpenEvent, facilities = [] }) {
   const { t, i18n } = useTranslation();
   const closeRef = useRef(null);
-  const returnFocus = useRef(null);
+  const drawerRef = useRef(null);
 
+  // درج غير حاجب (aria-modal="false"): بلا حبس Tab، لكن في مكدّس الطبقات كي
+  // لا تغلقه ضغطة Escape موجّهة لنافذة فوقه
+  useModal(Boolean(event), onClose, { containerRef: drawerRef, initialFocusRef: closeRef, trap: false });
+
+  // حدث مرتبط يُفتح في الدرج نفسه: الزر الذي نُقر يختفي مع المحتوى القديم،
+  // فيُنقل التركيز لرأس الدرج بدل ضياعه إلى body
+  const eventId = event?.id;
   useEffect(() => {
-    if (!event) return undefined;
-    returnFocus.current = document.activeElement;
-    closeRef.current?.focus();
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      returnFocus.current?.focus?.();
-    };
-  }, [event, onClose]);
+    if (eventId != null && drawerRef.current && !drawerRef.current.contains(document.activeElement)) {
+      closeRef.current?.focus();
+    }
+  }, [eventId]);
 
   if (!event) return null;
 
@@ -116,7 +118,7 @@ export default function EventDrawer({ event, onClose, onShowOnMap, onOpenEvent, 
   const nuclear = event.nuclear;
   const facility = facilities.find(f => f.id === event.facility_id);
   const link = safeUrl(event.url);
-  const dateFmt = new Intl.DateTimeFormat(i18n.language === 'ar' ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB', {
+  const dateFmt = new Intl.DateTimeFormat(localeFor(i18n.language), {
     dateStyle: 'medium', timeStyle: 'short',
   });
   const fmt = (s) => (s ? dateFmt.format(new Date(s)) : '—');
@@ -128,6 +130,7 @@ export default function EventDrawer({ event, onClose, onShowOnMap, onOpenEvent, 
 
   return (
     <div
+      ref={drawerRef}
       className="absolute inset-0 z-20 flex flex-col bg-rasad-panel"
       role="dialog"
       aria-modal="false"
@@ -148,7 +151,8 @@ export default function EventDrawer({ event, onClose, onShowOnMap, onOpenEvent, 
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      {/* key: حدث جديد يبدأ من أعلى المحتوى لا من موضع تمرير الحدث السابق */}
+      <div key={event.id} className="flex-1 overflow-y-auto px-4 py-4">
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="rounded px-2 py-0.5" style={{ color: cat.color, background: `${cat.color}1f` }}>
             {event.topic ? t(`topics.${event.topic}`) : t(`categories.${event.category}`, { defaultValue: t('categories.general') })}

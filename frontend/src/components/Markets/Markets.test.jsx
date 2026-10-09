@@ -170,6 +170,16 @@ describe('<MarketsPanel>', () => {
     await waitFor(() => expect(spy).toHaveBeenLastCalledWith(90));
   });
 
+  it('flags the previous chart when the new period fails', async () => {
+    const spy = vi.spyOn(api, 'getMarketsCorrelation').mockResolvedValue(sync);
+    render(<MarketsPanel latest={latest} />);
+    await screen.findByRole('img', { name: /over 12 days on one time axis/ });
+    spy.mockRejectedValue(new Error('down'));
+    fireEvent.change(screen.getByLabelText('Period'), { target: { value: '90' } });
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load the selected period — showing the previous period.");
+    expect(screen.getByRole('img', { name: /over 12 days on one time axis/ })).toBeInTheDocument();
+  });
+
   it('shows the sync error and the latest-values error', async () => {
     vi.spyOn(api, 'getMarketsCorrelation').mockRejectedValue(new Error('down'));
     render(<MarketsPanel latest={latest} />);

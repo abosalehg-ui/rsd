@@ -15,6 +15,7 @@ from sqlalchemy import (
     UniqueConstraint,
     delete,
     event,
+    func,
     select,
     text,
 )
@@ -479,12 +480,18 @@ async def run_causal_linking(hours: int = 72, min_confidence: float | None = Non
 
 async def run_analysis_cycle() -> dict:
     """الدورة التحليلية الدورية: تجميع القصص ثم ربط السلاسل بينها (بالترتيب)."""
+    global _last_analysis_at
+    from .. import cache
+
     assigned = await run_story_clustering()
     try:
         links = await run_causal_linking()
     except Exception as e:  # noqa: BLE001 - فشل الربط لا يوقف التجميع ولا الجدولة
         logger.error("تعذّر ربط سلاسل السبب والأثر: %s", e)
         links = {}
+    # «آخر تحليل» في الهيدر = بعد الربط أيضًا، لا بعد التجميع وحده
+    _last_analysis_at = datetime.now(timezone.utc)
+    cache.invalidate()
     return {"clustered": assigned, "links": links}
 
 
@@ -520,10 +527,12 @@ async def prune_old_data(
         r4 = await session.execute(
             delete(MarketQuote).where(MarketQuote.observed_at < markets_cutoff)
         )
-        live_ids = select(Event.id)
+        # طرفا الرابط معرّفا قصتين (`cluster_id` = أول خبر فيها)، وأول خبر هو
+        # أقدمها جمعًا فأول ما يُحذف — القصة حيّة ما بقي فيها خبر واحد
+        live_stories = select(func.coalesce(Event.cluster_id, Event.id))
         r5 = await session.execute(
             delete(EventLink).where(
-                EventLink.cause_id.notin_(live_ids) | EventLink.effect_id.notin_(live_ids)
+                EventLink.cause_id.notin_(live_stories) | EventLink.effect_id.notin_(live_stories)
             )
         )
         await session.commit()
@@ -537,5 +546,8 @@ async def prune_old_data(
 
     total = sum(removed.values())
     if total:
+        from .. import cache
+
+        cache.invalidate()
         logger.info(f"🧹 تنظيف البيانات: حُذف {total} صفاً {removed}")
     return removed

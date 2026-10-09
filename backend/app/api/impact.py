@@ -16,102 +16,49 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Query
-from sqlalchemy import and_, desc, select
+from sqlalchemy import and_, func, or_, select
 
+from .. import cache
+from ..config import get_settings
 from ..models.database import Event, get_session_factory
 from ..processors.impact import (
     MENTION_FACTOR,
     PROXIMITY_FACTOR,
     SECTOR_KEYS,
     SEVERITY_FACTOR,
-    parse_sectors,
+)
+from ..processors.impact_index import (  # noqa: F401 - TREND_FLAT يُعاد تصديره
+    INDEX_MAX_WEIGHT,
+    INDEX_TOP_N,
+    INDEX_TOP_WEIGHT,
+    TREND_FLAT,
+    ImpactRow,
+    load_impact_rows,
+    snapshot,
+    trend_of,
 )
 from ..processors.nuclear import SOURCE_TRUST, severity_from_score
 from ._stories import serialize_story
 
 router = APIRouter(prefix="/api/impact", tags=["impact"])
 
-INDEX_MAX_WEIGHT = 0.6
-INDEX_TOP_WEIGHT = 0.4
-# عشر قصص لا خمس كالمؤشر النووي: العدسة تشمل كل الأحداث فحجمها أكبر بكثير
-INDEX_TOP_N = 10
 TOP_EVENTS = 10
-TREND_FLAT = 3.0          # فرق أقل من هذا (نقاط) = مستقر
 WATCH_MIN_DELTA = 10.0    # ارتفاع قطاع بهذا القدر فأكثر عن الفترة السابقة…
 WATCH_MIN_INDEX = 25.0    # …وبلوغه هذا الحد = بند «راقِب»
 _SERIES_BUCKETS = 12
-# سقف الصفوف المحمّلة لكل فترة (أعمدة خفيفة فقط؛ الصفوف الكاملة لأعلى القصص)
-_ROW_CAP = 8000
 
 
-class _Row:
-    """صفّ خفيف للحساب: لا عنوان ولا وصف ولا extra_data."""
-
-    __slots__ = ("id", "story", "date", "score", "sectors")
-
-    def __init__(self, id_, cluster_id, date, score, sectors_raw):
-        self.id = id_
-        self.story = cluster_id or id_
-        self.date = date if date is None or date.tzinfo else date.replace(tzinfo=timezone.utc)
-        self.score = float(score or 0.0)
-        self.sectors = parse_sectors(sectors_raw)
-
-
-async def _load_rows(session, since: datetime, until: datetime) -> list[_Row]:
-    rows = (await session.execute(
-        select(Event.id, Event.cluster_id, Event.event_date, Event.ksa_impact, Event.impact_sectors)
-        .where(and_(Event.event_date >= since, Event.event_date < until, Event.ksa_impact.isnot(None)))
-        .order_by(desc(Event.event_date))
-        .limit(_ROW_CAP)
-    )).all()
-    return [_Row(*r) for r in rows]
-
-
-def _story_reps(rows: list[_Row]) -> list[_Row]:
-    """ممثّل واحد لكل قصة (الأعلى أثرًا)، مرتّبة تنازليًا."""
-    best: dict[int, _Row] = {}
-    for r in rows:
-        cur = best.get(r.story)
-        if cur is None or r.score > cur.score:
-            best[r.story] = r
-    return sorted(best.values(), key=lambda r: r.score, reverse=True)
-
-
-def snapshot(rows: list[_Row]) -> dict:
-    """المؤشر على صفوف: 60% أعلى أثر + 40% متوسط أعلى عشر قصص."""
-    reps = _story_reps(rows)
-    if not reps:
-        return {"index": 0.0, "max": 0.0, "top_mean": 0.0, "stories": 0, "reps": []}
-    top = reps[:INDEX_TOP_N]
-    peak = top[0].score
-    top_mean = sum(r.score for r in top) / len(top)
-    return {
-        "index": round(INDEX_MAX_WEIGHT * peak + INDEX_TOP_WEIGHT * top_mean, 1),
-        "max": round(peak, 1),
-        "top_mean": round(top_mean, 1),
-        "stories": len(reps),
-        "reps": reps,
-    }
-
-
-def trend_of(delta: float) -> str:
-    if delta >= TREND_FLAT:
-        return "up"
-    if delta <= -TREND_FLAT:
-        return "down"
-    return "flat"
-
-
-def _sector_breakdown(current: list[_Row], previous: list[_Row]) -> list[dict]:
+def _sector_breakdown(current: list[ImpactRow], previous: list[ImpactRow] | None) -> list[dict]:
+    """`previous=None`: الفترة السابقة خارج نافذة الاحتفاظ، فلا مقارنة."""
     out = []
     for key in SECTOR_KEYS:
         cur = snapshot([r for r in current if key in r.sectors])
-        prev = snapshot([r for r in previous if key in r.sectors])
-        delta = round(cur["index"] - prev["index"], 1)
+        prev_index = None if previous is None else snapshot([r for r in previous if key in r.sectors])["index"]
+        delta = None if prev_index is None else round(cur["index"] - prev_index, 1)
         out.append({
             "key": key,
             "index": cur["index"],
-            "prev_index": prev["index"],
+            "prev_index": prev_index,
             "delta": delta,
             "trend": trend_of(delta),
             "stories": cur["stories"],
@@ -127,15 +74,15 @@ def watch_items(sectors: list[dict]) -> list[dict]:
     items = [
         {k: s[k] for k in ("key", "index", "prev_index", "delta", "stories", "top_event_id")}
         for s in sectors
-        if s["delta"] >= WATCH_MIN_DELTA and s["index"] >= WATCH_MIN_INDEX
+        if s["delta"] is not None and s["delta"] >= WATCH_MIN_DELTA and s["index"] >= WATCH_MIN_INDEX
     ]
     items.sort(key=lambda s: s["delta"], reverse=True)
     return items
 
 
-def _series(current: list[_Row], since: datetime, hours: int) -> list[dict]:
+def _series(current: list[ImpactRow], since: datetime, hours: int) -> list[dict]:
     step = timedelta(hours=hours) / _SERIES_BUCKETS
-    buckets: list[list[_Row]] = [[] for _ in range(_SERIES_BUCKETS)]
+    buckets: list[list[ImpactRow]] = [[] for _ in range(_SERIES_BUCKETS)]
     for r in current:
         if r.date is None:
             continue
@@ -149,14 +96,19 @@ def _series(current: list[_Row], since: datetime, hours: int) -> list[dict]:
     return series
 
 
-async def _top_stories(session, reps: list[_Row], current: list[_Row]) -> list[dict]:
-    """أعلى القصص أثرًا مسلسلة كاملة (بمصادرها ومكوّنات أثرها)."""
+async def _top_stories(session, reps: list[ImpactRow], since: datetime, until: datetime) -> list[dict]:
+    """أعلى القصص أثرًا مسلسلة كاملة (بمصادرها ومكوّنات أثرها) — أخبار القصة
+    في الفترة تُجلب هنا لأن `load_impact_rows` تحمّل ممثّليها وحدهم."""
     top = reps[:TOP_EVENTS]
     if not top:
         return []
-    wanted = {r.story for r in top}
-    ids = [r.id for r in current if r.story in wanted]
-    events = (await session.execute(select(Event).where(Event.id.in_(ids)))).scalars().all()
+    wanted = [r.story for r in top]
+    events = (await session.execute(
+        select(Event).where(and_(
+            or_(Event.cluster_id.in_(wanted), Event.id.in_(wanted)),
+            Event.event_date >= since, Event.event_date < until, Event.ksa_impact.isnot(None),
+        ))
+    )).scalars().all()
     by_story: dict[int, list[Event]] = {}
     for e in events:
         by_story.setdefault(e.cluster_id or e.id, []).append(e)
@@ -168,6 +120,14 @@ async def _top_stories(session, reps: list[_Row], current: list[_Row]) -> list[d
         rep = next((e for e in group if e.id == r.id), None)
         stories.append(serialize_story(group, rep=rep))
     return stories
+
+
+async def _count_events(session, since: datetime, until: datetime) -> int:
+    return (await session.execute(
+        select(func.count(Event.id)).where(and_(
+            Event.event_date >= since, Event.event_date < until, Event.ksa_impact.isnot(None),
+        ))
+    )).scalar() or 0
 
 
 def formula() -> dict:
@@ -188,23 +148,31 @@ async def build_ksa_impact(hours: int, now: datetime | None = None) -> dict:
     now = now or datetime.now(timezone.utc)
     since = now - timedelta(hours=hours)
     prev_since = since - timedelta(hours=hours)
+    # الفترة السابقة أقدم من نافذة الاحتفاظ = بياناتها محذوفة لا «صفر أثر»؛
+    # مقارنتها بالحالية تعلن صعودًا وبنود «راقِب» كاذبة
+    comparable = prev_since >= now - timedelta(days=get_settings().retention_events_days)
     async with get_session_factory()() as session:
-        current = await _load_rows(session, since, now)
-        previous = await _load_rows(session, prev_since, since)
+        current, truncated = await load_impact_rows(session, since, now)
+        previous = None
+        if comparable:
+            previous, prev_truncated = await load_impact_rows(session, prev_since, since)
+            truncated = truncated or prev_truncated
         snap = snapshot(current)
-        prev = snapshot(previous)
-        top_events = await _top_stories(session, snap["reps"], current)
+        top_events = await _top_stories(session, snap["reps"], since, now)
+        events = await _count_events(session, since, now)
 
-    delta = round(snap["index"] - prev["index"], 1)
+    prev_index = snapshot(previous)["index"] if previous is not None else None
+    delta = None if prev_index is None else round(snap["index"] - prev_index, 1)
     sectors = _sector_breakdown(current, previous)
     return {
         "period_hours": hours,
         "generated_at": now.isoformat(),
         "index": snap["index"],
         "level": severity_from_score(snap["index"]),
-        "prev_index": prev["index"],
+        "prev_index": prev_index,
         "delta": delta,
         "trend": trend_of(delta),
+        "comparable": comparable,
         "components": {
             "max": snap["max"],
             "top_mean": snap["top_mean"],
@@ -213,7 +181,8 @@ async def build_ksa_impact(hours: int, now: datetime | None = None) -> dict:
             "top_n": INDEX_TOP_N,
         },
         "stories": snap["stories"],
-        "events": len(current),
+        "events": events,
+        "truncated": truncated,
         "series": _series(current, since, hours),
         "sectors": sectors,
         "watch": watch_items(sectors),
@@ -225,7 +194,8 @@ async def build_ksa_impact(hours: int, now: datetime | None = None) -> dict:
 @router.get("/ksa")
 async def ksa_impact(hours: int = Query(default=48, ge=1, le=720)):
     """مؤشر الأثر على المملكة (0-100) مع اتجاهه وقطاعاته وأعلى الأحداث أثرًا."""
-    return await build_ksa_impact(hours)
+    ttl = get_settings().response_cache_seconds
+    return await cache.cached(("impact.ksa", hours), ttl, lambda: build_ksa_impact(hours))
 
 
 @router.get("/sectors")

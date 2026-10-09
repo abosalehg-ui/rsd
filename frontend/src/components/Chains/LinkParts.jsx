@@ -7,6 +7,7 @@
  */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import ScorePill from '../common/ScorePill';
 import { confidenceColor, confidenceFormula, confidenceLevel, entityName, pct, relationText } from '../../utils/chains';
 
 export function ConfidenceBadge({ value, className = '' }) {
@@ -14,14 +15,9 @@ export function ConfidenceBadge({ value, className = '' }) {
   const color = confidenceColor(value);
   const label = `${t('chains.confidenceTitle')}: ${pct(value)} — ${t(`chains.levels.${confidenceLevel(value)}`)}`;
   return (
-    <span
-      className={`inline-flex shrink-0 items-center rounded px-1.5 py-0.5 font-mono text-2xs font-semibold tabular-nums ${className}`}
-      style={{ color, background: `${color}1f`, boxShadow: `inset 0 0 0 1px ${color}55` }}
-      title={label}
-      aria-label={label}
-    >
+    <ScorePill color={color} title={label} label={label} size="text-2xs" className={`shrink-0 ${className}`}>
       {pct(value)}
-    </span>
+    </ScorePill>
   );
 }
 
