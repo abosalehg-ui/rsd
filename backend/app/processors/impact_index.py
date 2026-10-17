@@ -9,8 +9,9 @@
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 
+from .dates import as_utc
 from .impact import parse_sectors
 
 INDEX_MAX_WEIGHT = 0.6
@@ -31,7 +32,7 @@ class ImpactRow:
     def __init__(self, id_, cluster_id, date, score, sectors_raw):
         self.id = id_
         self.story = cluster_id or id_
-        self.date = date if date is None or date.tzinfo else date.replace(tzinfo=timezone.utc)
+        self.date = as_utc(date) if date is not None else None
         self.score = float(score or 0.0)
         self.sectors = parse_sectors(sectors_raw)
 

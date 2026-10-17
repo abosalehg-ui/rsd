@@ -40,14 +40,20 @@ from __future__ import annotations
 import json
 import logging
 from bisect import bisect_left, bisect_right
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from functools import lru_cache
 from typing import Callable, Iterable, Sequence
 
 from sqlalchemy import select
 
-from ..static_data import iranian_leaders
+from .causal_entities import (  # noqa: F401 - تُعاد تصديرها للاختبارات والتوثيق
+    _entity_labels,
+    _entity_matchers,
+    _leader_table,
+    entity_label,
+    extract_entities,
+)
 from .causal_lexicon import (  # noqa: F401 - المعاجم تُعاد تصديرها للاختبارات
     _MISSILE,
     _NON_KINETIC,
@@ -76,12 +82,30 @@ from .causal_lexicon import (  # noqa: F401 - المعاجم تُعاد تصدي
     SHIP_SUBJECT,
     STRIKE,
 )
+from .causal_rules import (  # noqa: F401 - تُعاد تصديرها للاختبارات والمسارات
+    GULF_YEMEN,
+    TEMPLATE_BY_ID,
+    TEMPLATES,
+    Evidence,
+    Predicate,
+    StoryFacts,
+    Template,
+    aviation_markets_effect,
+    build_story_facts,
+    describe_templates,
+    diplomatic_effect,
+    energy_shipping_effect,
+    gulf_attack,
+    is_attack,
+    is_strike,
+    ksa_asset_attack,
+    launch_effect,
+    nuclear_cause,
+    retaliation_effect,
+)
 from .clustering import WINDOW as CLUSTER_WINDOW
-from .clustering import story_rank, title_tokens
-from .gazetteer import COUNTRY_BY_CODE, PLACE_BY_KEY, facility_names, locate, mentions
-from .impact import direct_mention, parse_sectors, source_trust
-from .matching import KeywordSet, strip_phrases
-from .normalize import normalize_for_match
+from .clustering import story_rank
+from .matching import KeywordSet
 
 logger = logging.getLogger("rasad.causal")
 
@@ -102,382 +126,6 @@ ENTITY_FACTOR = {
     "facility": 1.0, "asset": 1.0, "waterway": 0.95, "leader": 0.95, "place": 0.9, "country": 0.8,
 }
 EXTRA_ENTITY_BONUS = 0.05    # لكل كيان مشترك إضافي، بسقف 1.0
-
-GULF_YEMEN = frozenset({"SA", "AE", "QA", "KW", "BH", "OM", "YE", "IR"})
-
-
-# ===== الكيانات خارج المعجم الجغرافي =====
-
-def _leader_table() -> tuple[tuple[str, str, str, tuple[str, ...]], ...]:
-    """(المفتاح، الاسم العربي، الإنجليزي، الأسماء) — القادة الإيرانيون من
-    `data/iranian_leaders.json` (مصدر واحد مع لوحة إيران) + قادة إقليميون."""
-    rows = [
-        (f"ir{leader['id']}", leader["name"], leader["name_en"], tuple(leader["keywords"]))
-        for leader in iranian_leaders()
-    ]
-    rows += [
-        ("netanyahu", "نتنياهو", "Netanyahu", ("netanyahu", "نتنياهو")),
-        ("trump", "ترامب", "Trump", ("trump", "ترامب", "ترمب")),
-        ("mbs", "محمد بن سلمان", "Mohammed bin Salman",
-         ("mohammed bin salman", "mohammad bin salman", "محمد بن سلمان", "ولي العهد السعودي")),
-        ("grossi", "غروسي", "Grossi", ("grossi", "غروسي")),
-        ("abdulmalik_houthi", "عبدالملك الحوثي", "Abdul-Malik al-Houthi",
-         ("abdul malik al houthi", "abdulmalik al houthi", "عبدالملك الحوثي", "عبد الملك الحوثي")),
-        ("naim_qassem", "نعيم قاسم", "Naim Qassem", ("naim qassem", "نعيم قاسم")),
-        ("erdogan", "أردوغان", "Erdogan", ("erdogan", "أردوغان")),
-    ]
-    return tuple(rows)
-
-
-# أصول سعودية بالاسم بمفتاح واحد للغتين («أرامكو» و"Aramco" كيان واحد).
-# المدن والموانئ المعروفة في المعجم الجغرافي (بقيق، رأس تنورة، الجبيل، ينبع)
-# تأتي من هناك نوعَ «مدينة».
-_KSA_ASSETS: tuple[tuple[str, str, str, tuple[str, ...]], ...] = (
-    ("aramco", "أرامكو", "Aramco", ("aramco", "saudi aramco", "أرامكو")),
-    ("sabic", "سابك", "SABIC", ("sabic", "سابك")),
-    ("east_west_pipeline", "خط أنابيب شرق-غرب", "East-West Pipeline",
-     ("east west pipeline", "petroline", "خط أنابيب شرق غرب")),
-    ("khurais", "خريص", "Khurais", ("khurais", "خريص")),
-    ("shaybah", "حقل شيبة", "Shaybah", ("shaybah", "حقل شيبة")),
-    ("ras_al_khair", "رأس الخير", "Ras Al-Khair", ("ras al khair", "رأس الخير")),
-    ("king_khalid_airport", "مطار الملك خالد", "King Khalid Airport",
-     ("king khalid international airport", "king khalid airport", "riyadh airport", "مطار الملك خالد",
-      "مطار الرياض")),
-    ("king_abdulaziz_airport", "مطار الملك عبدالعزيز", "King Abdulaziz Airport",
-     ("king abdulaziz international airport", "king abdulaziz airport", "jeddah airport",
-      "مطار الملك عبدالعزيز", "مطار الملك عبد العزيز", "مطار جدة")),
-    ("king_fahd_airport", "مطار الملك فهد", "King Fahd Airport",
-     ("king fahd international airport", "king fahd airport", "dammam airport", "مطار الملك فهد",
-      "مطار الدمام")),
-    ("abha_airport", "مطار أبها", "Abha Airport", ("abha airport", "abha international airport", "مطار أبها")),
-    ("jazan_airport", "مطار جازان", "Jazan Airport",
-     ("jazan airport", "jizan airport", "مطار جازان", "مطار جيزان")),
-    ("jeddah_port", "ميناء جدة الإسلامي", "Jeddah Islamic Port",
-     ("jeddah islamic port", "jeddah port", "ميناء جدة الإسلامي", "ميناء جدة")),
-    ("dammam_port", "ميناء الملك عبدالعزيز", "King Abdulaziz Port",
-     ("king abdulaziz port", "dammam port", "ميناء الملك عبدالعزيز", "ميناء الملك عبد العزيز", "ميناء الدمام")),
-)
-
-# ممرات خارج المعجم الجغرافي (المعجم يعرف هرمز والخليج وبحر عُمان والبحر
-# الأحمر وباب المندب)
-_EXTRA_WATERWAYS: tuple[tuple[str, str, str, tuple[str, ...]], ...] = (
-    ("gulf_of_aden", "خليج عدن", "Gulf of Aden", ("gulf of aden", "خليج عدن")),
-)
-
-
-@lru_cache(maxsize=1)
-def _entity_matchers() -> dict[str, list[tuple[str, KeywordSet]]]:
-    return {
-        "leader": [(key, KeywordSet(names)) for key, _, _, names in _leader_table()],
-        "asset": [(key, KeywordSet(names)) for key, _, _, names in _KSA_ASSETS],
-        "waterway": [(key, KeywordSet(names)) for key, _, _, names in _EXTRA_WATERWAYS],
-    }
-
-
-@lru_cache(maxsize=1)
-def _entity_labels() -> dict[tuple[str, str], tuple[str, str]]:
-    labels: dict[tuple[str, str], tuple[str, str]] = {}
-    for kind, table in (("leader", _leader_table()), ("asset", _KSA_ASSETS), ("waterway", _EXTRA_WATERWAYS)):
-        for key, ar, en, _ in table:
-            labels[(kind, key)] = (ar, en)
-    return labels
-
-
-def entity_label(kind: str, key: str) -> tuple[str, str]:
-    """(الاسم العربي، الإنجليزي) لكيان — للعرض في الواجهة والتوثيق."""
-    if kind == "country" and key in COUNTRY_BY_CODE:
-        c = COUNTRY_BY_CODE[key]
-        return c.name_ar, c.name_en
-    if kind in ("place", "waterway") and key in PLACE_BY_KEY:
-        p = PLACE_BY_KEY[key]
-        return p.name_ar, p.name_en
-    if kind == "facility":
-        return facility_names(key)
-    return _entity_labels().get((kind, key), (key, key))
-
-
-def extract_entities(title: str, facility_id: str | None = None) -> frozenset[tuple[str, str]]:
-    """الكيانات المذكورة في العنوان: {(النوع، المفتاح)}. الوصف لا يُقرأ عمدًا
-    (انظر توثيق الوحدة)؛ `facility_id` من التحليل يُضاف لأنه اسم منشأة صريح."""
-    m = mentions(title)
-    out: set[tuple[str, str]] = {("country", c) for c in m.countries}
-    out |= {("place", p) for p in m.places}
-    out |= {("waterway", w) for w in m.waterways}
-    out |= {("facility", f) for f in m.facilities}
-    if facility_id:
-        out.add(("facility", facility_id))
-    norm = normalize_for_match(title)
-    for kind, matchers in _entity_matchers().items():
-        for key, ks in matchers:
-            if ks.matches(norm):
-                out.add((kind, key))
-    return frozenset(out)
-
-
-# المعاجم في `causal_lexicon` (تُطابَق على العنوان).
-
-
-# ===== حقائق القصة =====
-
-def _aware(dt: datetime | None) -> datetime | None:
-    if dt is None:
-        return None
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
-
-
-def _extra(raw) -> dict:
-    if isinstance(raw, dict):
-        return raw
-    try:
-        parsed = json.loads(raw) if raw else {}
-    except (json.JSONDecodeError, TypeError):
-        return {}
-    return parsed if isinstance(parsed, dict) else {}
-
-
-@dataclass
-class StoryFacts:
-    """ما يحتاجه المحرّك من قصة: ممثّلها، وأول رصد لها، وكياناتها، وأقوى ثقة
-    مصدر بين أخبارها (مصدر رسمي واحد في القصة يكفي)."""
-
-    id: int
-    rep_id: int
-    first_seen: datetime
-    title: str
-    norm_title: str
-    tokens: frozenset[str]
-    category: str
-    topic: str | None
-    event_type: str | None
-    sectors: tuple[str, ...]
-    trust: float
-    entities: frozenset[tuple[str, str]]
-    _memo: dict = field(default_factory=dict, repr=False, compare=False)
-
-    @property
-    def countries(self) -> frozenset[str]:
-        return frozenset(k for kind, k in self.entities if kind == "country")
-
-    @property
-    def waterways(self) -> frozenset[str]:
-        return frozenset(k for kind, k in self.entities if kind == "waterway")
-
-    def terms(self, ks: KeywordSet) -> list[str]:
-        """العبارات المطابِقة في العنوان (بعد إخفاء المعاني غير الحركية)."""
-        key = id(ks)
-        if key not in self._memo:
-            self._memo[key] = ks.matched_terms(self.norm_title)
-        return self._memo[key]
-
-
-def build_story_facts(story_id: int, members: Sequence) -> StoryFacts:
-    """حقائق قصة من أخبارها (صفوف `Event` أو ما يشبهها بالحقول نفسها)."""
-    rep = max(members, key=story_rank)
-    dates = [_aware(m.event_date) for m in members if m.event_date is not None]
-    trust = max(
-        source_trust(m.source or "", _extra(m.extra_data).get("source_kind") or "", m.confidence or "")
-        for m in members
-    )
-    title = rep.title or ""
-    norm, _ = strip_phrases(normalize_for_match(title), _NON_KINETIC)
-    return StoryFacts(
-        id=story_id,
-        rep_id=rep.id,
-        first_seen=min(dates) if dates else datetime.now(timezone.utc),
-        title=title,
-        norm_title=norm,
-        tokens=title_tokens(title),
-        category=rep.category or "general",
-        topic=rep.topic,
-        event_type=rep.event_type,
-        sectors=tuple(parse_sectors(rep.impact_sectors)),
-        trust=trust,
-        entities=extract_entities(title, rep.facility_id),
-    )
-
-
-# ===== شروط القوالب =====
-# كل شرط يعيد قائمة الأدلة (عبارات أو حقول مطابِقة)، أو None إن لم يتحقّق.
-
-Evidence = list[str]
-Predicate = Callable[[StoryFacts], "Evidence | None"]
-
-
-def _both(f: StoryFacts, a: KeywordSet, b: KeywordSet) -> Evidence | None:
-    ta, tb = f.terms(a), f.terms(b)
-    return ta + tb if ta and tb else None
-
-
-def is_attack(f: StoryFacts) -> Evidence | None:
-    return f.terms(ATTACK) or None
-
-
-def is_strike(f: StoryFacts) -> Evidence | None:
-    hits = f.terms(STRIKE)
-    if hits:
-        return hits
-    return ["event_type:strike"] if f.event_type == "strike" else None
-
-
-def _price_move(f: StoryFacts, subject: KeywordSet, *directions: KeywordSet) -> Evidence | None:
-    """موضوع سعري + حركة في الاتجاه المتوقع (أو تقلّب)، بلا محرّك آخر مُعلن."""
-    if f.terms(_OTHER_DRIVERS):
-        return None
-    for direction in directions + (PRICE_VOLATILE,):
-        hits = _both(f, subject, direction)
-        if hits:
-            return hits
-    return None
-
-
-def gulf_attack(f: StoryFacts) -> Evidence | None:
-    hits = is_attack(f)
-    if not hits:
-        return None
-    region = sorted(f.countries & GULF_YEMEN) + sorted(f.waterways)
-    return hits + [f"region:{r}" for r in region] if region else None
-
-
-def energy_shipping_effect(f: StoryFacts) -> Evidence | None:
-    if f.terms(_OPEC_POLICY):
-        return None
-    oil = _price_move(f, OIL_SUBJECT, PRICE_UP)
-    if oil:
-        return oil
-    # عنوان فيه هجوم + اضطراب مادي («هجوم يوقف الملاحة») غالبًا وصفٌ للحادثة
-    # نفسها لا أثرٌ لها؛ الحركة السعرية وحدها أثرٌ لا يلتبس بالحادثة
-    if is_attack(f):
-        return None
-    return _both(f, SHIP_SUBJECT, SHIP_DISRUPT) or _both(f, ENERGY_SUBJECT, ENERGY_DISRUPT)
-
-
-def nuclear_cause(f: StoryFacts) -> Evidence | None:
-    return [f"topic:{f.topic}"] if f.topic in NUCLEAR_CAUSE_TOPICS else None
-
-
-def diplomatic_effect(f: StoryFacts) -> Evidence | None:
-    if not f.topic:      # الأثر نفسه يجب أن يكون شأنًا نوويًا (عبَر بوابة الرصد النووي)
-        return None
-    hits = f.terms(DIPLOMATIC_MOVE)
-    if hits:
-        return hits
-    return ["topic:diplomacy_sanctions"] if f.topic == "diplomacy_sanctions" else None
-
-
-def retaliation_effect(f: StoryFacts) -> Evidence | None:
-    if f.terms(_NON_MILITARY_RESPONSE):
-        return None
-    self_hits = f.terms(RETALIATION_SELF)
-    if self_hits:
-        return self_hits
-    return _both(f, RETALIATION_MARK, KINETIC)
-
-
-def launch_effect(f: StoryFacts) -> Evidence | None:
-    if f.terms(_NON_MILITARY_LAUNCH):
-        return None
-    hits = f.terms(LAUNCH)
-    if hits:
-        return hits
-    if f.event_type == "launch" and f.terms(_MISSILE):
-        return ["event_type:launch"] + f.terms(_MISSILE)
-    return None
-
-
-def ksa_asset_attack(f: StoryFacts) -> Evidence | None:
-    hits = is_attack(f)
-    if not hits:
-        return None
-    if "ksa_target" not in f._memo:
-        level, matched = direct_mention(f.title)
-        if level == "asset":
-            target = [f"asset:{m}" for m in matched]
-        elif locate(f.title).country_code == "SA":
-            # الهدف في المملكة (يفضّل المعجم الاسم المسبوق بـ«على»، «في»…):
-            # «تحالف بقيادة سعودية يقصف صنعاء» ليس هجومًا على أصل سعودي
-            target = ["target:SA"]
-        else:
-            target = [f"near:{t}" for t in f.terms(KSA_NEAR)]
-        f._memo["ksa_target"] = target
-    target = f._memo["ksa_target"]
-    return hits + target if target else None
-
-
-def aviation_markets_effect(f: StoryFacts) -> Evidence | None:
-    ksa = "SA" in f.countries or any(kind == "asset" for kind, _ in f.entities)
-    if not ksa:
-        return None
-    market = _price_move(f, MARKET_SUBJECT, PRICE_DOWN) or _price_move(f, OIL_SUBJECT, PRICE_UP)
-    if market:
-        return market
-    if is_attack(f):     # انظر energy_shipping_effect
-        return None
-    return _both(f, AVIATION_SUBJECT, AVIATION_DISRUPT)
-
-
-# ===== القوالب =====
-
-@dataclass(frozen=True)
-class Template:
-    id: str
-    weight: float
-    relation_ar: str
-    relation_en: str
-    cause: Predicate
-    effect: Predicate
-    # كيان أخصّ من الدولة، أو دولتان مشتركتان على الأقل
-    strong_entity: bool = False
-    # كيانات مشتركة بحكم شرطي القالب نفسيهما فلا تدلّ على شيء: في قالب «أصل
-    # سعودي ← طيران أو أسواق» الطرفان سعوديان دائمًا، فاشتراكهما في «السعودية»
-    # لا يربط هجومًا في بقيق بتعليق رحلات في أبها
-    uninformative: frozenset[tuple[str, str]] = frozenset()
-
-
-TEMPLATES: tuple[Template, ...] = (
-    Template(
-        "gulf_attack_energy_shipping", 0.8,
-        "هجوم أو تهديد في الخليج أو اليمن ← اضطراب في الطاقة أو الملاحة",
-        "Attack or threat in the Gulf or Yemen → energy or shipping disruption",
-        gulf_attack, energy_shipping_effect,
-    ),
-    Template(
-        "nuclear_diplomacy", 0.75,
-        "حدث نووي ← تحرّك دبلوماسي أو عقوبات",
-        "Nuclear development → diplomatic move or sanctions",
-        nuclear_cause, diplomatic_effect,
-    ),
-    Template(
-        "strike_retaliation", 0.85,
-        "ضربة ← رد انتقامي",
-        "Strike → retaliation",
-        is_strike, retaliation_effect,
-    ),
-    Template(
-        "strike_launch", 0.6,
-        "ضربة ← إطلاق صواريخ",
-        "Strike → missile launch",
-        is_strike, launch_effect,
-        strong_entity=True,
-    ),
-    Template(
-        "ksa_asset_aviation_markets", 0.85,
-        "هجوم على أصل سعودي أو قربه ← أثر على الطيران أو الأسواق",
-        "Attack on or near a Saudi asset → aviation or market impact",
-        ksa_asset_attack, aviation_markets_effect,
-        uninformative=frozenset({("country", "SA")}),
-    ),
-)
-TEMPLATE_BY_ID = {t.id: t for t in TEMPLATES}
-
-
-def describe_templates() -> list[dict]:
-    """القوالب للعرض (الواجهة والتوثيق)."""
-    return [
-        {"id": t.id, "weight": t.weight, "relation_ar": t.relation_ar, "relation_en": t.relation_en,
-         "strong_entity": t.strong_entity}
-        for t in TEMPLATES
-    ]
-
 
 # ===== التقييم =====
 
@@ -597,7 +245,7 @@ def evaluate_pair(tpl: Template, cause: StoryFacts, effect: StoryFacts) -> tuple
 
 # نقطة توسعة لخطوة اختيارية لاحقة (مثل نموذج لغوي يصنّف الأزواج المرشّحة
 # ويصوغ العلاقة، بوسم method="llm"). لا تُنفَّذ في هذا الإصدار: المشغّل في
-# `models/database.run_causal_linking` يمرّر قائمة فارغة دائمًا.
+# `analysis.run_causal_linking` يمرّر قائمة فارغة دائمًا.
 Refiner = Callable[[list[LinkCandidate]], list[LinkCandidate]]
 
 

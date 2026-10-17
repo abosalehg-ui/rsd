@@ -19,6 +19,8 @@ services:
       # nginx أمامي موثوق يضبط X-Forwarded-For=$remote_addr، فنثق به هنا كي
       # يُحدّ المعدل لكل عميل حقيقي (لا لكل عملاء nginx بمفتاح واحد).
       - TRUST_PROXY_HEADERS=true
+      # nginx يمرّر Host كما وصله ($host): localhost مقبول افتراضًا؛ عند النشر
+      # على نطاق أضِفه إلى ALLOWED_HOSTS في .env (يُقرأ عبر env_file أعلاه)
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8000/api/health').status==200 else sys.exit(1)"]

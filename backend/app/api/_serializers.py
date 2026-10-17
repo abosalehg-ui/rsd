@@ -8,22 +8,14 @@
 """
 from __future__ import annotations
 
-import json
-
 from ..models.database import Event
 from ..processors.impact import parse_sectors
-from ..processors.normalize import clean_text
+from ..processors.normalize import clean_text, parse_extra
 
 
 def _extra(event: Event) -> dict:
     """فكّ حقل extra_data المخزّن كنص JSON — يعيد {} عند التلف."""
-    if not event.extra_data:
-        return {}
-    try:
-        parsed = json.loads(event.extra_data)
-    except (json.JSONDecodeError, TypeError):
-        return {}
-    return parsed if isinstance(parsed, dict) else {}
+    return parse_extra(event.extra_data)
 
 
 def serialize_event(event: Event) -> dict:

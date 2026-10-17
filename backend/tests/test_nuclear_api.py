@@ -8,8 +8,9 @@ import httpx
 import pytest
 from sqlalchemy import delete, select
 
+from app.analysis import run_story_clustering
 from app.collectors import nuclear_watch
-from app.models.database import Event, get_session_factory, run_story_clustering
+from app.models.database import Event, get_session_factory
 from app.processors.clustering import similar, title_tokens
 from app.processors.text_analysis import analyze, event_fields
 

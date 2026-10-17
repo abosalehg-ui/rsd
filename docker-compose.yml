@@ -16,6 +16,8 @@ services:
     environment:
       - PYTHONDONTWRITEBYTECODE=1
       - PYTHONUNBUFFERED=1
+      # وكيل Vite (changeOrigin) يرسل Host: backend — يُضاف لما في .env إن وُجد
+      - ALLOWED_HOSTS=backend,${ALLOWED_HOSTS:-}
     restart: unless-stopped
     healthcheck:
       # صورة python:slim لا تحوي curl — نستخدم urllib المضمّن (BUG-4)

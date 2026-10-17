@@ -7,6 +7,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# رمز GITHUB_TOKEN بأقل صلاحية: الفحوص تقرأ المستودع ولا تكتب فيه شيئًا
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -71,8 +75,8 @@ jobs:
       - name: Lint (eslint)
         run: npm run lint
 
-      - name: Tests (vitest)
-        run: npm test
+      - name: Tests (vitest + coverage thresholds)
+        run: npm run test:coverage
 
       - name: Build (vite + PWA)
         run: npm run build

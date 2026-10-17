@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlalchemy import delete, func, select
 
+from app import analysis
 from app.api import chains as chains_api
 from app.models import database
 from app.models.database import Event, EventLink, get_session_factory
@@ -141,9 +142,9 @@ class TestLinking:
         from app.config import get_settings
 
         monkeypatch.setattr(get_settings(), "llm_assist_enabled", True)
-        monkeypatch.setattr(database, "_llm_notice_logged", False)
-        with caplog.at_level(logging.WARNING, logger="rasad.database"):
-            stats = await database.run_causal_linking()
+        monkeypatch.setattr(analysis, "_llm_notice_logged", False)
+        with caplog.at_level(logging.WARNING, logger="rasad.analysis"):
+            stats = await analysis.run_causal_linking()
         assert "LLM_ASSIST_ENABLED" in caplog.text
         assert {"created", "updated", "removed", "scope"} <= set(stats)
 
@@ -158,9 +159,9 @@ class TestLinking:
             calls.append("link")
             return {"created": 1}
 
-        monkeypatch.setattr(database, "run_story_clustering", fake_cluster)
-        monkeypatch.setattr(database, "run_causal_linking", fake_link)
-        assert await database.run_analysis_cycle() == {"clustered": 4, "links": {"created": 1}}
+        monkeypatch.setattr(analysis, "run_story_clustering", fake_cluster)
+        monkeypatch.setattr(analysis, "run_causal_linking", fake_link)
+        assert await analysis.run_analysis_cycle() == {"clustered": 4, "links": {"created": 1}}
         assert calls == ["cluster", "link"]
 
     async def test_analysis_cycle_survives_a_linking_failure(self, monkeypatch):
@@ -170,9 +171,9 @@ class TestLinking:
         async def boom(hours=72, min_confidence=None):
             raise RuntimeError("x")
 
-        monkeypatch.setattr(database, "run_story_clustering", fake_cluster)
-        monkeypatch.setattr(database, "run_causal_linking", boom)
-        assert await database.run_analysis_cycle() == {"clustered": 0, "links": {}}
+        monkeypatch.setattr(analysis, "run_story_clustering", fake_cluster)
+        monkeypatch.setattr(analysis, "run_causal_linking", boom)
+        assert await analysis.run_analysis_cycle() == {"clustered": 0, "links": {}}
 
 
 class TestRetention:

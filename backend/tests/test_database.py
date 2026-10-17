@@ -83,7 +83,8 @@ async def test_backfill_reanalyses_pre_v2_rows():
 
     from sqlalchemy import delete, select
 
-    from app.models.database import Event, backfill_analysis, get_session_factory
+    from app.analysis import backfill_analysis
+    from app.models.database import Event, get_session_factory
 
     sf = get_session_factory()
     async with sf() as session:

@@ -3,9 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-from app import cache
+from app import analysis, cache
 from app.config import get_settings
-from app.models import database
 
 
 class TestCached:
@@ -39,14 +38,14 @@ class TestCached:
         async def noop(*_a, **_k):
             return 0
 
-        monkeypatch.setattr(database, "run_story_clustering", noop)
-        monkeypatch.setattr(database, "run_causal_linking", noop)
+        monkeypatch.setattr(analysis, "run_story_clustering", noop)
+        monkeypatch.setattr(analysis, "run_causal_linking", noop)
 
         async def compute():
             return object()
 
         first = await cache.cached("k", 60, compute)
-        await database.run_analysis_cycle()
+        await analysis.run_analysis_cycle()
         assert await cache.cached("k", 60, compute) is not first
 
     @pytest.mark.asyncio

@@ -1,9 +1,10 @@
 """رصد - جدولة جمع البيانات"""
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+from .analysis import run_analysis_cycle
 from .collectors import (
     collect_flights,
     collect_gdelt_events,
@@ -15,7 +16,7 @@ from .collectors import (
     collect_ucdp_events,
 )
 from .config import get_settings
-from .models.database import prune_old_data, run_analysis_cycle
+from .models.database import prune_old_data
 
 logger = logging.getLogger("rasad.scheduler")
 
@@ -23,6 +24,11 @@ logger = logging.getLogger("rasad.scheduler")
 # لسبعة مصادر عند الإقلاع، أو إعادة تحليل قاعدة سطح مكتب) تفوّت وظيفة RSS
 # موعدها بأكثر من ثانية فتُسقَط. دقيقة كاملة مع دمج التشغيلات الفائتة في واحد.
 JOB_DEFAULTS = {"misfire_grace_time": 60, "coalesce": True}
+
+# أول تنظيف بعد دقائق من الإقلاع لا بعد فاصله (24 ساعة): مخزن الوظائف في
+# الذاكرة، فلو بدأ العدّ من الإقلاع لما نُظِّف شيء في جلسة سطح مكتب أقصر من يوم
+# ولنمت القاعدة بلا حدّ. الدقائق تترك الجمع الأولي وإعادة التحليل ينتهيان أولًا.
+PRUNE_STARTUP_DELAY = timedelta(minutes=5)
 
 scheduler = AsyncIOScheduler(job_defaults=JOB_DEFAULTS)
 
@@ -147,6 +153,7 @@ def register_jobs(scheduler: AsyncIOScheduler, settings) -> None:
         id="data_pruner",
         name="منظّف البيانات",
         max_instances=1,
+        next_run_time=datetime.now(timezone.utc) + PRUNE_STARTUP_DELAY,
     )
 
 

@@ -17,6 +17,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import __version__
+from .analysis import backfill_analysis
 from .api.chains import router as chains_router
 from .api.events import router as events_router
 from .api.flights import router as flights_router
@@ -31,7 +32,8 @@ from .config import Settings, get_settings
 from .middleware.cache import ETagCacheMiddleware
 from .middleware.ratelimit import RateLimitMiddleware
 from .middleware.security_headers import SecurityHeadersMiddleware
-from .models.database import backfill_analysis, init_db
+from .middleware.trusted_host import TrustedHostMiddleware
+from .models.database import init_db
 from .scheduler import start_scheduler, stop_scheduler
 
 # إعداد السجل
@@ -84,7 +86,7 @@ async def lifespan(app: FastAPI):
         refresh = "" if settings.api_key else " والتحديث اليدوي أيضًا غير محمي (API_KEY فارغ)."
         logger.warning(
             "⚠️ الخادم يستمع على %s — نقاط القراءة مكشوفة لكل من يصل إليه (API_KEY لا يحميها).%s "
-            "ضعه خلف وكيل عكسي بمصادقة + TLS قبل النشر.",
+            "ضعه خلف وكيل عكسي بمصادقة + TLS قبل النشر، وأضف اسم مضيفه إلى ALLOWED_HOSTS.",
             settings.backend_host, refresh,
         )
 
@@ -139,7 +141,8 @@ def create_app(settings: Settings | None = None, *, with_lifespan: bool = True) 
     #   2) RateLimit  (يرفض مبكراً قبل هدر عمل على طلب مرفوض)
     #   3) CORS  (يلفّ استجابات RateLimit فتحمل 429 ترويسات CORS ويستطيع
     #             المتصفح قراءة Retry-After؛ ويلتقط preflight بلا استهلاك الحصة)
-    #   4) SecurityHeaders  (الأبعد؛ يُلبس صفحات الواجهة ترويسات الأمان)
+    #   4) SecurityHeaders  (يُلبس صفحات الواجهة ترويسات الأمان)
+    #   5) TrustedHost  (الأبعد؛ يرفض Host غريبًا قبل أي عمل — DNS rebinding)
     app.add_middleware(ETagCacheMiddleware)
     app.add_middleware(
         RateLimitMiddleware,
@@ -157,6 +160,7 @@ def create_app(settings: Settings | None = None, *, with_lifespan: bool = True) 
         expose_headers=["ETag", "Cache-Control"],
     )
     app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts_list)
 
     app.include_router(system_router)
     app.include_router(events_router)

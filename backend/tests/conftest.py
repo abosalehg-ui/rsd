@@ -19,6 +19,8 @@ from httpx import ASGITransport, AsyncClient
 _TMP_DB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
 _TMP_DB.close()
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{_TMP_DB.name}"
+# عملاء httpx في الاختبارات يرسلون Host اصطناعيًا (http://test وhttp://t)
+os.environ.setdefault("ALLOWED_HOSTS", "test,t,testserver")
 
 from app.main import create_app  # noqa: E402
 from app.models.database import Event, get_session_factory, init_db  # noqa: E402

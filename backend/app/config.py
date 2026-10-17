@@ -3,6 +3,7 @@ import os
 import sys
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -108,6 +109,12 @@ class Settings(BaseSettings):
         "http://localhost:8000,http://127.0.0.1:8000"
     )
 
+    # أسماء المضيف المقبولة في ترويسة Host (مفصولة بفواصل) فوق الافتراضية:
+    # الحلقة المحلية ومضيفات CORS_ORIGINS وBACKEND_HOST. تحمي خادم سطح المكتب من
+    # DNS rebinding (صفحة خارجية تعيد توجيه نطاقها إلى 127.0.0.1 فتصير «الأصل
+    # نفسه»). "*" تعطّل الفحص — فقط خلف وكيل عكسي يفحص Host بنفسه.
+    allowed_hosts: str = ""
+
     # مفتاح حماية العمليات المكلفة (/api/refresh). فارغ = معطّل (وضع محلي).
     # عند ضبطه يجب إرسال الترويسة: X-API-Key: <القيمة>
     api_key: str = ""
@@ -146,6 +153,23 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> list[str]:
         """قائمة الأصول المسموح بها بعد التقسيم والتنظيف."""
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @property
+    def allowed_hosts_list(self) -> list[str]:
+        """المضيفات المقبولة: الحلقة المحلية + مضيفات CORS_ORIGINS + BACKEND_HOST
+        (إن لم يكن «كل الواجهات») + ALLOWED_HOSTS. وجود "*" يعطّل الفحص."""
+        extra = [h.strip().lower() for h in self.allowed_hosts.split(",") if h.strip()]
+        if "*" in extra:
+            return ["*"]
+        hosts = {"localhost", "127.0.0.1", "::1"}
+        for origin in self.cors_origins_list:
+            host = urlsplit(origin).hostname
+            if host:
+                hosts.add(host.lower())
+        if self.backend_host.strip() not in ("", "0.0.0.0", "::"):
+            hosts.add(self.backend_host.strip().strip("[]").lower())
+        hosts.update(extra)
+        return sorted(hosts)
 
     @property
     def google_alert_feeds_list(self) -> list[dict]:

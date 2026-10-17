@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import and_, func, or_, select
 
 from .. import __version__
+from ..analysis import last_analysis_at, run_analysis_cycle
 from ..auth import require_api_key
 from ..collectors import (
     collect_gdelt_events,
@@ -26,7 +27,7 @@ from ..collectors import (
 )
 from ..collectors.markets import markets_status
 from ..config import get_settings
-from ..models.database import Event, get_session_factory, last_analysis_at, run_analysis_cycle
+from ..models.database import Event, get_session_factory
 from ..processors.dates import utcnow
 
 logger = logging.getLogger("rasad.system")

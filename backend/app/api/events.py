@@ -5,7 +5,10 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import and_, desc, func, select
 
+from .. import cache
+from ..config import get_settings
 from ..models.database import Event, get_session_factory
+from ..processors.dates import as_utc
 from ..processors.impact import SECTOR_KEYS, parse_sectors
 from ._serializers import serialize_event
 from ._stories import collapse, representatives, serialize_story
@@ -133,7 +136,13 @@ async def get_map_events(
 
 @router.get("/stats")
 async def get_stats(hours: int = Query(default=24, ge=1, le=720)):
-    """إحصائيات الأحداث"""
+    """إحصائيات الأحداث. محفوظة مؤقتًا (`app/cache.py`): مؤشر التصعيد يحمّل
+    أحداث نافذتين كاملتين، ويستطلعه الهيدر واللوحة من كل تبويب مفتوح."""
+    ttl = get_settings().response_cache_seconds
+    return await cache.cached(("events.stats", hours), ttl, lambda: build_stats(hours))
+
+
+async def build_stats(hours: int) -> dict:
     session_factory = get_session_factory()
     async with session_factory() as session:
         since = datetime.now(timezone.utc) - timedelta(hours=hours)
@@ -214,10 +223,6 @@ _SERIES_BUCKETS = 8
 _HOT_SEVERITIES = ("critical", "high")
 
 
-def _aware(dt: datetime) -> datetime:
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
-
-
 def _ratio(hot: int, total: int) -> float:
     return round((hot / max(total, 1)) * 100, 1)
 
@@ -245,7 +250,7 @@ async def _escalation_trend(session, since: datetime, hours: int) -> tuple[float
     for date, category, severity in rows:
         if date is None:
             continue
-        idx = min(int((_aware(date) - prev_since) / step), buckets - 1)
+        idx = min(int((as_utc(date) - prev_since) / step), buckets - 1)
         total[idx] += 1
         if category == "military" and severity in _HOT_SEVERITIES:
             hot[idx] += 1
@@ -297,6 +302,11 @@ async def get_country_index(
 
     يُجمَّع في SQL (GROUP BY) بدل تحميل كل الأحداث في الذاكرة — عدد الصفوف
     المُعادة صغير ثابت (دول × خطورة × ثقة) بدل آلاف الصفوف (PERF-3)."""
+    ttl = get_settings().response_cache_seconds
+    return await cache.cached(("events.country_index", hours, top), ttl, lambda: build_country_index(hours, top))
+
+
+async def build_country_index(hours: int, top: int) -> dict:
     session_factory = get_session_factory()
     async with session_factory() as session:
         since = datetime.now(timezone.utc) - timedelta(hours=hours)

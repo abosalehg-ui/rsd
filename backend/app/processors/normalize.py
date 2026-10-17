@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import html
+import json
 import re
 
 _TAG_RE = re.compile(r"<[^>]+>")
@@ -75,3 +76,17 @@ def split_source_suffix(title: str, known_source: str = "") -> tuple[str, str]:
     elif len(suffix.split()) > 5:
         return title, ""
     return title[: m.start()].rstrip(), suffix
+
+
+def parse_extra(raw) -> dict:
+    """حقل `extra_data` (نص JSON، أو قاموس مفكوك سلفًا) → قاموس؛ {} عند الغياب أو
+    التلف أو إن لم يكن الناتج قاموسًا. مصدر واحد للتسلسل والمحرّك السببي والأثر."""
+    if isinstance(raw, dict):
+        return raw
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
