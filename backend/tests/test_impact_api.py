@@ -9,11 +9,12 @@ import pytest
 from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from app import analysis
+from app.analysis import backfill_analysis
 from app.api import impact as impact_api
 from app.models import database
 from app.models.database import (
     Event,
-    backfill_analysis,
     get_session_factory,
     insert_event_if_new,
 )
@@ -242,7 +243,7 @@ class TestEventById:
 class TestSchedule:
     @pytest.mark.asyncio
     async def test_without_running_scheduler(self, client, monkeypatch):
-        monkeypatch.setattr(database, "_last_analysis_at", None)
+        monkeypatch.setattr(analysis, "_last_analysis_at", None)
         body = (await client.get("/api/schedule")).json()
         assert body["next_sync"] is None and body["jobs"] == []
         assert "now" in body
@@ -255,7 +256,7 @@ class TestSchedule:
         register_jobs(scheduler, get_settings())
         scheduler.start(paused=True)
         try:
-            await database.run_story_clustering(hours=1)
+            await analysis.run_story_clustering(hours=1)
             body = (await client.get("/api/schedule")).json()
         finally:
             scheduler.shutdown(wait=False)

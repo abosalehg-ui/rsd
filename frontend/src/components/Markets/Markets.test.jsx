@@ -186,6 +186,15 @@ describe('<MarketsPanel>', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load the synchronization chart.");
   });
 
+  it('says when the price history failed, with a retry', async () => {
+    vi.spyOn(api, 'getMarketsCorrelation').mockResolvedValue(sync);
+    api.getMarketSeries.mockRejectedValue(new Error('down'));
+    render(<MarketsPanel latest={latest} />);
+    const alert = await screen.findByText(/Could not load the price history/);
+    fireEvent.click(within(alert.closest('[role="alert"]')).getByRole('button', { name: 'Retry' }));
+    expect(api.getMarketSeries).toHaveBeenCalledTimes(2);
+  });
+
   it('reports a failed first load', () => {
     vi.spyOn(api, 'getMarketsCorrelation').mockResolvedValue(sync);
     render(<MarketsPanel latest={null} latestError="down" />);

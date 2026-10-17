@@ -20,14 +20,14 @@ from sqlalchemy import func, select, update
 
 from .. import cache
 from ..config import get_settings
-from ..models.database import MarketQuote, get_session_factory
+from ..models.database import MarketQuote, _upsert_insert, get_session_factory
 from ..processors.markets import BRENT, SERIES  # noqa: F401 - BRENT يُعاد تصديره
 
 logger = logging.getLogger("rasad.markets")
 
 # آخر محاولة جمع ونتيجتها — تعرضها `/api/collectors/status`. FRED لا يكتب
 # أحداثًا، فلا يُستنتج نشاطه من `Event.collected_at` كبقية الجامعين، ومفتاح
-# مرفوض كان لا يظهر إلا في السجل. متغيّر عملية كـ `_last_analysis_at`.
+# مرفوض كان لا يظهر إلا في السجل. متغيّر عملية كـ `analysis._last_analysis_at`.
 _status: dict = {"last_attempt": None, "last_success": None, "error": None}
 
 
@@ -66,18 +66,6 @@ def parse_observation(raw: dict) -> tuple[date, float] | None:
     if value != value or value in (float("inf"), float("-inf")):
         return None
     return observed, value
-
-
-def _upsert_insert(dialect_name: str):
-    if dialect_name == "sqlite":
-        from sqlalchemy.dialects.sqlite import insert
-
-        return insert
-    if dialect_name == "postgresql":
-        from sqlalchemy.dialects.postgresql import insert
-
-        return insert
-    return None
 
 
 async def upsert_quotes(session, code: str, rows: list[tuple[date, float]]) -> int:

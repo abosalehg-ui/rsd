@@ -14,6 +14,17 @@ describe('usePolling', () => {
     expect(result.current.data).toEqual({ v: 1 });
   });
 
+  it('passes { fresh: true } on manual refetch only', async () => {
+    const fn = vi.fn().mockResolvedValue({ v: 1 });
+    const { result } = renderHook(() => usePolling(fn, 1000));
+    await act(async () => { await Promise.resolve(); });
+    expect(fn).toHaveBeenLastCalledWith(undefined);
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    expect(fn).toHaveBeenLastCalledWith(undefined);
+    await act(async () => { await result.current.refetch(); });
+    expect(fn).toHaveBeenLastCalledWith({ fresh: true });
+  });
+
   it('exposes the error message and keeps polling', async () => {
     const fn = vi.fn().mockRejectedValue(new Error('boom'));
     const { result } = renderHook(() => usePolling(fn, 1000));

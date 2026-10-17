@@ -51,7 +51,7 @@ export function buildEventsLayer(group, { events, clusters, nudges, zoomLevel },
       const count = cluster.events.length;
       const hasCritical = cluster.events.some(e => e.severity === 'critical' || e.severity === 'high');
       const hasNuclear = cluster.events.some(e => NUCLEAR_CATEGORIES.has(e.category));
-      const color = hasCritical ? '#f4585d' : hasNuclear ? '#f2c230' : '#67e8f9';
+      const color = hasCritical ? THEME.emergency : hasNuclear ? THEME.hazard : THEME.accent;
       const sz = Math.min(20 + count * 2, 44);
       const icon = L.divIcon({
         className: '', iconSize: [sz, sz],

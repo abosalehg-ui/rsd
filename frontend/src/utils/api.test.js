@@ -21,6 +21,13 @@ describe('fetchAPI', () => {
     expect(call.searchParams.get('top')).toBe('10');
   });
 
+  it('uses the HTTP cache by default and bypasses it for fresh requests', async () => {
+    await fetchAPI('/x');
+    await fetchAPI('/x', {}, { fresh: true });
+    expect(globalThis.fetch.mock.calls[0][1].cache).toBeUndefined();
+    expect(globalThis.fetch.mock.calls[1][1].cache).toBe('no-cache');
+  });
+
   it('drops null/undefined/empty params', async () => {
     await fetchAPI('/x', { a: 1, b: null, c: undefined, d: '' });
     const url = globalThis.fetch.mock.calls[0][0];

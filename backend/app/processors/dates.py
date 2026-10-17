@@ -14,8 +14,11 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _as_utc(dt: datetime) -> datetime:
-    """يضمن أن التاريخ واعٍ بالمنطقة الزمنية — يفترض UTC للتواريخ العارية."""
+def as_utc(dt: datetime) -> datetime:
+    """يضمن أن التاريخ واعٍ بالمنطقة الزمنية — يفترض UTC للتواريخ العارية.
+
+    SQLite يعيد `DateTime(timezone=True)` بلا إزاحة، فكل مقارنة بـ `now(utc)` في
+    طبقة الـ API تمرّ من هنا (مصدر واحد بدل نسخة في كل وحدة)."""
     return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
 
 
@@ -36,7 +39,7 @@ def parse_iso(value: str | None) -> datetime:
     """تاريخ ISO-8601 (NewsAPI) — يقبل اللاحقة Z."""
     if value:
         try:
-            return _as_utc(datetime.fromisoformat(str(value).replace("Z", "+00:00")))
+            return as_utc(datetime.fromisoformat(str(value).replace("Z", "+00:00")))
         except (ValueError, TypeError):
             pass
     return utcnow()

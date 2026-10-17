@@ -118,27 +118,27 @@ export default function ReportView({ open, onClose, onOpenEvent }) {
   return (
     // items-start: بدونه تمطّ flex الورقة إلى ارتفاع الشاشة فقط، فيتجاوز المحتوى
     // الطويل خلفيتها ويظهر النص فوق الخريطة مباشرة.
-    <div ref={dialogRef} className="fixed inset-0 z-[10000] bg-black/70 flex items-start justify-center overflow-y-auto print-root" role="dialog" aria-modal="true" aria-labelledby="report-title">
+    <div ref={dialogRef} className="fixed inset-0 z-modal bg-black/70 flex items-start justify-center overflow-y-auto print-root" role="dialog" aria-modal="true" aria-labelledby="report-title">
       <div className="w-full max-w-3xl my-0 sm:my-6 min-h-full sm:min-h-0 bg-rasad-panel sm:rounded-xl border border-rasad-border shadow-2xl print-card">
         <div className="no-print sticky top-0 z-10 flex flex-wrap items-center gap-2 px-4 py-3 bg-rasad-panel/95 backdrop-blur border-b border-rasad-border sm:rounded-t-xl">
           <label htmlFor="report-period" className="text-xs text-slate-400">{t('report.period')}</label>
           <select
             id="report-period" value={hours} onChange={e => setHours(Number(e.target.value))}
-            className="bg-rasad-bg border border-rasad-border rounded px-2 py-1 text-xs text-slate-100 focus-ring"
+            className="min-h-11 bg-rasad-bg border border-rasad-border rounded px-2 py-2 text-xs text-slate-100 focus-ring"
           >
             {PERIODS.map(h => <option key={h} value={h}>{t(`report.periods.${h}`)}</option>)}
           </select>
           <span className="flex-1" />
           <button onClick={() => window.print()} disabled={!brief}
-            className="min-h-9 inline-flex items-center gap-1.5 px-3 rounded-md bg-rasad-raised border border-rasad-border text-xs text-slate-100 hover:border-cyan-500 disabled:opacity-50 focus-ring">
+            className="min-h-11 inline-flex items-center gap-1.5 px-3 rounded-md bg-rasad-raised border border-rasad-border text-xs text-slate-100 hover:border-cyan-500 disabled:opacity-50 focus-ring">
             <Printer className="w-4 h-4" aria-hidden="true" /> {t('report.print')}
           </button>
           <button onClick={() => downloadText(`rasad-nuclear-${stamp}.html`, toHtml(brief, t, lang), 'text/html')} disabled={!brief}
-            className="min-h-9 inline-flex items-center gap-1.5 px-3 rounded-md bg-rasad-raised border border-rasad-border text-xs text-slate-100 hover:border-cyan-500 disabled:opacity-50 focus-ring">
+            className="min-h-11 inline-flex items-center gap-1.5 px-3 rounded-md bg-rasad-raised border border-rasad-border text-xs text-slate-100 hover:border-cyan-500 disabled:opacity-50 focus-ring">
             <FileCode className="w-4 h-4" aria-hidden="true" /> {t('report.html')}
           </button>
           <button onClick={() => downloadText(`rasad-nuclear-${stamp}.md`, toMarkdown(brief, t, lang), 'text/markdown')} disabled={!brief}
-            className="min-h-9 inline-flex items-center gap-1.5 px-3 rounded-md bg-rasad-raised border border-rasad-border text-xs text-slate-100 hover:border-cyan-500 disabled:opacity-50 focus-ring">
+            className="min-h-11 inline-flex items-center gap-1.5 px-3 rounded-md bg-rasad-raised border border-rasad-border text-xs text-slate-100 hover:border-cyan-500 disabled:opacity-50 focus-ring">
             <FileText className="w-4 h-4" aria-hidden="true" /> {t('report.markdown')}
           </button>
           <button ref={closeRef} onClick={onClose} aria-label={t('report.close')}

@@ -4,6 +4,10 @@ import { buildEventsLayer } from './events';
 import { buildIranLayer } from './iran';
 import { buildNuclearLayer } from './nuclear';
 import { buildZonesLayer } from './zones';
+import { buildBasesLayer } from './bases';
+import { buildFlightsLayer } from './flights';
+import { buildPipelinesLayer } from './pipelines';
+import { THEME } from '../../../utils/constants';
 import { Z_OFFSET } from './shared';
 
 const ctx = { popupCtx: { t: (k) => k, dir: 'ltr', lang: 'en' } };
@@ -50,5 +54,52 @@ describe('map layer builders', () => {
     const zones = L.layerGroup();
     buildZonesLayer(zones, [fac, planned]);
     expect(zones.getLayers()).toHaveLength(3);                       // دائرتان + تسمية
+  });
+
+  it('draws military bases with a type icon, escaping the name', () => {
+    const group = L.layerGroup();
+    buildBasesLayer(group, {
+      militaryBases: [
+        { id: 'b1', latitude: 25, longitude: 51, type: 'air', name_en: 'Al <b>Udeid</b>' },
+        { id: 'b2' },
+      ],
+      nudges: new Map([['ba:b1', { dx: 4, dy: 0 }]]),
+    }, ctx);
+    const [m] = group.getLayers();
+    expect(group.getLayers()).toHaveLength(1);
+    expect(m.options.zIndexOffset).toBe(Z_OFFSET.base);
+    expect(m.options.icon.options.iconAnchor).toEqual([5, 9]);
+    expect(m.options.icon.options.html).toContain('Al &lt;b&gt;Udeid&lt;/b&gt;');
+    expect(m.options.icon.options.html).toContain(THEME.violet);
+  });
+
+  it('draws flights below other layers and highlights emergencies', () => {
+    const group = L.layerGroup();
+    buildFlightsLayer(group, {
+      flights: [
+        { icao24: 'a', latitude: 24, longitude: 46, heading: 90, is_military: false },
+        { icao24: 'b', latitude: 25, longitude: 47, heading: 0, is_emergency: true, squawk: '7700' },
+        { icao24: 'c' },
+      ],
+    }, ctx);
+    const markers = group.getLayers();
+    expect(markers).toHaveLength(2);
+    expect(markers.every(m => m.options.zIndexOffset === Z_OFFSET.flight)).toBe(true);
+    expect(markers[0].options.icon.options.html).toContain('rotate(45deg)');
+    expect(markers[1].options.icon.options.html).toContain(`drop-shadow(0 0 6px ${THEME.emergency})`);
+  });
+
+  it('draws oil and gas pipelines in their theme colours, dashing partial lines', () => {
+    const group = L.layerGroup();
+    buildPipelinesLayer(group, [
+      { name_en: 'Oil', type: 'oil', coordinates: [[24, 46], [26, 50]] },
+      { name_en: 'Gas', type: 'gas', status: 'partial', coordinates: [[24, 46], [25, 47]] },
+      { name_en: 'Too short', type: 'oil', coordinates: [[24, 46]] },
+    ], ctx);
+    const [oil, gas] = group.getLayers();
+    expect(group.getLayers()).toHaveLength(2);
+    expect(oil.options.color).toBe(THEME.pipelineOil);
+    expect(gas.options.color).toBe(THEME.pipelineGas);
+    expect(gas.options.dashArray).toBe('5, 8');
   });
 });

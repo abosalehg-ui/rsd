@@ -1,0 +1,4 @@
+[run]
+# SQLAlchemy غير المتزامن يشغّل ما داخل الجلسة في greenlet؛ بدون هذا تُعدّ
+# أجسام المسارات بعد `async with session` «غير مغطّاة» وإن نفّذتها الاختبارات.
+concurrency = greenlet, thread

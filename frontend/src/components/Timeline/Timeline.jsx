@@ -34,7 +34,7 @@ export default function Timeline({ events = [], loading = false, hours = 24, onH
 
   const hourFormatter = useMemo(
     // تقويم ميلادي وأرقام لاتينية (ar-SA وحده هجري/هندي)
-    () => new Intl.DateTimeFormat(localeFor(i18n.language, 'en-US'), {
+    () => new Intl.DateTimeFormat(localeFor(i18n.language), {
       month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
     }),
     [i18n.language]

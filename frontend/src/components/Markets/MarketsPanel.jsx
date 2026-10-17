@@ -121,7 +121,7 @@ function CorrelationNote({ corr }) {
 export default function MarketsPanel({ latest, latestError = null }) {
   const { t, i18n } = useTranslation();
   const [days, setDays] = useState(30);
-  const { data: seriesData } = usePolling(
+  const { data: seriesData, error: seriesError, refetch: refetchSeries } = usePolling(
     useCallback(() => getMarketSeries(MARKET_SERIES, 90), []),
     POLL_MS,
   );
@@ -151,6 +151,14 @@ export default function MarketsPanel({ latest, latestError = null }) {
         )}
 
         {latest.has_data && <DataDateNote latest={latest} />}
+
+        {quotes.length > 0 && seriesError && (
+          <p role="alert" className="flex items-start gap-1.5 rounded border border-red-500/30 bg-red-500/10 px-2.5 py-1.5 text-xs text-red-200">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" aria-hidden="true" />
+            <span className="flex-1">{t('markets.seriesFailed')}</span>
+            <button onClick={() => refetchSeries()} className="shrink-0 underline focus-ring rounded">{t('common.retry')}</button>
+          </p>
+        )}
 
         {quotes.length > 0 && (
           <ul className="grid grid-cols-2 gap-2" aria-label={t('markets.cardsLabel')}>

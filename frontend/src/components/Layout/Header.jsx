@@ -38,7 +38,48 @@ export function nextSyncAt(schedule, fetchedAt) {
 
 const ICON_BTN = 'min-w-11 min-h-11 flex items-center justify-center rounded-md transition-colors focus-ring';
 
+/** الوقت الحالي يتجدّد كل ثانية — لمن يعرضه وحده (الساعة والعدّاد)، لا للهيدر كله. */
+function useNow(intervalMs = 1000) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), intervalMs);
+    return () => clearInterval(timer);
+  }, [intervalMs]);
+  return now;
+}
+
+/** الساعة والتاريخ: يملكان مؤقّت الثانية كي لا يُعاد رسم الهيدر وشريط الأسواق
+ * والمؤشرين كل ثانية. */
+function Clock({ localeCode }) {
+  const now = useNow();
+  return (
+    <div className="hidden sm:flex flex-col items-end leading-tight me-1">
+      <span className="font-mono text-sm font-semibold text-slate-100 tabular-nums">
+        {now.toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+      </span>
+      <span className="text-2xs text-slate-400">
+        {now.toLocaleDateString(localeCode, { weekday: 'long', day: 'numeric', month: 'long' })}
+      </span>
+    </div>
+  );
+}
+
+/** العدّاد التنازلي لدورة الجمع التالية — مؤقّته الخاص للسبب نفسه. */
+function SyncCountdown({ syncAt }) {
+  const { t } = useTranslation();
+  const now = useNow();
+  const left = (syncAt.getTime() - now.getTime()) / 1000;
+  return (
+    <span className="inline-flex items-center gap-1">
+      <Timer className="w-3 h-3" aria-hidden="true" />
+      {left > 0 ? t('app.nextSync', { time: formatCountdown(left) }) : t('app.nextSyncDue')}
+    </span>
+  );
+}
+
 function Delta({ value }) {
+  // null: الفترة السابقة خارج مدة الاحتفاظ — لا اتجاه يُعرض بدل «ثابت» مضلِّل
+  if (value == null) return null;
   const d = Number(value) || 0;
   if (Math.abs(d) < 0.5) return <Minus className="w-3 h-3 text-slate-400" aria-hidden="true" />;
   const Icon = d > 0 ? ArrowUpRight : ArrowDownRight;
@@ -81,7 +122,7 @@ function SettingsMenu({ viewMode, onToggleView, onOpenReport }) {
         <Settings className="w-4 h-4" aria-hidden="true" />
       </button>
       {open && (
-        <div className="absolute end-0 top-full mt-1 z-[2000] w-56 rounded-lg border border-rasad-border bg-rasad-panel p-1 shadow-2xl">
+        <div className="absolute end-0 top-full mt-1 z-menu w-56 rounded-lg border border-rasad-border bg-rasad-panel p-1 shadow-2xl">
           {/* على الشاشات الصغيرة يختفي زر التقرير من الشريط فيظهر هنا */}
           {onOpenReport && (
             <button className={`${item} sm:hidden`} onClick={() => { onOpenReport(); setOpen(false); }}>
@@ -115,14 +156,8 @@ export default function Header({
 }) {
   const { t, i18n } = useTranslation();
   const localeCode = localeFor(i18n.language);
-  const [now, setNow] = useState(() => new Date());
   const [bellShake, setBellShake] = useState(false);
   const lastAlertIdRef = useRef(null);
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     if (!lastAlertEvent || lastAlertIdRef.current === lastAlertEvent.id) return undefined;
@@ -133,14 +168,11 @@ export default function Header({
   }, [lastAlertEvent]);
 
   const hm = { hour: '2-digit', minute: '2-digit', hour12: false };
-  const timeStr = now.toLocaleTimeString(localeCode, { ...hm, second: '2-digit' });
-  const dateStr = now.toLocaleDateString(localeCode, { weekday: 'long', day: 'numeric', month: 'long' });
   const lastStr = lastFetchedAt ? lastFetchedAt.toLocaleTimeString(localeCode, hm) : '—';
   const analysisStr = schedule?.last_analysis
     ? new Date(schedule.last_analysis).toLocaleTimeString(localeCode, hm)
     : null;
   const syncAt = nextSyncAt(schedule, scheduleFetchedAt);
-  const syncLeft = syncAt ? (syncAt.getTime() - now.getTime()) / 1000 : null;
 
   const riskValue = risk?.index ?? null;
   const riskLvl = risk?.level || riskLevel(riskValue);
@@ -198,10 +230,7 @@ export default function Header({
         <span className="flex-1" />
 
         {/* الحالة والوقت */}
-        <div className="hidden sm:flex flex-col items-end leading-tight me-1">
-          <span className="font-mono text-sm font-semibold text-slate-100 tabular-nums">{timeStr}</span>
-          <span className="text-2xs text-slate-400">{dateStr}</span>
-        </div>
+        <Clock localeCode={localeCode} />
         <div
           className={`flex items-center gap-1.5 text-2xs ${isConnected ? 'text-slate-300' : 'text-red-300'}`}
           title={isConnected ? t('app.connected') : t('app.disconnected')}
@@ -210,7 +239,7 @@ export default function Header({
           <span className="hidden lg:inline">{t('app.lastUpdate')} <span className="font-mono">{lastStr}</span></span>
           <span className="sr-only">{isConnected ? t('app.connected') : t('app.disconnected')}</span>
         </div>
-        {(analysisStr || syncLeft !== null) && (
+        {(analysisStr || syncAt) && (
           <div
             className="hidden lg:flex flex-col items-start leading-tight text-2xs text-slate-400"
             title={t('app.scheduleHelp')}
@@ -218,14 +247,7 @@ export default function Header({
             {analysisStr && (
               <span>{t('app.lastAnalysis')} <span className="font-mono text-slate-300">{analysisStr}</span></span>
             )}
-            {syncLeft !== null && (
-              <span className="inline-flex items-center gap-1">
-                <Timer className="w-3 h-3" aria-hidden="true" />
-                {syncLeft > 0
-                  ? t('app.nextSync', { time: formatCountdown(syncLeft) })
-                  : t('app.nextSyncDue')}
-              </span>
-            )}
+            {syncAt && <SyncCountdown syncAt={syncAt} />}
           </div>
         )}
 

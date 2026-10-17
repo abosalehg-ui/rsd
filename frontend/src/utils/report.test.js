@@ -77,6 +77,14 @@ describe('narrative summary', () => {
     expect(notes.find(n => n.id === 21).url).toBe('https://ok.test/c1');
   });
 
+  it('does not invent a trend when the previous period is beyond retention', () => {
+    const noCompare = { ...narrativeBrief, risk: { ...narrativeBrief.risk, comparable: false, prev_index: null, delta: null } };
+    const text = narrativeText(buildNarrative(noCompare, t));
+    expect(text).toContain('The nuclear & radiological risk index is 44.6 (Moderate); no comparison');
+    expect(text).not.toContain('(was 0.0)');
+    expect(summaryLine(noCompare, t)).toContain('No comparison');
+  });
+
   it('handles quiet periods and older briefs', () => {
     const quiet = narrativeText(buildNarrative({
       ...brief, top_stories: [],
@@ -123,7 +131,7 @@ describe('report export', () => {
     expect(md).toContain('[Strike \\<script\\>alert\\(1\\)\\</script\\> on Natanz](https://ok.test/a)');
     expect(md).not.toContain('<script>');
     expect(md).not.toContain('javascript:');
-    expect(md).toContain('Natanz: 1 stories, Risk score 79');
+    expect(md).toContain('Natanz: 1 story, Risk score 79');
   });
 
   it('puts the narrative first, with plain E<id> citations and a reference list', () => {

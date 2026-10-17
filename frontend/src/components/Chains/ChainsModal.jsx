@@ -92,7 +92,7 @@ export default function ChainsModal({ open, onClose, onOpenEvent }) {
   const chains = data?.chains || [];
 
   return (
-    <div ref={dialogRef} className="fixed inset-0 z-[10000] bg-black/70 flex items-start justify-center overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="chains-title">
+    <div ref={dialogRef} className="fixed inset-0 z-modal bg-black/70 flex items-start justify-center overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="chains-title">
       <div className="w-full max-w-2xl my-0 sm:my-6 min-h-full sm:min-h-0 bg-rasad-panel sm:rounded-xl border border-rasad-border shadow-2xl">
         <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 px-4 py-3 bg-rasad-panel/95 backdrop-blur border-b border-rasad-border sm:rounded-t-xl">
           <Workflow className="w-4 h-4 text-cyan-300" aria-hidden="true" />

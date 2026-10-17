@@ -53,8 +53,11 @@ describe('<CountryIndex>', () => {
   });
 
   it('shows severity badges when present', () => {
-    render(<CountryIndex data={sample} />);
-    // 2 critical → نص "2❗"
-    expect(screen.getByText(/2❗/)).toBeInTheDocument();
+    const { container } = render(<CountryIndex data={sample} />);
+    // 2 critical → «2❗» للعين، والرمز مخفي عن قارئ الشاشة لصالح اسم الخطورة
+    expect(container.textContent).toContain('2❗');
+    const mark = screen.getAllByText('❗')[0];
+    expect(mark).toHaveAttribute('aria-hidden', 'true');
+    expect(mark.parentElement.querySelector('.sr-only').textContent.trim()).toMatch(/^(critical|حرج)$/i);
   });
 });

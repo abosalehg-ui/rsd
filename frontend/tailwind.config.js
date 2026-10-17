@@ -1,4 +1,4 @@
-import { THEME } from './src/utils/constants.js';
+import { THEME, Z_LAYERS } from './src/utils/constants.js';
 
 /** متغيّرات CSS (`--rsd-*`) في :root من THEME نفسه — لـ index.css. */
 const cssVars = ({ addBase }) => addBase({
@@ -34,6 +34,8 @@ export default {
         arabic: ['"IBM Plex Sans Arabic"', 'Tajawal', 'sans-serif'],
         mono: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
       },
+      // z-map / z-menu / z-floating / z-modal — انظر Z_LAYERS
+      zIndex: Object.fromEntries(Object.entries(Z_LAYERS).map(([k, v]) => [k, String(v)])),
       fontSize: {
         // مقاس النص الثانوي الوحيد (11px): رمز واحد بدل قيم عشوائية، وأرضية
         // مقروءة على خلفية داكنة، وتغييره لاحقًا بموضع واحد.

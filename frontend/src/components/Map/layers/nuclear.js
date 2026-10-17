@@ -5,35 +5,19 @@
  * وتواقيع المحتوى (تخطّي إعادة البناء) في تأثيرات `RasadMap`.
  */
 import L from 'leaflet';
+import { FACILITY_STATUS, FACILITY_TYPES, THEME } from '../../../utils/constants';
 import { esc } from '../../../utils/security';
 import { iconSvg } from '../../../utils/icons';
 import { nuclearPopup } from '../popups';
 import { NO_NUDGE, Z_OFFSET } from './shared';
 
-// ===== ألوان أنواع المنشآت النووية (التسميات من i18n) =====
-const NUCLEAR_TYPES = {
-  power:       { color: '#f2c230' },
-  research:    { color: '#22d3ee' },
-  enrichment:  { color: '#f97316' },
-  conversion:  { color: '#a78bfa' },
-  heavy_water: { color: '#38bdf8' },
-  fuel:        { color: '#fb7185' },
-};
-
-const NUCLEAR_STATUS_COLORS = {
-  operational: '#22c55e',
-  construction: '#f59e0b',
-  planned: '#94a3b8',
-  shutdown: '#ef4444',
-  modified: '#a78bfa',
-};
 
 export function buildNuclearLayer(group, { nuclearFacilities, nudges }, { popupCtx }) {
   nuclearFacilities.forEach((fac, fi) => {
     if (typeof fac.latitude !== 'number' || typeof fac.longitude !== 'number') return;
     const { dx, dy } = nudges.get(`nu:${fac.id ?? fi}`) || NO_NUDGE;
-    const typeInfo = NUCLEAR_TYPES[fac.type] || NUCLEAR_TYPES.research;
-    const statusColor = NUCLEAR_STATUS_COLORS[fac.status] || '#94a3b8';
+    const typeInfo = FACILITY_TYPES[fac.type] || FACILITY_TYPES.research;
+    const statusColor = FACILITY_STATUS[fac.status] || THEME.textMuted;
     const isOperational = fac.status === 'operational';
     const sz = fac.type === 'power' ? 22 : 18;
     const name = fac.name_ar || fac.name_en || '';

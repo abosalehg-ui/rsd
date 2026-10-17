@@ -16,22 +16,23 @@ import {
 
 export function useDashboardData({ filters, nuclearHours }) {
   const events = usePolling(
-    useCallback(() => getEvents({ ...filters, limit: 200 }), [filters]),
+    useCallback((opts) => getEvents({ ...filters, limit: 200 }, opts), [filters]),
     30000, [filters],
   );
 
   // الحدّ نفسه الذي تطلبه القائمة (200 قصة) كي تعرض الخريطة والقائمة المجموعة نفسها
-  const { data: mapEvents } = usePolling(
-    useCallback(() => getMapEvents(filters.hours, 200), [filters.hours]),
+  const mapPoll = usePolling(
+    useCallback((opts) => getMapEvents(filters.hours, 200, opts), [filters.hours]),
     30000, [filters.hours],
   );
+  const mapEvents = mapPoll.data;
 
   // تيار التنبيهات مستقل عن فلاتر العرض: فلتر «اقتصادي» أو بحث عن «غزة» لا
   // يُسكت الضربات العسكرية خارج الفلتر بلا إشارة.
   const { data: latestEvents } = usePolling(useCallback(() => getLatestEvents(50), []), 30000);
 
   const stats = usePolling(
-    useCallback(() => getStats(filters.hours), [filters.hours]),
+    useCallback((opts) => getStats(filters.hours, opts), [filters.hours]),
     60000, [filters.hours],
   );
 
@@ -80,6 +81,7 @@ export function useDashboardData({ filters, nuclearHours }) {
     eventsError: events.error,
     eventsLoading: events.loading,
     refetchEvents: events.refetch,
+    refetchMap: mapPoll.refetch,
     liveMapEvents,
     latestEvents: latest,
     stats: stats.data,

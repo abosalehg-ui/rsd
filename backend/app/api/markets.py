@@ -23,10 +23,11 @@ from sqlalchemy import and_, desc, func, select
 from .. import cache
 from ..config import get_settings
 from ..models.database import Event, MarketQuote, get_session_factory
+from ..processors.dates import as_utc
 from ..processors.impact_index import load_impact_rows
 from ..processors.impact_index import snapshot as impact_snapshot
 from ..processors.markets import BRENT, MIN_CORRELATION_DAYS, SERIES, pearson
-from .nuclear import NUCLEAR_CATEGORIES, risk_snapshot
+from .nuclear import NUCLEAR_CATEGORIES, NuclearRow, risk_snapshot
 
 router = APIRouter(prefix="/api/markets", tags=["markets"])
 
@@ -147,31 +148,15 @@ async def markets_series(
     }
 
 
-class _NuclearRow:
-    """صفّ خفيف بما يحتاجه `risk_snapshot` (الممثّل والخطر) دون نص الحدث."""
-
-    __slots__ = ("id", "cluster_id", "event_date", "risk_score", "severity")
-
-    def __init__(self, id_, cluster_id, event_date, risk_score, severity):
-        self.id = id_
-        self.cluster_id = cluster_id
-        self.event_date = event_date
-        self.risk_score = risk_score
-        self.severity = severity
-
-
 def _utc_day(dt: datetime | None) -> date | None:
-    if dt is None:
-        return None
-    return (dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)).astimezone(timezone.utc).date()
+    return as_utc(dt).date() if dt is not None else None
 
 
 def _first_full_day(dt: datetime) -> date:
     """أول يوم UTC رُصد كاملًا منذ `dt`."""
     day = _utc_day(dt)
-    aware = dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
     midnight = datetime.combine(day, time.min, tzinfo=timezone.utc)
-    return day if aware.astimezone(timezone.utc) == midnight else day + timedelta(days=1)
+    return day if as_utc(dt) == midnight else day + timedelta(days=1)
 
 
 def _pair(points: list[dict], key: str) -> dict:
@@ -197,7 +182,7 @@ async def build_correlation(days: int, now: datetime | None = None) -> dict:
 
     async with get_session_factory()() as session:
         nuclear_rows = [
-            _NuclearRow(*r) for r in (await session.execute(
+            NuclearRow(*r) for r in (await session.execute(
                 select(Event.id, Event.cluster_id, Event.event_date, Event.risk_score, Event.severity)
                 .where(and_(
                     Event.event_date >= since, Event.event_date <= now,

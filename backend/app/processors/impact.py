@@ -29,7 +29,7 @@ from typing import Mapping
 
 from .gazetteer import ksa_point_en, ksa_proximity
 from .matching import KeywordSet, strip_phrases
-from .normalize import normalize_for_match
+from .normalize import normalize_for_match, parse_extra
 from .nuclear import SOURCE_TRUST
 
 
@@ -294,25 +294,13 @@ def assess_impact(
     )
 
 
-def _load_extra(raw) -> dict:
-    if isinstance(raw, dict):
-        return raw
-    if not raw:
-        return {}
-    try:
-        parsed = json.loads(raw)
-    except (json.JSONDecodeError, TypeError):
-        return {}
-    return parsed if isinstance(parsed, dict) else {}
-
-
 def impact_fields(fields: Mapping) -> dict:
     """حقول `Event` المشتقّة من الأثر لحدث في صيغة قاموس الإدراج (أو صفّ مخزّن).
 
     يعيد `ksa_impact` و`impact_sectors` (JSON) و`extra_data` بعد دمج مكوّنات
     الأثر فيها تحت المفتاح `impact`. يُستدعى من `insert_event_if_new` فيغطّي
     كل الجامعين — حتى من يحدّد تصنيفه وموقعه بنفسه (UCDP، إيران OSINT)."""
-    extra = _load_extra(fields.get("extra_data"))
+    extra = parse_extra(fields.get("extra_data"))
     a = assess_impact(
         fields.get("title") or "",
         fields.get("description") or "",

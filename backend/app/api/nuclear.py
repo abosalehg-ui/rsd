@@ -18,11 +18,12 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import and_, desc, select
+from sqlalchemy import and_, desc, or_, select
 
 from .. import cache
 from ..config import get_settings
 from ..models.database import Event, get_session_factory
+from ..processors.dates import as_utc
 from ..processors.gazetteer import ksa_point_en, nearest_ksa_point
 from ..processors.nuclear import TOPICS, severity_from_score
 from ._serializers import serialize_event
@@ -103,16 +104,64 @@ async def list_facilities(
     }
 
 
-async def _nuclear_events(session, since, until=None, topic: str | None = None) -> list[Event]:
+# سقف الأخبار المحمَّلة لكل فترة. يُقصّ الأقدم، والقصّ يُعلَن في الرد (`truncated`)
+# كي لا يُقرأ مؤشر جزئي على أنه كامل.
+_ROW_CAP = 3000
+
+
+class NuclearRow:
+    """صفّ خفيف بما يحتاجه المؤشر — الممثّل والخطر (`risk_snapshot`)، والسلسلة،
+    والتوزيع حسب الموضوع، والقرب من المملكة — دون نص الحدث ولا extra_data.
+    يستعمله `/risk` والتزامن اليومي (`api/markets`)."""
+
+    __slots__ = ("id", "cluster_id", "event_date", "risk_score", "severity", "topic", "latitude", "longitude")
+
+    def __init__(self, id_, cluster_id, event_date, risk_score, severity, topic=None, latitude=None, longitude=None):
+        self.id = id_
+        self.cluster_id = cluster_id
+        self.event_date = event_date
+        self.risk_score = risk_score
+        self.severity = severity
+        self.topic = topic
+        self.latitude = latitude
+        self.longitude = longitude
+
+
+ROW_COLUMNS = (
+    Event.id, Event.cluster_id, Event.event_date, Event.risk_score, Event.severity,
+    Event.topic, Event.latitude, Event.longitude,
+)
+
+
+def _window(since, until=None, topic: str | None = None):
     conds = [Event.event_date >= since, Event.category.in_(NUCLEAR_CATEGORIES)]
     if until is not None:
         conds.append(Event.event_date < until)
     if topic:
         conds.append(Event.topic == topic)
-    rows = await session.execute(
-        select(Event).where(and_(*conds)).order_by(desc(Event.event_date)).limit(3000)
-    )
-    return list(rows.scalars().all())
+    return and_(*conds)
+
+
+async def _nuclear_events(session, since, until=None, topic: str | None = None) -> tuple[list[Event], bool]:
+    """(الأخبار كاملة، هل قُصّت) — للقصص المسلسلة ورصد المنشآت."""
+    rows = list((await session.execute(
+        select(Event).where(_window(since, until, topic)).order_by(desc(Event.event_date)).limit(_ROW_CAP + 1)
+    )).scalars().all())
+    return rows[:_ROW_CAP], len(rows) > _ROW_CAP
+
+
+async def _nuclear_rows(session, since, until=None) -> tuple[list[NuclearRow], bool]:
+    """(صفوف خفيفة، هل قُصّت) — لحساب المؤشر بلا تحميل نصوص الأخبار."""
+    rows = (await session.execute(
+        select(*ROW_COLUMNS).where(_window(since, until)).order_by(desc(Event.event_date)).limit(_ROW_CAP + 1)
+    )).all()
+    return [NuclearRow(*r) for r in rows[:_ROW_CAP]], len(rows) > _ROW_CAP
+
+
+def _comparable(prev_since: datetime, now: datetime) -> bool:
+    """الفترة السابقة داخل نافذة الاحتفاظ؟ إن لم تكن فبياناتها محذوفة لا «صفر
+    خطر»، ومقارنتها بالحالية تعلن صعودًا كاذبًا (المنطق نفسه في `api/impact`)."""
+    return prev_since >= now - timedelta(days=get_settings().retention_events_days)
 
 
 @router.get("/facilities/watch")
@@ -120,8 +169,8 @@ async def facilities_watch(hours: int = Query(default=168, ge=1, le=720)):
     """المنشآت التي ورد ذكرها في الأخبار خلال الفترة، الأعلى خطرًا أولًا."""
     since = datetime.now(timezone.utc) - timedelta(hours=hours)
     async with get_session_factory()() as session:
-        events = await _nuclear_events(session, since)
-    return {"period_hours": hours, "facilities": _facility_watch(events)}
+        events, truncated = await _nuclear_events(session, since)
+    return {"period_hours": hours, "truncated": truncated, "facilities": _facility_watch(events)}
 
 
 def _facility_watch(events: list[Event]) -> list[dict]:
@@ -223,21 +272,21 @@ async def nuclear_events(
     """الأخبار النووية والإشعاعية مطويّة في قصص (الأحدث أولًا)."""
     since = datetime.now(timezone.utc) - timedelta(hours=hours)
     async with get_session_factory()() as session:
-        events = await _nuclear_events(session, since, topic=topic)
+        events, truncated = await _nuclear_events(session, since, topic=topic)
     if min_risk:
         events = [e for e in events if (e.risk_score or 0) >= min_risk]
     if near_ksa_km is not None:
         events = [e for e in events if _within_ksa(e, near_ksa_km)]
     stories = collapse(events, limit)
-    return {"total": len(events), "stories": len(stories), "events": stories}
+    return {"total": len(events), "stories": len(stories), "truncated": truncated, "events": stories}
 
 
-def _within_ksa(e: Event, km: float) -> bool:
+def _within_ksa(e, km: float) -> bool:
     near = nearest_ksa_point(e.latitude, e.longitude)
     return bool(near and near[0] <= km)
 
 
-def risk_snapshot(events: list[Event]) -> dict:
+def risk_snapshot(events: list) -> dict:
     """المؤشر على قائمة أحداث: 60% أعلى خطر + 40% متوسط أعلى خمس قصص."""
     reps = sorted(
         (e for e in representatives(events) if e.risk_score is not None),
@@ -258,26 +307,58 @@ def risk_snapshot(events: list[Event]) -> dict:
     }
 
 
-async def _load_windows(hours: int, now: datetime) -> tuple[list[Event], list[Event]]:
-    """أحداث الفترة الحالية والسابقة — تُحمَّل مرة ويتشاركها المؤشر والتقرير."""
+async def _previous_rows(session, hours: int, now: datetime) -> tuple[list[NuclearRow] | None, bool]:
+    """صفوف الفترة السابقة، أو None حين تقع خارج نافذة الاحتفاظ."""
     since = now - timedelta(hours=hours)
     prev_since = since - timedelta(hours=hours)
+    if not _comparable(prev_since, now):
+        return None, False
+    return await _nuclear_rows(session, prev_since, until=since)
+
+
+def _top_story_ids(snap: dict) -> set[int]:
+    return {r.cluster_id or r.id for r in snap["reps"][:RISK_TOP_N]}
+
+
+def _top_events(events: list[Event], story_ids: set[int]) -> list[dict]:
+    """أعلى القصص خطرًا مسلسلة كاملة (بمصادرها)."""
+    stories = collapse([e for e in events if (e.cluster_id or e.id) in story_ids], RISK_TOP_N)
+    return sorted(stories, key=lambda s: s.get("risk_score") or 0, reverse=True)
+
+
+async def build_risk(hours: int, now: datetime | None = None) -> dict:
+    """المؤشر من صفوف خفيفة؛ الأخبار الكاملة تُجلب لأعلى القصص وحدها."""
+    now = now or datetime.now(timezone.utc)
+    since = now - timedelta(hours=hours)
     async with get_session_factory()() as session:
-        current = await _nuclear_events(session, since)
-        previous = await _nuclear_events(session, prev_since, until=since)
-    return current, previous
+        current, truncated = await _nuclear_rows(session, since)
+        previous, prev_truncated = await _previous_rows(session, hours, now)
+        story_ids = _top_story_ids(risk_snapshot(current))
+        top_full: list[Event] = []
+        if story_ids:
+            top_full = list((await session.execute(
+                select(Event).where(and_(
+                    _window(since),
+                    or_(Event.cluster_id.in_(story_ids), Event.id.in_(story_ids)),
+                ))
+            )).scalars().all())
+    return risk_from_windows(
+        current, previous, hours, now,
+        truncated=truncated or prev_truncated,
+        top_events=_top_events(top_full, story_ids),
+    )
 
 
-async def build_risk(hours: int) -> dict:
-    now = datetime.now(timezone.utc)
-    current, previous = await _load_windows(hours, now)
-    return risk_from_windows(current, previous, hours, now)
-
-
-def risk_from_windows(current: list[Event], previous: list[Event], hours: int, now: datetime) -> dict:
+def risk_from_windows(
+    current: list, previous: list | None, hours: int, now: datetime,
+    *, truncated: bool = False, top_events: list[dict] | None = None,
+) -> dict:
+    """`previous=None`: الفترة السابقة خارج نافذة الاحتفاظ — لا مقارنة ولا اتجاه.
+    `top_events=None`: تُشتقّ من `current` (يمرّر التقرير أخبارًا كاملة)."""
     since = now - timedelta(hours=hours)
     snap = risk_snapshot(current)
-    prev = risk_snapshot(previous)
+    comparable = previous is not None
+    prev_index = risk_snapshot(previous)["index"] if comparable else None
 
     by_topic: dict[str, dict] = {}
     for e in snap["reps"]:
@@ -291,7 +372,7 @@ def risk_from_windows(current: list[Event], previous: list[Event], hours: int, n
     for i in range(_SERIES_BUCKETS):
         start = since + step * i
         end = start + step
-        bucket = [e for e in current if e.event_date and _aware(e.event_date) >= start and _aware(e.event_date) < end]
+        bucket = [e for e in current if e.event_date and start <= as_utc(e.event_date) < end]
         s = risk_snapshot(bucket)
         series.append({"t": end.isoformat(), "value": s["index"], "stories": s["stories"]})
 
@@ -302,8 +383,10 @@ def risk_from_windows(current: list[Event], previous: list[Event], hours: int, n
         "generated_at": now.isoformat(),
         "index": snap["index"],
         "level": severity_from_score(snap["index"]),
-        "prev_index": prev["index"],
-        "delta": round(snap["index"] - prev["index"], 1),
+        "prev_index": prev_index,
+        "delta": round(snap["index"] - prev_index, 1) if comparable else None,
+        "comparable": comparable,
+        "truncated": truncated,
         "components": {
             "max": snap["max"],
             "top_mean": snap["top_mean"],
@@ -316,24 +399,15 @@ def risk_from_windows(current: list[Event], previous: list[Event], hours: int, n
         "near_ksa_stories": near_ksa,
         "by_topic": by_topic,
         "series": series,
-        "top_events": sorted(
-            collapse(
-                [e for e in current if (e.cluster_id or e.id) in {r.cluster_id or r.id for r in snap["reps"][:RISK_TOP_N]}],
-                RISK_TOP_N,
-            ),
-            key=lambda s: s.get("risk_score") or 0, reverse=True,
-        ),
+        "top_events": top_events if top_events is not None else _top_events(current, _top_story_ids(snap)),
     }
-
-
-def _aware(dt: datetime) -> datetime:
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
 @router.get("/risk")
 async def nuclear_risk(hours: int = Query(default=24, ge=1, le=720)):
     """مؤشر المخاطر النووية والإشعاعية (0-100) مع مكوّناته واتجاهه."""
-    return await build_risk(hours)
+    ttl = get_settings().response_cache_seconds
+    return await cache.cached(("nuclear.risk", hours), ttl, lambda: build_risk(hours))
 
 
 @router.get("/brief")
@@ -347,8 +421,11 @@ async def nuclear_brief(hours: int = Query(default=24, ge=1, le=168)):
 async def build_brief(hours: int) -> dict:
     # تحميل واحد لأحداث الفترة يتشاركه المؤشر والأقسام ورصد المنشآت
     now = datetime.now(timezone.utc)
-    events, previous = await _load_windows(hours, now)
-    risk = risk_from_windows(events, previous, hours, now)
+    async with get_session_factory()() as session:
+        events, truncated = await _nuclear_events(session, now - timedelta(hours=hours))
+        previous, prev_truncated = await _previous_rows(session, hours, now)
+    truncated = truncated or prev_truncated
+    risk = risk_from_windows(events, previous, hours, now, truncated=truncated)
 
     def _section(topics) -> list[dict]:
         subset = [e for e in events if (e.topic or "") in topics]
@@ -373,7 +450,10 @@ async def build_brief(hours: int) -> dict:
     return {
         "period_hours": hours,
         "generated_at": risk["generated_at"],
-        "risk": {k: risk[k] for k in ("index", "level", "prev_index", "delta", "components", "stories", "near_ksa_stories", "by_topic")},
+        "risk": {k: risk[k] for k in (
+            "index", "level", "prev_index", "delta", "comparable", "components", "stories", "near_ksa_stories", "by_topic",
+        )},
+        "truncated": truncated,
         "top_stories": all_stories[:10],
         "near_ksa": [s for s in all_stories if _story_near(s, 800)][:10],
         "incidents": _section(INCIDENT_TOPICS),

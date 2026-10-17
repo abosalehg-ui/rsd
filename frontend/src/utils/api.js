@@ -53,15 +53,22 @@ async function toApiError(response) {
   });
 }
 
-export async function fetchAPI(endpoint, params = {}) {
+/**
+ * `fresh`: يتجاوز ذاكرة المتصفح (`cache: 'no-cache'` = تحقّق شرطي بـ ETag) —
+ * للتحديث اليدوي، وإلا خُدم الطلب من `max-age` الذي يضعه الخادم فيرى المستخدم
+ * ما قبل التحديث. الاستطلاع الدوري يبقى بالوضع الافتراضي.
+ */
+export async function fetchAPI(endpoint, params = {}, { fresh = false } = {}) {
   const url = new URL(`${resolveBase()}${endpoint}`);
-  Object.entries(params).forEach(([key, val]) => {
+  Object.entries(params || {}).forEach(([key, val]) => {
     if (val !== undefined && val !== null && val !== '') {
       url.searchParams.set(key, val);
     }
   });
 
-  const response = await fetch(url, { headers: authHeaders() });
+  const init = { headers: authHeaders() };
+  if (fresh) init.cache = 'no-cache';
+  const response = await fetch(url, init);
   if (!response.ok) throw await toApiError(response);
   return response.json();
 }
@@ -76,11 +83,11 @@ export async function postAPI(endpoint) {
 }
 
 // Events
-export const getEvents = (params) => fetchAPI('/events/', params);
-export const getMapEvents = (hours = 24, limit = 200) => fetchAPI('/events/map', { hours, limit });
+export const getEvents = (params, opts) => fetchAPI('/events/', params, opts);
+export const getMapEvents = (hours = 24, limit = 200, opts) => fetchAPI('/events/map', { hours, limit }, opts);
 // تيار غير مفلتر لمحرّك التنبيهات — لا يتأثر بفلاتر العرض
 export const getLatestEvents = (limit = 50) => fetchAPI('/events/latest', { limit });
-export const getStats = (hours = 24) => fetchAPI('/events/stats', { hours });
+export const getStats = (hours = 24, opts) => fetchAPI('/events/stats', { hours }, opts);
 // حدث واحد بقصته — لرابط المشاركة `?event=ID`
 export const getEvent = (id) => fetchAPI(`/events/${encodeURIComponent(id)}`);
 

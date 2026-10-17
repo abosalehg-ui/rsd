@@ -5,6 +5,7 @@
  * وتواقيع المحتوى (تخطّي إعادة البناء) في تأثيرات `RasadMap`.
  */
 import L from 'leaflet';
+import { THEME } from '../../../utils/constants';
 import { esc } from '../../../utils/security';
 
 export function buildZonesLayer(group, nuclearFacilities) {
@@ -13,7 +14,7 @@ export function buildZonesLayer(group, nuclearFacilities) {
     fac.planning_zones.forEach((z, i) => {
       const circle = L.circle([fac.latitude, fac.longitude], {
         radius: z.km * 1000,
-        color: '#f2c230',
+        color: THEME.hazard,
         weight: i < 2 ? 1.25 : 1,
         opacity: 0.55 - i * 0.1,
         dashArray: i < 2 ? null : '4 6',

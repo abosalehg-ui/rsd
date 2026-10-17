@@ -14,6 +14,8 @@
     "refreshFailed": "فشل التحديث: {{message}}",
     "refreshThrottled": "التحديث محدود — أعد المحاولة بعد {{seconds}} ثانية",
     "refreshDone": "تم تحديث المصادر",
+    "refreshPartial": "حُدِّثت المصادر، وتعذّر الجمع من {{failed}} من {{total}}",
+    "refreshAllFailed": "تعذّر الجمع من كل المصادر — البيانات المعروضة لم تتغيّر",
     "dismiss": "إغلاق",
     "collapsePanel": "طي اللوحة",
     "expandPanel": "فتح اللوحة",
@@ -116,8 +118,18 @@
     "zoomOut": "تصغير",
     "recenter": "إعادة التمركز",
     "legend": "دليل الألوان",
-    "clusterTitle": "{{count}} أحداث في هذه المنطقة",
-    "clusterMore": "+ {{count}} أحداث أخرى",
+    "clusterTitle_zero": "لا أحداث في هذه المنطقة",
+    "clusterTitle_one": "{{count}} حدث في هذه المنطقة",
+    "clusterTitle_two": "حدثان في هذه المنطقة",
+    "clusterTitle_few": "{{count}} أحداث في هذه المنطقة",
+    "clusterTitle_many": "{{count}} حدثًا في هذه المنطقة",
+    "clusterTitle_other": "{{count}} حدث في هذه المنطقة",
+    "clusterMore_zero": "لا أحداث أخرى",
+    "clusterMore_one": "+ {{count}} حدث آخر",
+    "clusterMore_two": "+ حدثان آخران",
+    "clusterMore_few": "+ {{count}} أحداث أخرى",
+    "clusterMore_many": "+ {{count}} حدثًا آخر",
+    "clusterMore_other": "+ {{count}} حدث آخر",
     "sourceLink": "المصدر ←",
     "military": "عسكري",
     "altitude": "الارتفاع",
@@ -322,7 +334,12 @@
     "why": "كيف حُسبت القيمة؟",
     "formula": "{{maxW}}% من أعلى خطر منفرد ({{max}}) + {{topW}}% من متوسط أعلى {{n}} قصص ({{mean}})",
     "storiesNote": "القصة الواحدة تُحسب مرة واحدة مهما تعدّدت مصادرها.",
-    "stories": "{{count}} قصة",
+    "stories_zero": "لا قصص",
+    "stories_one": "{{count}} قصة",
+    "stories_two": "قصتان",
+    "stories_few": "{{count}} قصص",
+    "stories_many": "{{count}} قصة",
+    "stories_other": "{{count}} قصة",
     "nearKsa": "{{count}} قرب المملكة",
     "prev": "الفترة السابقة",
     "empty": "لا أخبار نووية أو إشعاعية في هذه الفترة.",
@@ -344,7 +361,8 @@
       "specificity": "منشأة محدّدة بالاسم",
       "proximity": "القرب من المملكة",
       "source_trust": "معامل ثقة المصدر"
-    }
+    },
+    "truncated": "النافذة كبيرة: حُسب المؤشر من أحدث الأخبار وحدها، وقد تكون أقدمها مستبعدة."
   },
   "topics": {
     "radiation_release": "انبعاث أو تلوث إشعاعي",
@@ -364,7 +382,12 @@
     "title": "منشآت ورد ذكرها",
     "empty": "لم تُذكر أي منشأة بالاسم في هذه الفترة.",
     "distance": "{{km}} كم من {{place}}",
-    "stories": "{{count}} قصة",
+    "stories_zero": "لا قصص",
+    "stories_one": "{{count}} قصة",
+    "stories_two": "قصتان",
+    "stories_few": "{{count}} قصص",
+    "stories_many": "{{count}} قصة",
+    "stories_other": "{{count}} قصة",
     "zones": "مسافات التخطيط للطوارئ"
   },
   "events": {
@@ -438,6 +461,7 @@
       "quote": "«{{title}}»",
       "sep": "، ",
       "nuclear": "مؤشر الخطر النووي والإشعاعي {{index}} ({{level}})، {{trend}} (كان {{prev}}).",
+      "nuclearNoCompare": "مؤشر الخطر النووي والإشعاعي {{index}} ({{level}})؛ لا مقارنة: الفترة السابقة خارج مدة الاحتفاظ.",
       "ksa": "مؤشر الأثر على المملكة {{index}} ({{level}})، {{trend}} (كان {{prev}}).",
       "top": "أبرز القصص النووية والإشعاعية: {{items}}.",
       "topNone": "لا قصص نووية أو إشعاعية بارزة في الفترة.",
@@ -640,7 +664,8 @@
       "coverage": "بيانات المؤشرين تبدأ {{date}}.",
       "brentAsOf": "آخر تاريخ لبرنت: {{date}}.",
       "loadFailed": "تعذّر تحميل مخطط التزامن."
-    }
+    },
+    "seriesFailed": "تعذّر تحميل السلاسل التاريخية — الخطوط المصغّرة غير متاحة الآن."
   },
   "chains": {
     "title": "سلاسل التأثير",

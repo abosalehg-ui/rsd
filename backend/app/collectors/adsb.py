@@ -2,7 +2,9 @@
 يتتبع الرحلات الجوية فوق الشرق الأوسط عبر adsb.lol (مجاني بدون مفتاح)
 مع كشف الطائرات العسكرية
 """
+import asyncio
 import logging
+import time
 from datetime import datetime, timezone
 from math import asin, cos, radians, sin, sqrt
 from typing import Dict, Optional, Tuple
@@ -313,6 +315,13 @@ def _country_from_icao(icao24: str) -> str:
     return "Unknown"
 
 
+# الجمع البارد (قبل أول لقطة) مقفل: ثلاثة تبويبات تفتح عند الإقلاع كانت تُطلق
+# ثلاثة طلبات متزامنة للمزوّد. ومحاولة فاشلة قريبة لا تُكرَّر لكل منتظر بالدور.
+_cold_lock = asyncio.Lock()
+_COLD_RETRY_SECONDS = 30.0
+_cold_attempted_at: float | None = None
+
+
 async def get_live_flights() -> Dict:
     """يعيد آخر لقطة مُجمَّعة (من الوظيفة المجدولة) دون استدعاء المزوّد الخارجي
     أو الكتابة في DB — يمنع تضخيم الطلبات عبر العملاء المتعددين (PERF-1).
@@ -320,6 +329,11 @@ async def get_live_flights() -> Dict:
     عند عدم توفّر لقطة بعد (إقلاع بارد) نجمع مرة واحدة فقط.
     الحقل `stale` يخبر الواجهة أن آخر محاولة جمع فشلت فتُعلِم المستخدم بدل
     عرض بيانات قديمة كأنها لحظية."""
+    global _cold_attempted_at
     if _last_snapshot["updated_at"] is None:
-        return await collect_flights()
+        async with _cold_lock:
+            recent = _cold_attempted_at is not None and time.monotonic() - _cold_attempted_at < _COLD_RETRY_SECONDS
+            if _last_snapshot["updated_at"] is None and not recent:
+                _cold_attempted_at = time.monotonic()
+                return await collect_flights()
     return dict(_last_snapshot)

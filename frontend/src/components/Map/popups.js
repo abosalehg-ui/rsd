@@ -16,7 +16,7 @@ import { iconSvg } from '../../utils/icons';
 
 /** غلاف موحّد — الاتجاه يتبع لغة الواجهة لا قيمة ثابتة. */
 export function popupShell(inner, dir, minWidth = 220) {
-  return `<div style="min-width:${minWidth}px;font-family:Tajawal,sans-serif;direction:${dir}">${inner}</div>`;
+  return `<div style="min-width:${minWidth}px;font-family:'IBM Plex Sans Arabic',Tajawal,sans-serif;direction:${dir}">${inner}</div>`;
 }
 
 /** شارة ملوّنة صغيرة (تصنيف/خطورة/ثقة/نوع). */
