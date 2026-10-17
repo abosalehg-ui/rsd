@@ -117,7 +117,7 @@ export function FlightsBadge({ flights, t }) {
   const staleTitle = stale ? t('map.flightsStale', { time: timeAgo(flights.updated_at, t) || '—' }) : t('map.flightsLive');
   return (
     <div
-      className={`absolute top-3 end-3 z-[1000] bg-rasad-panel/95 border rounded-lg px-2.5 py-1.5 text-xs flex gap-3 ${stale ? 'border-amber-400/60' : 'border-rasad-border'}`}
+      className={`absolute top-3 end-3 z-map bg-rasad-panel/95 border rounded-lg px-2.5 py-1.5 text-xs flex gap-3 ${stale ? 'border-amber-400/60' : 'border-rasad-border'}`}
       title={staleTitle}
       role="status"
     >
@@ -336,7 +336,7 @@ export default function RasadMap({
     <div className="relative w-full h-full">
       <div ref={mapRef} className="w-full h-full" />
 
-      <div className="absolute top-3 start-3 z-[1000] flex flex-col gap-2">
+      <div className="absolute top-3 start-3 z-map flex flex-col gap-2">
         <button onClick={zoomIn} aria-label={t('map.zoomIn')} title={t('map.zoomIn')} className={CONTROL_BTN}>
           <ZoomIn className="w-5 h-5" aria-hidden="true" />
         </button>
@@ -351,10 +351,10 @@ export default function RasadMap({
       <LayerToggles
         layers={layers}
         onLayerChange={onLayerChange}
-        className="absolute bottom-3 start-3 z-[1000] max-w-[45vw]"
+        className="absolute bottom-3 start-3 z-map max-w-[45vw]"
       />
 
-      <div className="absolute bottom-3 end-3 z-[1000] bg-rasad-panel/95 border border-rasad-border rounded-lg p-3 hidden sm:block">
+      <div className="absolute bottom-3 end-3 z-map bg-rasad-panel/95 border border-rasad-border rounded-lg p-3 hidden sm:block">
         <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
           {Object.entries(CATEGORIES).map(([k, c]) => (
             <div key={k} className="flex items-center gap-1.5">

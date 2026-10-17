@@ -76,11 +76,15 @@ export default defineConfig({
             },
           },
           {
-            // مكالمات API — Stale-While-Revalidate لتجربة سريعة + بيانات حديثة
+            // مكالمات API — الشبكة أولًا: StaleWhileRevalidate كان يردّ بنسخة
+            // الاستطلاع السابق ثم يحدّث في الخلفية، فكل طلب يرى بيانات ما قبله
+            // و«تحديث» يعرض ما قبل التحديث. المهلة تُبقي العمل دون اتصال: إن
+            // لم يردّ الخادم خلال ثوانٍ تُعرض آخر نسخة مخزّنة.
             urlPattern: /\/api\/.*/,
-            handler: 'StaleWhileRevalidate',
+            handler: 'NetworkFirst',
             options: {
               cacheName: 'rsd-api',
+              networkTimeoutSeconds: 5,
               expiration: { maxEntries: 100, maxAgeSeconds: 60 * 5 },
               cacheableResponse: { statuses: [0, 200] },
             },

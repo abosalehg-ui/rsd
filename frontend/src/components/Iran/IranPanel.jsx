@@ -124,7 +124,7 @@ export default function IranPanel({ strikes = [], onSelectStrike }) {
                   key={ct.id}
                   onClick={() => setConfFilter(ct.id)}
                   aria-pressed={confFilter === ct.id}
-                  className={`text-2xs px-2 py-1 rounded whitespace-nowrap transition-colors focus-ring ${
+                  className={`min-h-11 text-2xs px-3 py-2 rounded whitespace-nowrap transition-colors focus-ring ${
                     confFilter === ct.id
                       ? 'bg-red-500/20 text-red-400 border border-red-500/30'
                       : 'bg-rasad-panel text-slate-300 hover:text-white'

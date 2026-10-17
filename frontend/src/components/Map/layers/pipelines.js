@@ -5,12 +5,13 @@
  * وتواقيع المحتوى (تخطّي إعادة البناء) في تأثيرات `RasadMap`.
  */
 import L from 'leaflet';
+import { THEME } from '../../../utils/constants';
 import { pipelinePopup } from '../popups';
 
 export function buildPipelinesLayer(group, pipelines, { popupCtx }) {
   pipelines.forEach(p => {
     if (!Array.isArray(p.coordinates) || p.coordinates.length < 2) return;
-    const color = p.type === 'oil' ? '#fbbf24' : '#60a5fa';
+    const color = p.type === 'oil' ? THEME.pipelineOil : THEME.pipelineGas;
     const line = L.polyline(p.coordinates, {
       color, weight: 3, opacity: 0.8, dashArray: p.status === 'partial' ? '5, 8' : null,
     });

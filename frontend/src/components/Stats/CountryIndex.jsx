@@ -10,6 +10,13 @@ import { Icon } from '../../utils/icons';
 import { Activity } from 'lucide-react';
 import { COUNTRIES, CATEGORIES, scoreColor } from '../../utils/constants';
 
+const SEVERITY_MARKS = [
+  { key: 'critical', mark: '❗', className: 'text-red-400' },
+  { key: 'high', mark: '↑', className: 'text-orange-400' },
+  { key: 'medium', mark: '•', className: 'text-yellow-400' },
+  { key: 'low', mark: '·', className: 'text-slate-300' },
+];
+
 export default function CountryIndex({ data, loading = false }) {
   const { t } = useTranslation();
   const ranking = data?.ranking || [];
@@ -57,11 +64,14 @@ export default function CountryIndex({ data, loading = false }) {
                 <div className="h-full rounded-full transition-all duration-700" style={{ width: `${c.score}%`, background: color }} />
               </div>
               <div className="flex items-center justify-between text-2xs text-slate-300">
+                {/* الرموز واللون للعين؛ قارئ الشاشة يسمع «2 حرج» لا «2 علامة تعجب» */}
                 <span>
-                  {c.by_severity?.critical ? <span className="text-red-400 me-1">{c.by_severity.critical}❗</span> : null}
-                  {c.by_severity?.high ? <span className="text-orange-400 me-1">{c.by_severity.high}↑</span> : null}
-                  {c.by_severity?.medium ? <span className="text-yellow-400 me-1">{c.by_severity.medium}•</span> : null}
-                  {c.by_severity?.low ? <span className="text-slate-300 me-1">{c.by_severity.low}·</span> : null}
+                  {SEVERITY_MARKS.map(({ key, mark, className }) => (c.by_severity?.[key] ? (
+                    <span key={key} className={`${className} me-1`}>
+                      {c.by_severity[key]}<span aria-hidden="true">{mark}</span>
+                      <span className="sr-only"> {t(`severity.${key}`)}</span>
+                    </span>
+                  ) : null))}
                 </span>
                 {topCatInfo && (
                   <span className="text-slate-300">

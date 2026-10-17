@@ -4,15 +4,11 @@
 import React, { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bell, Volume2, X, Check, Trash2 } from 'lucide-react';
-import { timeAgo } from '../../utils/constants';
+import { SEVERITIES, timeAgo } from '../../utils/constants';
 import { useModal } from '../../hooks/useModal';
 
-const SEVERITY_VALUES = [
-  { value: 'low',      color: '#64748b' },
-  { value: 'medium',   color: '#3b82f6' },
-  { value: 'high',     color: '#f59e0b' },
-  { value: 'critical', color: '#ef4444' },
-];
+// ألوان الخطورة من SEVERITIES نفسها كي يبدو «متوسط» هنا كما في كل البطاقات
+const SEVERITY_VALUES = ['low', 'medium', 'high', 'critical'].map(value => ({ value, color: SEVERITIES[value].color }));
 
 const CATEGORY_VALUES = ['military', 'nuclear', 'diplomatic', 'humanitarian', 'economic'];
 
@@ -52,7 +48,7 @@ export default function AlertSettings({
 
   return (
     <div
-      className="fixed inset-0 z-[2000] flex items-start justify-center pt-16 bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-modal flex items-start justify-center pt-16 bg-black/40 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
@@ -161,7 +157,7 @@ export default function AlertSettings({
             {prefs.categories.length > 0 && (
               <button
                 onClick={() => setPrefs({ categories: [] })}
-                className="text-xs text-slate-300 hover:text-cyan-400 mt-2"
+                className="min-h-11 px-2 -ms-2 mt-1 text-xs text-slate-300 hover:text-cyan-400 focus-ring rounded"
               >
                 {t('alerts.clearSelection')}
               </button>
@@ -214,7 +210,7 @@ export default function AlertSettings({
               {recentAlerts.length > 0 && (
                 <button
                   onClick={clearRecent}
-                  className="text-xs text-slate-300 hover:text-red-400 flex items-center gap-1"
+                  className="min-h-11 px-2 -me-2 text-xs text-slate-300 hover:text-red-400 flex items-center gap-1 focus-ring rounded"
                 >
                   <Trash2 className="w-3 h-3" aria-hidden="true" /> {t('alerts.clear')}
                 </button>

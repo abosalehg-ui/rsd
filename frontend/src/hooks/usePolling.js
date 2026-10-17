@@ -5,7 +5,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { IMPACT_SECTORS, TIME_WINDOWS } from '../utils/constants';
 
 /**
- * خطاف جلب البيانات مع تحديث تلقائي.
+ * خطاف جلب البيانات مع تحديث تلقائي. `fetchFn(opts)` يتلقّى `{ fresh: true }`
+ * عند `refetch()` اليدوي وحده.
  *
  * يعيد `lastFetchedAt` أيضاً: وقت آخر استجابة معلومة يملكها هذا الخطاف، فيعرضه
  * الهيدر منها بدل اشتقاقه من تغيّر هوية كائن البيانات.
@@ -31,14 +32,14 @@ export function usePolling(fetchFn, interval = 30000, deps = []) {
   // حارس تسلسل: يمنع استجابة قديمة (شبكة بطيئة) من الكتابة فوق أحدث منها
   const seqRef = useRef(0);
 
-  const run = useCallback(async (depsChanged = false) => {
+  const run = useCallback(async (depsChanged = false, opts = undefined) => {
     const mySeq = ++seqRef.current;
     if (depsChanged) {
       setLoading(true);
       setStale(true);
     }
     try {
-      const result = await fetchRef.current();
+      const result = await fetchRef.current(opts);
       if (mySeq !== seqRef.current) return; // وصلت استجابة أحدث — تجاهل هذه
       setData(result);
       setError(null);
@@ -52,7 +53,9 @@ export function usePolling(fetchFn, interval = 30000, deps = []) {
     }
   }, []);
 
-  const refetch = useCallback(() => run(false), [run]);
+  // الاستدعاء اليدوي (زر «تحديث»، «إعادة المحاولة») يمرّر `{ fresh: true }` لدالة
+  // الجلب: من يمرّره إلى `fetchAPI` يتجاوز ذاكرة HTTP، ومن يتجاهله لا يتأثّر
+  const refetch = useCallback(() => run(false, { fresh: true }), [run]);
 
   // مقارنة سطحية بآخر deps: التأثير يُعاد أيضًا عند تغيّر interval أو في
   // StrictMode، وهذان لا يجعلان البيانات المعروضة قديمة.

@@ -40,10 +40,26 @@ export const THEME = {
   emergency: '#f4585d',
   flightMilitary: '#c4b5fd',
   flightCivil: '#94a3b8',
+  // خطوط الأنابيب: نفط وغاز
+  pipelineOil: '#fbbf24',
+  pipelineGas: '#60a5fa',
   // مخطط التزامن (Markets/SyncChart) — متحقَّق منها على سطح اللوحة الداكن
   syncNuclear: '#b8860b',
   syncKsa: '#3f86e6',
   syncBrent: '#1f9e7a',
+};
+
+/**
+ * سلّم الطبقات (z-index) — مصدر واحد يولّد منه `tailwind.config.js` الأصناف
+ * `z-map` و`z-menu` و`z-floating` و`z-modal`. الترتيب هو العقد: عناصر الخريطة
+ * تحت القوائم المنسدلة، وهذه تحت النوافذ العائمة (البث المباشر)، والنوافذ
+ * الحاجبة (`aria-modal`) فوق الكل — فلا يطفو زر البث فوق خلفية نافذة معتمة.
+ */
+export const Z_LAYERS = {
+  map: 1000,
+  menu: 2000,
+  floating: 3000,
+  modal: 10000,
 };
 
 // الأيقونات أسماء مكوّنات lucide (انظر utils/icons.jsx) لا رموز تعبيرية: حجم
@@ -96,6 +112,25 @@ export const IMPACT_SECTORS = {
   food_water: { icon: 'wheat', color: '#fb923c' },
   health: { icon: 'heart', color: '#f0a3c6' },
   diplomacy: { icon: 'handshake', color: '#a78bfa' },
+};
+
+/** ألوان أنواع المنشآت النووية على الخريطة (التسميات من i18n: `nuclearTypes.*`). */
+export const FACILITY_TYPES = {
+  power: { color: '#f2c230' },
+  research: { color: '#22d3ee' },
+  enrichment: { color: '#f97316' },
+  conversion: { color: '#a78bfa' },
+  heavy_water: { color: '#38bdf8' },
+  fuel: { color: '#fb7185' },
+};
+
+/** ألوان حالات المنشآت (`nuclearStatus.*`)؛ المجهول بلون النص الخافت. */
+export const FACILITY_STATUS = {
+  operational: '#22c55e',
+  construction: '#f59e0b',
+  planned: '#94a3b8',
+  shutdown: '#ef4444',
+  modified: '#a78bfa',
 };
 
 /** نطاقات درجة الخطر 0-100 — تطابق severity_from_score في الخلفية. */

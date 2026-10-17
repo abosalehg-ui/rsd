@@ -57,6 +57,9 @@ export default function NuclearPanel({
           </select>
         </div>
         <RiskGauge risk={risk} error={riskError} stale={riskStale} onRetry={onRetryRisk} />
+        {(risk?.truncated || eventsData?.truncated) && (
+          <p className="text-2xs text-amber-200" role="note">{t('risk.truncated')}</p>
+        )}
       </div>
 
       <div className="px-3 pb-2">

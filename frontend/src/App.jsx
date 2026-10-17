@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { getEvent, refreshSources } from './utils/api';
 import { readEventId, writeEventId } from './utils/deepLink';
+import { refreshToast } from './utils/refresh';
 
 // تحميل كسول للكرة الأرضية — Three.js كبير الحجم
 const RasadGlobe = lazy(() => import('./components/Map/RasadGlobe'));
@@ -92,7 +93,7 @@ export default function App() {
 
   // الاستطلاعات المشتركة بين الخريطة والهيدر واللوحات
   const {
-    events, eventsError, eventsLoading, refetchEvents, liveMapEvents: liveMapEvts, latestEvents,
+    events, eventsError, eventsLoading, refetchEvents, refetchMap, liveMapEvents: liveMapEvts, latestEvents,
     stats, statsError, refetchStats, statsFetchedAt, flights, iranStrikes, nuclearFacilities,
     militaryBases, pipelines, nuclearRisk, nuclearRiskError, nuclearRiskStale, refetchRisk,
     schedule, scheduleFetchedAt, marketsLatest, marketsError, countryIndex, countryLoading,
@@ -140,10 +141,11 @@ export default function App() {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await refreshSources();
+      const result = await refreshSources();
       refetchEvents();
+      refetchMap();
       refetchStats();
-      setToast({ kind: 'ok', text: t('app.refreshDone') });
+      setToast(refreshToast(result, t));
     } catch (e) {
       // الخادم يعيد 429 مع Retry-After عند التحديث المتقارب — نعرضه بدل ابتلاعه
       setToast(
@@ -154,7 +156,7 @@ export default function App() {
     } finally {
       setRefreshing(false);
     }
-  }, [refetchEvents, refetchStats, t]);
+  }, [refetchEvents, refetchMap, refetchStats, t]);
 
   // اختيار حدث: يفتح لوحة التفاصيل ويُحرّك الخريطة إليه. على الجوال تبقى
   // اللوحة ظاهرة (التفاصيل فيها) و«عرض على الخريطة» ينقل صراحةً.
@@ -247,7 +249,7 @@ export default function App() {
       <LayerToggles
         layers={layers}
         onLayerChange={setLayer}
-        className="absolute bottom-3 start-3 z-[1000] max-w-[45vw]"
+        className="absolute bottom-3 start-3 z-map max-w-[45vw]"
       />
     </ErrorBoundary>
   ) : (
@@ -285,7 +287,7 @@ export default function App() {
               onClick={() => setActiveTab(tab.id)}
               onClickCapture={() => setDetailEvent(null)}
               title={label}
-              className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 py-3 px-1 text-sm transition-colors focus-ring ${
+              className={`flex-1 min-w-0 min-h-11 flex flex-col lg:flex-row items-center justify-center gap-0.5 lg:gap-1.5 py-1.5 lg:py-3 px-0.5 lg:px-1 transition-colors focus-ring ${
                 active
                   ? tab.id === 'nuclear'
                     ? 'text-hazard-soft border-b-2 border-hazard bg-hazard-dim'
@@ -294,9 +296,10 @@ export default function App() {
               }`}
             >
               <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
-              {/* النص ظاهر من lg: أيقونتا Crosshair وRadiation لا تكفيان وحدهما،
-                  والـ title لا يصل مستخدم اللمس */}
-              <span className={`truncate ${active ? '' : 'hidden lg:inline'}`}>{label}</span>
+              {/* التسمية ظاهرة دائمًا: أيقونات Crosshair وLandmark وFuel لا تدلّ
+                  وحدها، والـ title لا يصل مستخدم اللمس. تحت lg سطر صغير تحت
+                  الأيقونة (سبعة تبويبات في عرض اللوحة)، ومن lg بجانبها. */}
+              <span className="max-w-full truncate text-2xs lg:text-sm leading-tight">{label}</span>
             </button>
           );
         })}
@@ -498,7 +501,7 @@ export default function App() {
             onClick={() => setPanelOpen(!panelOpen)}
             aria-label={panelOpen ? t('app.collapsePanel') : t('app.expandPanel')}
             title={panelOpen ? t('app.collapsePanel') : t('app.expandPanel')}
-            className="hidden md:flex absolute top-1/2 end-0 z-[1000] -translate-y-1/2 w-6 h-16 bg-rasad-panel border border-rasad-border border-e-0 rounded-s-lg items-center justify-center text-cyan-300 hover:bg-rasad-border focus-ring"
+            className="hidden md:flex absolute top-1/2 end-0 z-map -translate-y-1/2 w-6 h-16 bg-rasad-panel border border-rasad-border border-e-0 rounded-s-lg items-center justify-center text-cyan-300 hover:bg-rasad-border focus-ring"
           >
             {panelOpen ? <PanelLeftClose className="w-4 h-4" aria-hidden="true" /> : <PanelLeftOpen className="w-4 h-4" aria-hidden="true" />}
           </button>

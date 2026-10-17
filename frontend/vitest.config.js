@@ -13,6 +13,8 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html'],
       exclude: ['node_modules/', 'src/test/', '**/*.config.js', 'dist/'],
+      // حدّ أدنى يُفشل CI إن انخفضت التغطية (نظير --cov-fail-under=75 في الخلفية)
+      thresholds: { lines: 75, statements: 70, functions: 65, branches: 60 },
     },
   },
 });

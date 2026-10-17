@@ -126,7 +126,7 @@ export default function LiveTVDrawer() {
       {!isOpen && (
         <button
           onClick={open}
-          className="fixed bottom-24 md:bottom-64 start-0 z-[9999] flex items-center gap-1 bg-red-600 hover:bg-red-500 text-white ps-1.5 pe-2.5 py-2 rounded-e-lg shadow-lg transition-all group focus-ring"
+          className="fixed bottom-24 md:bottom-64 start-0 z-floating flex items-center gap-1 bg-red-600 hover:bg-red-500 text-white ps-1.5 pe-2.5 py-2 rounded-e-lg shadow-lg transition-all group focus-ring"
           title={t('tv.open')}
           aria-label={t('tv.open')}
         >
@@ -138,7 +138,7 @@ export default function LiveTVDrawer() {
       {/* ===== النافذة (عائمة على سطح المكتب، لوحة سفلية على الجوال) ===== */}
       {isOpen && (
         <div
-          className={isMobile ? 'fixed z-[9999] inset-x-0 bottom-0 pb-[env(safe-area-inset-bottom)]' : 'fixed z-[9999]'}
+          className={isMobile ? 'fixed z-floating inset-x-0 bottom-0 pb-[env(safe-area-inset-bottom)]' : 'fixed z-floating'}
           style={floatingStyle}
           onMouseDown={startDrag}
           onTouchStart={startDrag}

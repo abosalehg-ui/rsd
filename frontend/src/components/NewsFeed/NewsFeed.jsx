@@ -86,13 +86,13 @@ export default function NewsFeed({
             onChange={(e) => setSearchDraft(e.target.value)}
             placeholder={t('news.searchPlaceholder')}
             maxLength={100}
-            className="w-full bg-rasad-bg border border-rasad-border rounded-lg ps-8 pe-8 py-1.5 text-sm text-slate-100 placeholder:text-slate-400 focus-ring"
+            className="w-full min-h-11 bg-rasad-bg border border-rasad-border rounded-lg ps-8 pe-11 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus-ring"
           />
           {searchDraft && (
             <button
               onClick={() => setSearchDraft('')}
               aria-label={t('news.clearSearch')}
-              className="absolute top-1/2 -translate-y-1/2 end-2 text-slate-400 hover:text-white focus-ring rounded"
+              className="absolute top-1/2 -translate-y-1/2 end-0 min-w-11 min-h-11 flex items-center justify-center text-slate-400 hover:text-white focus-ring rounded"
             >
               <X className="w-4 h-4" aria-hidden="true" />
             </button>
@@ -172,7 +172,7 @@ export default function NewsFeed({
                 id="rsd-country"
                 value={filters?.country_code || ''}
                 onChange={(e) => onFilterChange?.('country_code', e.target.value)}
-                className="w-full bg-rasad-panel border border-rasad-border rounded px-2 py-1 text-xs text-slate-100 focus-ring"
+                className="w-full min-h-11 bg-rasad-panel border border-rasad-border rounded px-2 py-2 text-xs text-slate-100 focus-ring"
               >
                 <option value="">{t('news.allCountries')}</option>
                 {Object.entries(COUNTRIES).map(([code, info]) => (
@@ -187,7 +187,7 @@ export default function NewsFeed({
                 id="rsd-source"
                 value={filters?.source || ''}
                 onChange={(e) => onFilterChange?.('source', e.target.value)}
-                className="w-full bg-rasad-panel border border-rasad-border rounded px-2 py-1 text-xs text-slate-100 focus-ring"
+                className="w-full min-h-11 bg-rasad-panel border border-rasad-border rounded px-2 py-2 text-xs text-slate-100 focus-ring"
               >
                 <option value="">{t('news.allSources')}</option>
                 {SOURCES.map(src => <option key={src} value={src}>{src}</option>)}
@@ -200,7 +200,7 @@ export default function NewsFeed({
                 id="rsd-hours"
                 value={filters?.hours || 24}
                 onChange={(e) => onFilterChange?.('hours', Number(e.target.value))}
-                className="w-full bg-rasad-panel border border-rasad-border rounded px-2 py-1 text-xs text-slate-100 focus-ring"
+                className="w-full min-h-11 bg-rasad-panel border border-rasad-border rounded px-2 py-2 text-xs text-slate-100 focus-ring"
               >
                 {TIME_WINDOWS.map(h => (
                   <option key={h} value={h}>{t('time.hoursShort', { count: h })}</option>
@@ -211,7 +211,7 @@ export default function NewsFeed({
             <div className="flex items-end">
               <button
                 onClick={() => { setSearchDraft(''); onResetFilters?.(); }}
-                className="w-full flex items-center justify-center gap-1 px-2 py-1 rounded border border-rasad-border text-xs text-slate-300 hover:text-white hover:border-slate-500 focus-ring"
+                className="w-full min-h-11 flex items-center justify-center gap-1 px-2 py-2 rounded border border-rasad-border text-xs text-slate-300 hover:text-white hover:border-slate-500 focus-ring"
               >
                 <RotateCcw className="w-3 h-3" aria-hidden="true" /> {t('news.resetFilters')}
               </button>

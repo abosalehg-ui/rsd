@@ -18,6 +18,7 @@ import { pct } from './chains';
 const LEVEL_COLORS = { low: '#2f8a5f', medium: '#a8860f', high: '#c2610f', critical: '#c4262b' };
 
 function trendText(delta, t) {
+  if (delta == null) return t('trend.noComparison');
   const d = Number(delta) || 0;
   if (Math.abs(d) < 0.5) return t('trend.flat');
   return t(d > 0 ? 'trend.up' : 'trend.down', { value: Math.abs(d).toFixed(1) });
@@ -108,10 +109,11 @@ export function buildNarrative(brief, t) {
   const out = [];
 
   const r = brief.risk || {};
-  out.push(N('nuclear', {
-    index: fmt1(r.index), level: t(`risk.levels.${r.level || 'low'}`),
-    trend: narrativeTrend(r.delta, t), prev: fmt1(r.prev_index),
-  }));
+  const rLevel = t(`risk.levels.${r.level || 'low'}`);
+  // الفترة السابقة خارج مدة الاحتفاظ (نافذة طويلة أو احتفاظ قصير): لا «كان 0.0»
+  out.push(r.comparable === false || r.delta == null
+    ? N('nuclearNoCompare', { index: fmt1(r.index), level: rLevel })
+    : N('nuclear', { index: fmt1(r.index), level: rLevel, trend: narrativeTrend(r.delta, t), prev: fmt1(r.prev_index) }));
 
   const k = brief.ksa_impact;
   // نافذة أطول من نصف مدة الاحتفاظ: الفترة السابقة محذوفة، فالمقارنة بها «صعود» كاذب

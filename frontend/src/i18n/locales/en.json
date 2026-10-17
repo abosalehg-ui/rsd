@@ -14,6 +14,8 @@
     "refreshFailed": "Refresh failed: {{message}}",
     "refreshThrottled": "Refresh is rate limited — try again in {{seconds}}s",
     "refreshDone": "Sources refreshed",
+    "refreshPartial": "Sources refreshed; {{failed}} of {{total}} could not be collected",
+    "refreshAllFailed": "No source could be collected — the data shown has not changed",
     "dismiss": "Dismiss",
     "collapsePanel": "Collapse panel",
     "expandPanel": "Expand panel",
@@ -112,8 +114,10 @@
     "zoomOut": "Zoom out",
     "recenter": "Recenter",
     "legend": "Legend",
-    "clusterTitle": "{{count}} events in this area",
-    "clusterMore": "+ {{count}} more events",
+    "clusterTitle_one": "{{count}} event in this area",
+    "clusterTitle_other": "{{count}} events in this area",
+    "clusterMore_one": "+ {{count}} more event",
+    "clusterMore_other": "+ {{count}} more events",
     "sourceLink": "Source →",
     "military": "Military",
     "altitude": "Altitude",
@@ -309,7 +313,8 @@
     "why": "How is this calculated?",
     "formula": "{{maxW}}% of the highest single risk ({{max}}) + {{topW}}% of the mean of the top {{n}} stories ({{mean}})",
     "storiesNote": "A story counts once, however many outlets report it.",
-    "stories": "{{count}} stories",
+    "stories_one": "{{count}} story",
+    "stories_other": "{{count}} stories",
     "nearKsa": "{{count}} near the Kingdom",
     "prev": "Previous period",
     "empty": "No nuclear or radiological news in this period.",
@@ -331,7 +336,8 @@
       "specificity": "Named facility",
       "proximity": "Proximity to the Kingdom",
       "source_trust": "Source trust factor"
-    }
+    },
+    "truncated": "Large window: the index uses the most recent reports only, so older ones may be left out."
   },
   "topics": {
     "radiation_release": "Radiation release or contamination",
@@ -351,7 +357,8 @@
     "title": "Facilities in the news",
     "empty": "No facility was named in this period.",
     "distance": "{{km}} km from {{place}}",
-    "stories": "{{count}} stories",
+    "stories_one": "{{count}} story",
+    "stories_other": "{{count}} stories",
     "zones": "Emergency planning distances"
   },
   "events": {
@@ -422,6 +429,7 @@
       "quote": "“{{title}}”",
       "sep": ", ",
       "nuclear": "The nuclear & radiological risk index is {{index}} ({{level}}), {{trend}} (was {{prev}}).",
+      "nuclearNoCompare": "The nuclear & radiological risk index is {{index}} ({{level}}); no comparison: the previous period is beyond data retention.",
       "ksa": "The Kingdom impact index is {{index}} ({{level}}), {{trend}} (was {{prev}}).",
       "top": "Top nuclear & radiological stories: {{items}}.",
       "topNone": "No notable nuclear or radiological stories in the period.",
@@ -608,7 +616,8 @@
       "coverage": "Index data starts {{date}}.",
       "brentAsOf": "Latest Brent date: {{date}}.",
       "loadFailed": "Couldn't load the synchronization chart."
-    }
+    },
+    "seriesFailed": "Could not load the price history — sparklines are unavailable right now."
   },
   "chains": {
     "title": "Impact chains",

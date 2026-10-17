@@ -35,9 +35,9 @@ class ErrorBoundaryBase extends React.Component {
       <div className="flex flex-col items-center justify-center h-full gap-3 text-center p-6 bg-rasad-bg">
         <span className="text-3xl" aria-hidden="true">⚠️</span>
         <p className="text-sm text-slate-200">{t('error.boundaryTitle')}</p>
-        <p className="text-xs text-slate-300 max-w-md break-words">
-          {this.state.error?.message || t('error.unexpected')}
-        </p>
+        {/* لا رسالة الاستثناء الخام («Cannot read properties of undefined»): لا
+            تفيد المستخدم وتكشف تفاصيل داخلية؛ التفصيل في console.error أعلاه */}
+        <p className="text-xs text-slate-300 max-w-md">{t('error.unexpected')}</p>
         <button
           onClick={this.handleReset}
           className="mt-1 px-3 py-1.5 rounded bg-cyan-500/20 text-cyan-200 text-xs hover:bg-cyan-500/30 border border-cyan-500/30 focus-ring"

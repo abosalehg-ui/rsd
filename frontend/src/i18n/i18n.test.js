@@ -47,6 +47,15 @@ describe('plurals', () => {
       .toEqual(['1 حدث في الفترة', 'حدثان في الفترة', '5 أحداث في الفترة', '25 حدثًا في الفترة']);
   });
 
+  it('pluralises story and cluster counts', () => {
+    expect([1, 2, 3, 11].map(n => tr('ar', 'risk.stories', n))).toEqual(['1 قصة', 'قصتان', '3 قصص', '11 قصة']);
+    expect(tr('ar', 'facilities.stories', 3)).toBe('3 قصص');
+    expect(tr('ar', 'map.clusterTitle', 11)).toBe('11 حدثًا في هذه المنطقة');
+    expect(tr('ar', 'map.clusterMore', 2)).toBe('+ حدثان آخران');
+    expect(tr('en', 'risk.stories', 1)).toBe('1 story');
+    expect(tr('en', 'map.clusterMore', 1)).toBe('+ 1 more event');
+  });
+
   it('uses singular and plural in English', () => {
     expect(tr('en', 'replay.count', 1)).toBe('1 event');
     expect(tr('en', 'replay.count', 3)).toBe('3 events');
@@ -56,7 +65,8 @@ describe('plurals', () => {
 
   it('defines every Arabic form for each counted key', () => {
     const forms = ['zero', 'one', 'two', 'few', 'many', 'other'];
-    [['replay', 'count'], ['impact', 'sectorStories'], ['news', 'countTitle']].forEach(([ns, key]) => {
+    [['replay', 'count'], ['impact', 'sectorStories'], ['news', 'countTitle'], ['risk', 'stories'],
+      ['facilities', 'stories'], ['map', 'clusterTitle'], ['map', 'clusterMore']].forEach(([ns, key]) => {
       forms.forEach(f => expect(ar[ns][`${key}_${f}`], `${ns}.${key}_${f}`).toBeTruthy());
       ['one', 'other'].forEach(f => expect(en[ns][`${key}_${f}`], `${ns}.${key}_${f}`).toBeTruthy());
     });

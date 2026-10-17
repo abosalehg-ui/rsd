@@ -62,6 +62,9 @@ npm run build                  # تأكيد نجاح البناء
   مكان السرد التاريخي رسالة الـ commit وسجل `docs/reviews/`.
 - **الألوان:** من `utils/constants.js::THEME` وحده (يولّد رموز Tailwind
   ومتغيّرات `--rsd-*`)؛ لا hex يدوي في المكوّنات أو القوالب.
+- **الطبقات (z-index):** أصناف `z-map` / `z-menu` / `z-floating` / `z-modal` من
+  `Z_LAYERS` في `utils/constants.js`؛ لا `z-[…]` بأرقام يدوية.
+- **أهداف اللمس:** كل زر أو قائمة منسدلة أو رقاقة `min-h-11` (44px) على الأقل.
 - **الرسائل:** رسائل commit وصفية. أنشئ فرعاً لكل تغيير ولا تدفع إلى `main`
   مباشرة.
 
@@ -71,16 +74,19 @@ npm run build                  # تأكيد نجاح البناء
 backend/app/
   ├── api/          نقاط FastAPI (system, events, chains, flights, iran, nuclear, impact, markets, infrastructure) + _stories/_serializers
   ├── collectors/   جامعو المصادر (gdelt, news_api, rss_feeds, ucdp, adsb, iran_osint, nuclear_watch, markets) + _feed_base
-  ├── processors/   منطق نقي (matching, normalize, gazetteer, nuclear, impact, text_analysis, clustering, causal, dates)
+  ├── processors/   منطق نقي (matching, normalize, gazetteer, nuclear, impact, impact_index, text_analysis, clustering,
+  │                 causal + causal_entities/causal_rules/causal_lexicon, markets, dates)
   ├── models/       نماذج SQLAlchemy + ترقية الأعمدة + الاحتفاظ بالبيانات
-  ├── middleware/   cache (ETag) · ratelimit · security_headers
+  ├── analysis.py   الدورة التحليلية (تجميع القصص، ربط السلاسل، إعادة التحليل)
+  ├── cache.py      ذاكرة مؤقتة للنقاط الثقيلة تُبطَل بعد كل كتابة
+  ├── middleware/   cache (ETag) · ratelimit · security_headers · trusted_host
   ├── data/         بيانات ثابتة JSON (منشآت، قواعد، أنابيب، قادة)
   ├── auth.py       حارس CSRF + مفتاح API
   ├── config.py     الإعدادات (pydantic-settings)
   └── scheduler.py  جدولة الجمع + التجميع وربط السلاسل + التنظيف
 frontend/src/
   ├── components/   مكوّنات الواجهة (Map, Nuclear, Impact, Markets, Chains, Events, Report, Stats, Iran, Layout, …)
-  ├── hooks/        usePolling, useAudioAlert
+  ├── hooks/        usePolling, useDashboardData, useModal, useAudioAlert
   ├── utils/        api, constants (THEME = مصدر الألوان الواحد), security, icons, report, replay, deepLink, markets, chains
   └── i18n/         الترجمة (ar/en) — أي نص معروض يمرّ عبر t()
 ```
