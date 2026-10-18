@@ -42,7 +42,9 @@ describe('App deep link', () => {
     // التطبيق كاملًا (Leaflet + عشرات الاستطلاعات) ثقيل حين تعمل الاختبارات بالتوازي
     expect(await screen.findByRole('dialog', { name: story.title }, { timeout: 8000 })).toBeInTheDocument();
     expect(getEvent).toHaveBeenCalledWith(7);
-    expect(new URLSearchParams(window.location.search).get('event')).toBe('7');
+    // العنوان يُكتب في تأثير لاحق (useEffect) قد يُنفَّذ بعد ظهور اللوحة في DOM —
+    // بلا انتظار يسبق التأكيدُ الكتابةَ أحيانًا فيفشل الاختبار عشوائيًا في CI
+    await waitFor(() => expect(new URLSearchParams(window.location.search).get('event')).toBe('7'), { timeout: 8000 });
 
     fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
     await waitFor(() => expect(new URLSearchParams(window.location.search).get('event')).toBeNull(), { timeout: 8000 });
