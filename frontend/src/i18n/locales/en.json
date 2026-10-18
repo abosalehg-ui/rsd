@@ -40,7 +40,8 @@
     "refreshFailed": "Couldn't refresh — showing the last successful load.",
     "staleFailed": "Couldn't load the selected period — showing the previous period.",
     "updating": "Updating for the selected period…",
-    "retry": "Retry"
+    "retry": "Retry",
+    "live": "LIVE"
   },
   "tabs": {
     "news": "Events",

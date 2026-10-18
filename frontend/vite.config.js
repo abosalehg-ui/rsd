@@ -2,6 +2,9 @@ import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+// لون الثيم من المصدر الواحد نفسه الذي تقرأه الواجهة وindex.html (كان manifest
+// يحمل لون الإصدار 1.x فيظهر شريط النظام وشاشة الإقلاع بلون غير لون التطبيق)
+import { THEME } from './src/utils/constants.js'
 
 // globe.gl ≥2.46 يستورد Timer من three، وهو غير موجود قبل 0.178. مع dedupe
 // أدناه تُحلّ كل استيرادات three إلى نسخة الجذر، فنسخة قديمة عالقة في
@@ -97,8 +100,8 @@ export default defineConfig({
         description: 'منصة استخبارات المصادر المفتوحة للشرق الأوسط',
         lang: 'ar',
         dir: 'rtl',
-        theme_color: '#0d1117',
-        background_color: '#0a0e17',
+        theme_color: THEME.bg,
+        background_color: THEME.bg,
         display: 'standalone',
         orientation: 'any',
         start_url: '.',

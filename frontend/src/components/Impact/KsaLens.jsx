@@ -179,12 +179,15 @@ function FactorTables({ formula }) {
   );
 }
 
-export default function KsaLens({ onOpenEvent, onOpenEventById, onSelectSector, activeId, initialHours = 48 }) {
+export default function KsaLens({
+  onOpenEvent, onOpenEventById, onSelectSector, activeId, initialHours = 48, refreshTick = 0,
+}) {
   const { t } = useTranslation();
   const [hours, setHours] = useState(initialHours);
+  // `refreshTick`: زر «تحديث» في الهيدر يعيد جلب العدسة فورًا (انظر App.handleRefresh)
   const { data, error, loading, stale, refetch } = usePolling(
     useCallback(() => getKsaImpact(hours), [hours]),
-    60000, [hours],
+    60000, [hours, refreshTick],
   );
 
   const sectors = data?.sectors || [];

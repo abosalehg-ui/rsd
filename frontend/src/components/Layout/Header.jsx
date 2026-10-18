@@ -107,7 +107,7 @@ function SettingsMenu({ viewMode, onToggleView, onOpenReport }) {
     return () => document.removeEventListener('mousedown', onDoc);
   }, [open]);
 
-  const item = 'w-full flex items-center gap-2 px-3 py-2.5 text-sm text-slate-200 hover:bg-rasad-raised focus-ring rounded';
+  const item = 'w-full min-h-11 flex items-center gap-2 px-3 py-2.5 text-sm text-slate-200 hover:bg-rasad-raised focus-ring rounded';
 
   return (
     <div className="relative" ref={ref}>

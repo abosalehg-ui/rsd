@@ -3,7 +3,7 @@ REM ╔════════════════════════�
 REM ║  رصد (Rasad) — بناء مثبّت ويندوز كامل (PyInstaller + Inno Setup) ║
 REM ╚══════════════════════════════════════════════════════════════╝
 REM شغّل هذا الملف من أي مكان (ينتقل تلقائياً لجذر المستودع).
-REM المتطلّبات: Python 3.10+، Node.js 18+، و Inno Setup 6 (ISCC في PATH).
+REM المتطلّبات: Python 3.11+، Node.js 20.19+ أو 22.12+ (يشترطها Vite 7)، و Inno Setup 6 (ISCC في PATH).
 
 setlocal enabledelayedexpansion
 cd /d "%~dp0\.."

@@ -11,8 +11,8 @@ const strikes = [
 ];
 
 const leaders = [
-  { id: 1, name: 'Leader One', role: 'Role A', icon: '👤', active: true, recent_news: [{ title: 'News A', url: 'https://ok.test/n' }] },
-  { id: 2, name: 'Leader Two', role: 'Role B', icon: '👤', active: false, recent_news: [] },
+  { id: 1, name: 'قائد أول', name_en: 'Leader One', role: 'دور أ', role_en: 'Role A', icon: '👤', active: true, recent_news: [{ title: 'News A', url: 'https://ok.test/n' }] },
+  { id: 2, name: 'قائد ثانٍ', name_en: 'Leader Two', role: 'دور ب', role_en: 'Role B', icon: '👤', active: false, recent_news: [] },
 ];
 
 describe('<IranPanel>', () => {
@@ -30,7 +30,7 @@ describe('<IranPanel>', () => {
     expect(screen.getByText('Strike near Isfahan')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Strike near Isfahan'));
     expect(onSelectStrike).toHaveBeenCalledWith(strikes[0]);
-    fireEvent.keyDown(screen.getByText('Drills in the Gulf').closest('[role="button"]'), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('button', { name: 'Drills in the Gulf' }));
     expect(onSelectStrike).toHaveBeenCalledWith(strikes[1]);
   });
 
@@ -58,7 +58,10 @@ describe('<IranPanel>', () => {
     render(<IranPanel strikes={[]} />);
     fireEvent.click(screen.getByRole('tab', { name: /Leaders/ }));
     const panel = await screen.findByRole('tabpanel');
+    // الواجهة الإنجليزية تعرض الاسم والدور الإنجليزيين من القائمة لا العربيين
     expect(await within(panel).findByText('Leader One')).toBeInTheDocument();
+    expect(within(panel).getByText('Role A')).toBeInTheDocument();
+    expect(within(panel).queryByText('قائد أول')).not.toBeInTheDocument();
     expect(within(panel).getByText('active')).toBeInTheDocument();
     expect(within(panel).getByRole('link', { name: /News A/ })).toHaveAttribute('href', 'https://ok.test/n');
   });

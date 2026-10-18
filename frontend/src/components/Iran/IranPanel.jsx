@@ -23,7 +23,8 @@ const TABS = [
 ];
 
 export default function IranPanel({ strikes = [], onSelectStrike }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isAr = i18n.language === 'ar';
   const CONF_TABS = [
     { id: 'all', label: t('iranPanel.confAll') },
     { id: 'HIGH', label: t('iranPanel.confHigh') },
@@ -55,7 +56,7 @@ export default function IranPanel({ strikes = [], onSelectStrike }) {
           <span className="text-lg" aria-hidden="true">🇮🇷</span>
           <span className="font-bold text-sm text-red-400">{t('iranPanel.title')}</span>
           <span className="text-2xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full border border-red-500/30 animate-pulse">
-            LIVE
+            {t('common.live')}
           </span>
         </div>
         <button onClick={loadData} aria-label={t('iranPanel.reload')} title={t('iranPanel.reload')}
@@ -107,7 +108,7 @@ export default function IranPanel({ strikes = [], onSelectStrike }) {
       {error && (
         <div role="alert" className="px-3 py-2 bg-red-500/10 border-b border-red-500/30 text-xs text-red-200 flex items-center justify-between gap-2">
           <span>{t('iranPanel.loadFailed')}</span>
-          <button onClick={loadData} className="underline hover:text-white focus-ring rounded">{t('iranPanel.retry')}</button>
+          <button onClick={loadData} className="min-h-11 -my-2 px-1 underline hover:text-white focus-ring rounded">{t('iranPanel.retry')}</button>
         </div>
       )}
 
@@ -143,14 +144,12 @@ export default function IranPanel({ strikes = [], onSelectStrike }) {
                 const evType = IRAN_EVENT_TYPES[strike.event_type] || IRAN_EVENT_TYPES.strike;
                 const videoLink = safeUrl(strike.video_url);
                 const sourceLink = safeUrl(strike.url);
+                // الصف حاوية غير تفاعلية: زر للعنوان وروابط إخوة له — لا روابط داخل
+                // زر (قارئ الشاشة يعلن عناصر مستقلة وTab يمرّ عليها بالترتيب)
                 return (
                   <div
                     key={strike.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => onSelectStrike?.(strike)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectStrike?.(strike); } }}
-                    className="border-b border-rasad-border px-3 py-2.5 hover:bg-rasad-panel cursor-pointer group focus-ring"
+                    className="border-b border-rasad-border px-3 py-2.5 hover:bg-rasad-panel group"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
@@ -173,17 +172,20 @@ export default function IranPanel({ strikes = [], onSelectStrike }) {
                               href={videoLink}
                               target="_blank"
                               rel="noopener noreferrer"
-                              onClick={e => e.stopPropagation()}
                               className="text-2xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 focus-ring"
                             >
                               {t('iranPanel.video')}
                             </a>
                           )}
                         </div>
-                        {/* العنوان */}
-                        <p className="text-xs text-slate-200 leading-relaxed line-clamp-2 group-hover:text-white">
-                          {strike.title}
-                        </p>
+                        {/* العنوان — هو الزر */}
+                        <button
+                          type="button"
+                          onClick={() => onSelectStrike?.(strike)}
+                          className="block w-full min-h-11 text-start text-xs text-slate-200 leading-relaxed group-hover:text-white focus-ring rounded"
+                        >
+                          <span className="line-clamp-2">{strike.title}</span>
+                        </button>
                         {/* المعلومات السفلية */}
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-2xs text-slate-300">{strike.location_name || strike.country}</span>
@@ -194,7 +196,6 @@ export default function IranPanel({ strikes = [], onSelectStrike }) {
                               href={sourceLink}
                               target="_blank"
                               rel="noopener noreferrer"
-                              onClick={e => e.stopPropagation()}
                               className="text-2xs text-cyan-300 hover:text-cyan-200 ms-auto focus-ring rounded"
                             >
                               {t('iranPanel.source')}
@@ -230,8 +231,9 @@ export default function IranPanel({ strikes = [], onSelectStrike }) {
                   <div className="flex items-center gap-2">
                     <span aria-hidden="true">{leader.icon}</span>
                     <div>
-                      <div className="text-xs font-bold text-white">{leader.name}</div>
-                      <div className="text-2xs text-slate-300">{leader.role}</div>
+                      {/* القائمة تحمل الاسم والدور باللغتين (data/iranian_leaders.json) */}
+                      <div className="text-xs font-bold text-white">{isAr ? leader.name : (leader.name_en || leader.name)}</div>
+                      <div className="text-2xs text-slate-300">{isAr ? leader.role : (leader.role_en || leader.role)}</div>
                     </div>
                   </div>
                   {leader.active && (

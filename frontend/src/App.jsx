@@ -121,6 +121,8 @@ export default function App() {
 
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  // يتزايد بعد كل تحديث يدوي ناجح — الزر يجب أن يحرّك التبويب الافتراضي لا الأحداث وحدها
+  const [refreshTick, setRefreshTick] = useState(0);
   const [toast, setToast] = useState(null);   // { kind: 'ok'|'error', text }
 
   // إخفاء الإشعار تلقائياً
@@ -145,6 +147,9 @@ export default function App() {
       refetchEvents();
       refetchMap();
       refetchStats();
+      refetchRisk();
+      // اللوحات التي تملك استطلاعاتها (الرصد النووي، العدسة) تعيد الجلب بتغيّر العدّاد
+      setRefreshTick(n => n + 1);
       setToast(refreshToast(result, t));
     } catch (e) {
       // الخادم يعيد 429 مع Retry-After عند التحديث المتقارب — نعرضه بدل ابتلاعه
@@ -156,7 +161,7 @@ export default function App() {
     } finally {
       setRefreshing(false);
     }
-  }, [refetchEvents, refetchMap, refetchStats, t]);
+  }, [refetchEvents, refetchMap, refetchStats, refetchRisk, t]);
 
   // اختيار حدث: يفتح لوحة التفاصيل ويُحرّك الخريطة إليه. على الجوال تبقى
   // اللوحة ظاهرة (التفاصيل فيها) و«عرض على الخريطة» ينقل صراحةً.
@@ -323,6 +328,7 @@ export default function App() {
             onOpenEvent={handleSelectEvent}
             activeId={detailEvent?.id}
             onSelectFacility={handleSelectFacility}
+            refreshTick={refreshTick}
           />
         )}
         {activeTab === 'impact' && (
@@ -332,6 +338,7 @@ export default function App() {
               onOpenEventById={openEventById}
               onSelectSector={handleSelectSector}
               activeId={detailEvent?.id}
+              refreshTick={refreshTick}
             />
           </Suspense>
         )}
@@ -428,7 +435,7 @@ export default function App() {
           }`}
         >
           <span>{toast.text}</span>
-          <button onClick={() => setToast(null)} aria-label={t('app.dismiss')} className="focus-ring rounded p-0.5 hover:text-white">
+          <button onClick={() => setToast(null)} aria-label={t('app.dismiss')} className="min-w-11 min-h-11 -my-2 flex items-center justify-center focus-ring rounded hover:text-white">
             <X className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
         </div>

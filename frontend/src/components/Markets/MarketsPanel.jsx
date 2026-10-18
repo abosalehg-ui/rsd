@@ -156,7 +156,7 @@ export default function MarketsPanel({ latest, latestError = null }) {
           <p role="alert" className="flex items-start gap-1.5 rounded border border-red-500/30 bg-red-500/10 px-2.5 py-1.5 text-xs text-red-200">
             <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" aria-hidden="true" />
             <span className="flex-1">{t('markets.seriesFailed')}</span>
-            <button onClick={() => refetchSeries()} className="shrink-0 underline focus-ring rounded">{t('common.retry')}</button>
+            <button onClick={() => refetchSeries()} className="shrink-0 min-h-11 -my-2 px-1 underline focus-ring rounded">{t('common.retry')}</button>
           </p>
         )}
 

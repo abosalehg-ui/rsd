@@ -316,9 +316,9 @@ class TestReviewFixes:
         assert calls == ["cycle"]
 
     async def test_build_chains_reports_truncation(self, chain_seed, monkeypatch):
-        from app.api import chains as chains_api
+        from app.services import chains as chains_service
 
         await _link_now()
-        monkeypatch.setattr(chains_api, "_LINK_CAP", 1)
+        monkeypatch.setattr(chains_service, "_LINK_CAP", 1)
         body = await chains_api.build_chains(72, 0.0, 10, now=NOW)
         assert body["truncated"] is True and body["links"] == 1

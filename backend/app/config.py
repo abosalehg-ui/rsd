@@ -33,12 +33,20 @@ def _default_database_url() -> str:
     return "sqlite+aiosqlite:///./rasad.db"
 
 
-def _env_files():
-    """ملفات .env المعتمدة. عند التجميد نقرأ أيضاً .env من مجلّد بيانات المستخدم
-    (قابل للكتابة) ليتمكّن المستخدم من إضافة مفاتيح مثل NEWSAPI_KEY."""
+# جذر المستودع (backend/app/config.py → ../../). README يطلب وضع `.env` فيه،
+# بينما `Rasad.bat` والتشغيل اليدوي ينفّذان الخلفية من `backend/` — فمسار نسبي
+# وحده كان يتجاهل الملف بصمت ويعرض «لا مفتاح» رغم وجوده.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _env_files() -> tuple[str, ...]:
+    """ملفات .env المعتمدة بترتيب الأولوية التصاعدي (الأخير يغلب):
+    جذر المستودع، ثم مجلد التشغيل الحالي، ثم — عند التجميد — مجلد بيانات
+    المستخدم القابل للكتابة (%LOCALAPPDATA%\\Rasad)."""
+    files = [str(_REPO_ROOT / ".env"), ".env"]
     if getattr(sys, "frozen", False):
-        return (".env", str(get_app_data_dir() / ".env"))
-    return ".env"
+        files.append(str(get_app_data_dir() / ".env"))
+    return tuple(files)
 
 
 class Settings(BaseSettings):
@@ -51,9 +59,11 @@ class Settings(BaseSettings):
 
     # UCDP — الـ API صار مغلقًا برمز وصول؛ بلا رمز يُتخطّى المصدر كليًا.
     ucdp_access_token: str = ""
-    # مجموعة البيانات: المجموعات السنوية (مثل "24.1") تنتهي عند نهاية سنتها،
-    # فاستخدم مجموعة المرشّحين الشهرية لتغطية الأحداث الحديثة.
-    ucdp_dataset: str = "24.1"
+    # مجموعة البيانات، إمّا إصدارًا عاريًا يُلحق بـ `gedevents/` (مثل "25.1")
+    # أو مسارًا كاملًا بعد `/api/` (مثل "candidateevents/25.0.9"). المجموعات
+    # السنوية تنتهي عند نهاية سنتها فلا تُنتج أحداثًا حديثة؛ لذلك لا افتراضي:
+    # فارغ = المصدر معطّل بتحذير صريح بدل مصدر «مفعّل» يجمع صفرًا بلا تفسير.
+    ucdp_dataset: str = ""
     # معرّفات دول UCDP (Gleditsch & Ward) للشرق الأوسط. أفرغها لجلب كل الدول
     # والاكتفاء بالتصفية المحلية على أسماء الدول.
     ucdp_country_ids: str = "620,625,630,640,645,651,652,660,663,666,670,678"
@@ -148,6 +158,11 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @property
+    def ucdp_enabled(self) -> bool:
+        """UCDP يجمع فقط برمز وصول **ومجموعة بيانات** معًا."""
+        return bool(self.ucdp_access_token and self.ucdp_dataset.strip())
 
     @property
     def cors_origins_list(self) -> list[str]:

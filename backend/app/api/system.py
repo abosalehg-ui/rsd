@@ -213,28 +213,24 @@ async def get_sources():
     بلا رمز، FRED بلا مفتاح) يُعلَن `disabled` بدل `active` لأنه لا يجمع شيئًا."""
     s = get_settings()
 
-    def _fmt(seconds: int) -> str:
-        if seconds >= 86400:
-            return "يومي"
-        if seconds >= 3600:
-            return f"كل {seconds // 3600} ساعة"
-        if seconds >= 60:
-            return f"كل {seconds // 60} دقيقة"
-        return f"كل {seconds} ثانية"
-
     def _state(enabled: bool) -> str:
         return "active" if enabled else "disabled"
 
+    def _src(id_: str, name: str, seconds: int, enabled: bool = True) -> dict:
+        # `interval_seconds` رقمًا و`name` اسم المزوّد الرسمي (لا نص واجهة): بقية
+        # الـ API تعيد مفاتيح تترجمها الواجهة، فلا نصوص عربية خامًا هنا
+        return {"id": id_, "name": name, "interval_seconds": seconds, "status": _state(enabled)}
+
     return {
         "active": [
-            {"id": "gdelt", "name": "GDELT Project", "interval": _fmt(s.gdelt_interval), "status": "active"},
-            {"id": "newsapi", "name": "NewsAPI", "interval": _fmt(s.newsapi_interval), "status": _state(bool(s.newsapi_key))},
-            {"id": "rss", "name": "RSS Feeds", "interval": _fmt(s.rss_interval), "status": "active"},
-            {"id": "ucdp", "name": "UCDP Uppsala", "interval": _fmt(s.ucdp_interval), "status": _state(bool(s.ucdp_access_token))},
-            {"id": "iran_osint", "name": "Iran OSINT", "interval": _fmt(s.iran_osint_interval), "status": "active"},
-            {"id": "nuclear_watch", "name": "الرصد النووي والإشعاعي", "interval": _fmt(s.nuclear_interval), "status": "active"},
-            {"id": "adsb", "name": "adsb.lol ADS-B", "interval": _fmt(s.effective_adsb_interval), "status": "active"},
-            {"id": "fred", "name": "FRED (St. Louis Fed)", "interval": _fmt(s.markets_interval), "status": _state(bool(s.fred_api_key))},
+            _src("gdelt", "GDELT Project", s.gdelt_interval),
+            _src("newsapi", "NewsAPI", s.newsapi_interval, bool(s.newsapi_key)),
+            _src("rss", "RSS Feeds", s.rss_interval),
+            _src("ucdp", "UCDP Uppsala", s.ucdp_interval, s.ucdp_enabled),
+            _src("iran_osint", "Iran OSINT", s.iran_osint_interval),
+            _src("nuclear_watch", "Nuclear & Radiological Watch", s.nuclear_interval),
+            _src("adsb", "adsb.lol ADS-B", s.effective_adsb_interval),
+            _src("fred", "FRED (St. Louis Fed)", s.markets_interval, bool(s.fred_api_key)),
         ],
         "planned": [
             {"id": "telegram", "name": "Telegram", "status": "phase_2"},

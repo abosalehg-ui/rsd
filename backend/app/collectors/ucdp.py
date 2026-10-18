@@ -20,7 +20,13 @@ from ..processors.text_analysis import COUNTRY_COORDS, ME_COUNTRY_NAMES
 
 logger = logging.getLogger("rasad.ucdp")
 
-UCDP_API_BASE = "https://ucdpapi.pcr.uu.se/api/gedevents"
+UCDP_API_BASE = "https://ucdpapi.pcr.uu.se/api"
+
+
+def dataset_url(dataset: str) -> str:
+    """`25.1` → `…/api/gedevents/25.1`؛ `candidateevents/25.0.9` → `…/api/candidateevents/25.0.9`."""
+    dataset = dataset.strip().strip("/")
+    return f"{UCDP_API_BASE}/{dataset}" if "/" in dataset else f"{UCDP_API_BASE}/gedevents/{dataset}"
 
 # اسم الدولة كما يكتبه UCDP → رمز ISO. الإحداثيات والاسم العربي يأتيان من
 # `text_analysis` (مصدر واحد) بدل نسختين محليّتين هنا.
@@ -93,6 +99,12 @@ async def collect_ucdp_events() -> int:
     if not settings.ucdp_access_token:
         logger.info("UCDP: لا رمز وصول (UCDP_ACCESS_TOKEN) — المصدر متخطّى")
         return 0
+    if not settings.ucdp_dataset.strip():
+        logger.warning(
+            "UCDP: رمز الوصول مضبوط لكن UCDP_DATASET فارغ — المصدر متخطّى. "
+            "ضع إصدار مجموعة المرشّحين الشهرية (مثل candidateevents/25.0.9) في .env"
+        )
+        return 0
 
     session_factory = get_session_factory()
     if not session_factory:
@@ -102,7 +114,7 @@ async def collect_ucdp_events() -> int:
     skipped_old = 0
     fetched = 0
     since = datetime.now(timezone.utc) - timedelta(days=settings.retention_events_days)
-    url = f"{UCDP_API_BASE}/{settings.ucdp_dataset}"
+    url = dataset_url(settings.ucdp_dataset)
     headers = {"x-ucdp-access-token": settings.ucdp_access_token}
 
     try:

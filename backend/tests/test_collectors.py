@@ -190,6 +190,7 @@ class TestUcdpCollector:
     @pytest.mark.asyncio
     async def test_sends_the_access_token_header(self, monkeypatch):
         monkeypatch.setenv("UCDP_ACCESS_TOKEN", "tok-123")
+        monkeypatch.setenv("UCDP_DATASET", "candidateevents/25.0.9")
         get_settings.cache_clear()
         seen = {}
 
@@ -207,6 +208,7 @@ class TestUcdpCollector:
     @pytest.mark.asyncio
     async def test_stores_a_recent_event(self, monkeypatch):
         monkeypatch.setenv("UCDP_ACCESS_TOKEN", "tok-123")
+        monkeypatch.setenv("UCDP_DATASET", "candidateevents/25.0.9")
         get_settings.cache_clear()
         mock_httpx(monkeypatch, ucdp, lambda request: httpx.Response(
             200, json=ucdp_payload(event_id=7, days_ago=1),
@@ -223,6 +225,7 @@ class TestUcdpCollector:
         """حارس الصفوف غير المرئية: حدث أقدم من نافذة الاحتفاظ لا يراه أحد،
         فتخزينه يملأ القاعدة بما يُحذف لاحقاً بلا أن يُعرض مرة."""
         monkeypatch.setenv("UCDP_ACCESS_TOKEN", "tok-123")
+        monkeypatch.setenv("UCDP_DATASET", "candidateevents/25.0.9")
         get_settings.cache_clear()
         mock_httpx(monkeypatch, ucdp, lambda request: httpx.Response(
             200, json=ucdp_payload(event_id=9, days_ago=900),
@@ -234,6 +237,7 @@ class TestUcdpCollector:
     @pytest.mark.asyncio
     async def test_raises_on_rejected_token(self, monkeypatch):
         monkeypatch.setenv("UCDP_ACCESS_TOKEN", "bad")
+        monkeypatch.setenv("UCDP_DATASET", "candidateevents/25.0.9")
         get_settings.cache_clear()
         mock_httpx(monkeypatch, ucdp, lambda request: httpx.Response(401, text="Invalid token"))
 
@@ -244,6 +248,7 @@ class TestUcdpCollector:
     async def test_skips_events_without_a_usable_date(self, monkeypatch):
         """تاريخ مفقود كان يقع على "الآن" فيظهر نزاع قديم كخبر عاجل."""
         monkeypatch.setenv("UCDP_ACCESS_TOKEN", "tok-123")
+        monkeypatch.setenv("UCDP_DATASET", "candidateevents/25.0.9")
         get_settings.cache_clear()
         payload = ucdp_payload(event_id=11, days_ago=1)
         payload["Result"][0]["date_start"] = ""

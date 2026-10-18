@@ -33,6 +33,20 @@ CONTENT_SECURITY_POLICY = (
     "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 )
 
+# وثائق OpenAPI التي يولّدها FastAPI تحمّل Swagger/ReDoc من jsdelivr وتبدأ
+# بسكربت مضمّن؛ السياسة العامة (`script-src 'self'`) تحجبهما فتفتح `/docs`
+# صفحة بيضاء. سياسة خاصة بهذه المسارات وحدها — لا إضعاف للسياسة العامة.
+DOCS_PREFIXES = ("/docs", "/redoc", "/openapi.json")
+DOCS_CONTENT_SECURITY_POLICY = (
+    "default-src 'self'; "
+    "img-src 'self' data: https://fastapi.tiangolo.com; "
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+    "font-src 'self' data:; "
+    "connect-src 'self'; "
+    "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+)
+
 SECURITY_HEADERS = {
     "Content-Security-Policy": CONTENT_SECURITY_POLICY,
     "X-Content-Type-Options": "nosniff",
@@ -54,6 +68,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         if request.url.path.startswith("/api/"):
             return response
-        for name, value in SECURITY_HEADERS.items():
+        headers = SECURITY_HEADERS
+        if request.url.path.startswith(DOCS_PREFIXES):
+            headers = {**SECURITY_HEADERS, "Content-Security-Policy": DOCS_CONTENT_SECURITY_POLICY}
+        for name, value in headers.items():
             response.headers.setdefault(name, value)
         return response

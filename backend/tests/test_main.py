@@ -45,7 +45,8 @@ async def test_health_reports_the_package_version(main_client):
 
 
 @pytest.mark.asyncio
-async def test_sources_lists_active_collectors_with_readable_intervals(main_client):
+async def test_sources_lists_active_collectors_with_machine_readable_intervals(main_client):
+    """الفاصل رقم بالثواني لا نصًّا عربيًا خامًا — الواجهة هي من تترجم."""
     async with main_client as c:
         r = await c.get("/api/sources")
     assert r.status_code == 200
@@ -53,7 +54,8 @@ async def test_sources_lists_active_collectors_with_readable_intervals(main_clie
     ids = {s["id"] for s in data["active"]}
     assert {"gdelt", "newsapi", "rss", "ucdp", "iran_osint", "adsb"} <= ids
     for source in data["active"]:
-        assert source["interval"], "كل مصدر يحتاج وصفاً مقروءاً لفاصله"
+        assert isinstance(source["interval_seconds"], int) and source["interval_seconds"] > 0
+        assert "interval" not in source
 
 
 @pytest.mark.asyncio
@@ -64,7 +66,7 @@ async def test_sources_marks_credential_less_collectors_disabled(main_client):
         r = await c.get("/api/sources")
     by_id = {s["id"]: s for s in r.json()["active"]}
 
-    expected_ucdp = "active" if settings.ucdp_access_token else "disabled"
+    expected_ucdp = "active" if settings.ucdp_enabled else "disabled"
     expected_news = "active" if settings.newsapi_key else "disabled"
     assert by_id["ucdp"]["status"] == expected_ucdp
     assert by_id["newsapi"]["status"] == expected_news
