@@ -73,6 +73,19 @@ describe('<NuclearPanel>', () => {
     await waitFor(() => expect(getEvents).toHaveBeenLastCalledWith(expect.objectContaining({ near_ksa_km: 800 })));
   });
 
+  it('refetches stories and facilities when the header refresh ticks', async () => {
+    const getEvents = vi.spyOn(api, 'getNuclearEvents').mockResolvedValue({ events: [] });
+    const getWatch = vi.spyOn(api, 'getFacilityWatch').mockResolvedValue({ facilities: [] });
+    const { rerender } = render(<NuclearPanel risk={risk} hours={24} refreshTick={0} />);
+    await waitFor(() => expect(getEvents).toHaveBeenCalledTimes(1));
+    expect(getWatch).toHaveBeenCalledTimes(1);
+
+    // زر «تحديث» في الهيدر يزيد العدّاد — اللوحة تعيد الجلب فورًا لا بعد دقيقة
+    rerender(<NuclearPanel risk={risk} hours={24} refreshTick={1} />);
+    await waitFor(() => expect(getEvents).toHaveBeenCalledTimes(2));
+    expect(getWatch).toHaveBeenCalledTimes(2);
+  });
+
   it('lists facilities in the news with distance to the Kingdom', async () => {
     vi.spyOn(api, 'getNuclearEvents').mockResolvedValue({ events: [] });
     vi.spyOn(api, 'getFacilityWatch').mockResolvedValue({

@@ -20,7 +20,7 @@ export default function StaleNotice({ error, stale = false, onRetry, className =
       <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" aria-hidden="true" />
       <span className="flex-1">{stale ? t('common.staleFailed') : t('common.refreshFailed')}</span>
       {onRetry && (
-        <button onClick={() => onRetry()} className="shrink-0 underline focus-ring rounded">{t('common.retry')}</button>
+        <button onClick={() => onRetry()} className="shrink-0 min-h-11 -my-2 px-1 underline focus-ring rounded">{t('common.retry')}</button>
       )}
     </p>
   );

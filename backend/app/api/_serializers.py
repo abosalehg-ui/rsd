@@ -18,6 +18,12 @@ def _extra(event: Event) -> dict:
     return parse_extra(event.extra_data)
 
 
+def source_name_of(event: Event) -> str:
+    """اسم المصدر وحده بلا تسلسل كامل (لا تنظيف نصوص) — لعدّ المصادر في التقرير."""
+    extra = _extra(event)
+    return extra.get("source_name") or extra.get("feed_name") or event.source
+
+
 def serialize_event(event: Event) -> dict:
     """التمثيل القياسي لحدث."""
     extra = _extra(event)
@@ -45,7 +51,7 @@ def serialize_event(event: Event) -> dict:
         "risk_score": event.risk_score,
         "facility_id": event.facility_id,
         "cluster_id": event.cluster_id or event.id,
-        "source_name": extra.get("source_name") or extra.get("feed_name") or event.source,
+        "source_name": source_name_of(event),
         "nuclear": nuclear,
         "ksa_impact": event.ksa_impact,
         "impact_sectors": parse_sectors(event.impact_sectors),

@@ -24,6 +24,8 @@ export const THEME = {
   raised: '#18222c',    // rasad-raised
   border: '#22303c',    // rasad-border
   text: '#e2e8f0',      // نص أساسي داخل النوافذ
+  textBright: '#e6edf2', // إبرة المقياس والنصوص المرسومة على canvas
+  globe: '#16324f',     // كرة صلبة احتياطية حين يتعذّر تحميل نسيج الكرة
   textSecondary: '#cbd5e1',
   textMuted: '#94a3b8',
   idle: '#475569',      // مؤشر بلا بيانات (قطاع بلا قصص) — أبهت من النص الثانوي عمدًا

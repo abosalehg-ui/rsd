@@ -79,25 +79,28 @@ export default function AlertSettings({
               <div className="text-sm font-medium">{t('alerts.sound')}</div>
               <div className="text-xs text-slate-300">{t('alerts.soundDesc')}</div>
             </div>
+            {/* هدف اللمس 44px حول المسار المرئي 24px: الزر نفسه هو الهدف، والمسار زخرفة داخله */}
             <button
               dir="ltr"
               onClick={() => setPrefs({ enabled: !prefs.enabled })}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-ring ${prefs.enabled ? 'bg-cyan-500' : 'bg-slate-600'}`}
+              className="min-w-11 min-h-11 -my-2 flex items-center justify-center rounded focus-ring"
               role="switch"
               aria-checked={prefs.enabled}
               aria-label={t('alerts.sound')}
             >
-              <span
-                className="inline-block h-4 w-4 rounded-full bg-white transition-transform"
-                style={{ transform: `translateX(${prefs.enabled ? '24px' : '4px'})` }}
-              />
+              <span className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${prefs.enabled ? 'bg-cyan-500' : 'bg-slate-600'}`}>
+                <span
+                  className="inline-block h-4 w-4 rounded-full bg-white transition-transform"
+                  style={{ transform: `translateX(${prefs.enabled ? '24px' : '4px'})` }}
+                />
+              </span>
             </button>
           </div>
 
           {/* اختبار الصوت */}
           <button
             onClick={testSound}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-cyan-400 hover:bg-cyan-500/20 text-sm"
+            className="w-full min-h-11 flex items-center justify-center gap-2 px-4 py-2 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-cyan-400 hover:bg-cyan-500/20 text-sm focus-ring"
           >
             <Volume2 className="w-4 h-4" aria-hidden="true" />
             {t('alerts.testSound')}
@@ -113,7 +116,7 @@ export default function AlertSettings({
                   role="radio"
                   aria-checked={prefs.threshold === opt.value}
                   onClick={() => setPrefs({ threshold: opt.value })}
-                  className={`px-3 py-2 rounded-lg text-xs border transition-colors focus-ring ${
+                  className={`min-h-11 px-3 py-2 rounded-lg text-xs border transition-colors focus-ring ${
                     prefs.threshold === opt.value
                       ? 'bg-cyan-500/10 border-cyan-500 text-white'
                       : 'bg-rasad-panel border-rasad-border text-slate-400 hover:border-slate-600'
@@ -142,7 +145,7 @@ export default function AlertSettings({
                     key={value}
                     onClick={() => toggleCategory(value)}
                     aria-pressed={selected}
-                    className={`px-3 py-2 rounded-lg text-xs border transition-colors flex items-center justify-between focus-ring ${
+                    className={`min-h-11 px-3 py-2 rounded-lg text-xs border transition-colors flex items-center justify-between focus-ring ${
                       selected
                         ? 'bg-cyan-500/10 border-cyan-500 text-white'
                         : 'bg-rasad-panel border-rasad-border text-slate-400 hover:border-slate-600'
@@ -194,7 +197,7 @@ export default function AlertSettings({
             </div>
             <button
               onClick={handleEnableDesktop}
-              className="w-full px-3 py-2 text-xs bg-rasad-panel border border-rasad-border rounded-lg text-slate-300 hover:border-cyan-500 hover:text-cyan-400"
+              className="w-full min-h-11 px-3 py-2 text-xs bg-rasad-panel border border-rasad-border rounded-lg text-slate-300 hover:border-cyan-500 hover:text-cyan-400 focus-ring"
             >
               {prefs.desktopNotifications ? t('alerts.desktopReask') : t('alerts.desktopRequest')}
             </button>
@@ -224,7 +227,7 @@ export default function AlertSettings({
                   <button
                     key={`${a.id}-${a._alertedAt}`}
                     onClick={() => { onSelectAlert?.(a); onClose(); }}
-                    className="w-full text-start p-2 bg-rasad-bg hover:bg-rasad-panel border border-rasad-border rounded text-xs"
+                    className="w-full min-h-11 text-start p-2 bg-rasad-bg hover:bg-rasad-panel border border-rasad-border rounded text-xs focus-ring"
                   >
                     <div className="text-slate-200 line-clamp-2 leading-relaxed">{a.title}</div>
                     <div className="flex justify-between mt-1 text-xs text-slate-300">

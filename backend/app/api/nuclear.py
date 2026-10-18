@@ -26,10 +26,10 @@ from ..models.database import Event, get_session_factory
 from ..processors.dates import as_utc
 from ..processors.gazetteer import ksa_point_en, nearest_ksa_point
 from ..processors.nuclear import TOPICS, severity_from_score
-from ._serializers import serialize_event
+from ..services.chains import build_chains
+from ..services.impact import build_ksa_impact
+from ._serializers import serialize_event, source_name_of
 from ._stories import collapse, representatives
-from .chains import build_chains
-from .impact import build_ksa_impact
 
 router = APIRouter(prefix="/api/nuclear", tags=["nuclear"])
 
@@ -76,8 +76,15 @@ def _enrich_facility(fac: dict) -> dict:
     return out
 
 
+@lru_cache(maxsize=1)
+def _enriched_facilities() -> tuple[dict, ...]:
+    """المسافات إلى المملكة ثابتة بعد الإقلاع — تُحسب مرة لا مع كل طلب."""
+    return tuple(_enrich_facility(f) for f in _load_data().get("facilities", []))
+
+
 def _facilities() -> list[dict]:
-    return [_enrich_facility(f) for f in _load_data().get("facilities", [])]
+    # نسخ سطحية: المستدعون يعدّلون القاموس (تصفية/إثراء) فلا يمسّون المخزّن
+    return [dict(f) for f in _enriched_facilities()]
 
 
 @router.get("/facilities")
@@ -436,7 +443,7 @@ async def build_brief(hours: int) -> dict:
     watch = _facility_watch(events)[:8]
     sources: dict[str, int] = {}
     for e in events:
-        name = serialize_event(e)["source_name"]
+        name = source_name_of(e)
         sources[name] = sources.get(name, 0) + 1
 
     all_stories = collapse(events, 200)

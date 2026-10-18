@@ -14,7 +14,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Radiation, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
-import { RISK_BANDS, SEVERITIES, riskColor, riskLevel } from '../../utils/constants';
+import { RISK_BANDS, SEVERITIES, THEME, riskColor, riskLevel } from '../../utils/constants';
 import Sparkline from './Sparkline';
 import StaleNotice, { staleClass } from '../common/StaleNotice';
 
@@ -55,7 +55,7 @@ export default function RiskGauge({
       <div className="rounded-lg border border-rasad-border bg-rasad-bg p-4 text-sm text-red-200" role="alert">
         {loadFailedText || t('risk.loadFailed')}{' '}
         {onRetry && (
-          <button onClick={onRetry} className="underline focus-ring rounded">{t('risk.retry')}</button>
+          <button onClick={onRetry} className="min-h-11 -my-2 px-1 underline focus-ring rounded">{t('risk.retry')}</button>
         )}
       </div>
     );
@@ -117,7 +117,7 @@ export default function RiskGauge({
             {/* الإبرة */}
             <span
               className="gauge-needle absolute -top-4 -translate-x-1/2 w-0 h-0 border-x-[6px] border-x-transparent border-t-[8px]"
-              style={{ insetInlineStart: pct(value), borderTopColor: '#e6edf2' }}
+              style={{ insetInlineStart: pct(value), borderTopColor: THEME.textBright }}
             />
           </div>
           <div className="flex justify-between text-2xs font-mono text-slate-400 -mt-1.5">

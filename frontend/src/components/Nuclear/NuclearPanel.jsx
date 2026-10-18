@@ -19,20 +19,23 @@ const NEAR_KSA_KM = 800;
 
 export default function NuclearPanel({
   risk, riskError, riskStale = false, onRetryRisk, hours, onHoursChange, onOpenEvent, activeId, onSelectFacility,
+  refreshTick = 0,
 }) {
   const { t } = useTranslation();
   const [topic, setTopic] = useState('');
   const [nearKsa, setNearKsa] = useState(false);
 
+  // `refreshTick` في deps الاستطلاع: زر «تحديث» في الهيدر يعيد جلب هذه اللوحة
+  // فورًا لا بعد دورة الاستطلاع التالية (الخادم أبطل ذاكرته بعد الجمع)
   const { data: eventsData, loading, error } = usePolling(
     useCallback(() => getNuclearEvents({
       hours, topic, limit: 120, near_ksa_km: nearKsa ? NEAR_KSA_KM : undefined,
     }), [hours, topic, nearKsa]),
-    60000, [hours, topic, nearKsa],
+    60000, [hours, topic, nearKsa, refreshTick],
   );
   const { data: watchData } = usePolling(
     useCallback(() => getFacilityWatch(hours), [hours]),
-    300000, [hours],
+    300000, [hours, refreshTick],
   );
 
   const events = useMemo(() => eventsData?.events || [], [eventsData]);

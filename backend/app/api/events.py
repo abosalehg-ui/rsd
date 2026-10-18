@@ -36,9 +36,18 @@ async def get_events(
     مصادرها؛ `total` يبقى عدد الأحداث الخام و`stories` عدد القصص المُعادة.
     `category=nuclear` يشمل الإشعاعي أيضًا (الرصد النووي والإشعاعي وحدة واحدة).
     `sector` يفلتر بقطاع عدسة الأثر على المملكة (processors/impact.SECTOR_KEYS).
+    `offset` مع `collapse=false` فقط (422 غير ذلك): الإزاحة تعدّ الأحداث الخام.
     """
     if sector and sector not in SECTOR_KEYS:
         raise HTTPException(status_code=422, detail=f"قطاع غير معروف: {sector}")
+    if offset and collapse_stories:
+        # `offset` يعدّ الصفوف الخام و`limit` يعدّ القصص: الصفحة الثانية كانت تتخطّى
+        # `limit` صفًا لا `limit` قصة فتتكرّر قصص وتضيع أخرى. الترقيم بالإزاحة
+        # للأحداث الخام وحدها (collapse=false).
+        raise HTTPException(
+            status_code=422,
+            detail="offset لا يُقبل مع collapse=true (الإزاحة تعدّ الأحداث الخام والحدّ يعدّ القصص) — استعمل collapse=false",
+        )
     session_factory = get_session_factory()
     async with session_factory() as session:
         query = select(Event)

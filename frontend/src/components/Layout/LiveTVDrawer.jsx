@@ -131,7 +131,7 @@ export default function LiveTVDrawer() {
           aria-label={t('tv.open')}
         >
           <Tv className="w-4 h-4" aria-hidden="true" />
-          <span className="text-2xs font-bold">LIVE</span>
+          <span className="text-2xs font-bold">{t('common.live')}</span>
         </button>
       )}
 
@@ -153,7 +153,7 @@ export default function LiveTVDrawer() {
                 <span className="text-xs font-bold text-white">
                   {activeChannel.icon} {t(`tv.channels.${activeChannel.id}`)}
                 </span>
-                <span className="text-2xs bg-red-600 text-white px-1.5 py-0.5 rounded font-bold animate-pulse">LIVE</span>
+                <span className="text-2xs bg-red-600 text-white px-1.5 py-0.5 rounded font-bold animate-pulse">{t('common.live')}</span>
               </div>
               <button
                 onClick={() => setIsOpen(false)}
@@ -189,7 +189,7 @@ export default function LiveTVDrawer() {
                   key={channel.id}
                   onClick={() => setActiveChannel(channel)}
                   aria-pressed={activeChannel.id === channel.id}
-                  className={`flex-1 flex items-center justify-center gap-1 text-xs py-1.5 rounded transition-all focus-ring ${
+                  className={`flex-1 min-h-11 flex items-center justify-center gap-1 text-xs py-1.5 rounded transition-all focus-ring ${
                     activeChannel.id === channel.id
                       ? 'bg-red-500/20 text-red-200 font-bold'
                       : 'bg-rasad-border text-slate-300 hover:text-white'

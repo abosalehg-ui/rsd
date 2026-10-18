@@ -126,10 +126,10 @@ export default function RasadGlobe({
     const g = Globe()(container)
       .width(w)
       .height(h)
-      .backgroundColor('#0a0e17')
+      .backgroundColor(THEME.bg)
       .globeImageUrl(GLOBE_IMG)
       .bumpImageUrl(BUMP_IMG)
-      .atmosphereColor('#22d3ee')
+      .atmosphereColor(THEME.accent)
       .atmosphereAltitude(0.18)
       .showGraticules(true);
 
@@ -139,7 +139,7 @@ export default function RasadGlobe({
     probe.onerror = () => {
       try {
         g.globeImageUrl(null).bumpImageUrl(null);
-        g.globeMaterial().color.set('#16324f');
+        g.globeMaterial().color.set(THEME.globe);
       } catch { /* الكرة أُتلفت قبل اكتمال الفحص */ }
     };
     probe.src = GLOBE_IMG;

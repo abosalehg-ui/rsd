@@ -13,7 +13,7 @@ cd rsd
 cp .env.example .env      # ثم املأ مفاتيحك (راجع التعليقات داخل الملف)
 ```
 
-### الخلفية | Backend (Python 3.10+)
+### الخلفية | Backend (Python 3.11+)
 
 ```bash
 cd backend
@@ -21,7 +21,7 @@ pip install -r requirements-dev.txt   # يشمل requirements.txt + أدوات �
 uvicorn app.main:app --reload --port 8000
 ```
 
-### الواجهة | Frontend (Node 18+)
+### الواجهة | Frontend (Node 20.19+ أو 22.12+)
 
 ```bash
 cd frontend
@@ -76,6 +76,7 @@ backend/app/
   ├── collectors/   جامعو المصادر (gdelt, news_api, rss_feeds, ucdp, adsb, iran_osint, nuclear_watch, markets) + _feed_base
   ├── processors/   منطق نقي (matching, normalize, gazetteer, nuclear, impact, impact_index, text_analysis, clustering,
   │                 causal + causal_entities/causal_rules/causal_lexicon, markets, dates)
+  ├── services/     دوال build_* الثقيلة (العدسة، السلاسل) تتشاركها عدة مسارات
   ├── models/       نماذج SQLAlchemy + ترقية الأعمدة + الاحتفاظ بالبيانات
   ├── analysis.py   الدورة التحليلية (تجميع القصص، ربط السلاسل، إعادة التحليل)
   ├── cache.py      ذاكرة مؤقتة للنقاط الثقيلة تُبطَل بعد كل كتابة

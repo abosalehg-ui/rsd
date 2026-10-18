@@ -8,8 +8,8 @@
 ![Version](https://img.shields.io/badge/version-2.0.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows_Installer_%7C_Docker_%7C_Pages-lightgrey)
-![Python](https://img.shields.io/badge/Python-3.10+-yellow)
-![React](https://img.shields.io/badge/React-18-61DAFB)
+![Python](https://img.shields.io/badge/Python-3.11+-yellow)
+![React](https://img.shields.io/badge/React-19-61DAFB)
 ![Deploy](https://img.shields.io/badge/Deploy-GitHub_Actions-2088FF?logo=githubactions&logoColor=white)
 
 <br>
@@ -77,7 +77,7 @@ cd rsd
 ويُفتح المتصفح تلقائيًا؛ أغلق النافذة لإيقافه.
 
 - **أول تشغيل** يجهّز كل شيء بنفسه (بيئة Python خاصة + بناء الواجهة) — بضع دقائق. بعدها ثوانٍ.
-- يتطلّب **Python 3.10+**، و**Node.js** لبناء الواجهة في أول تشغيل وبعد كل تحديث فقط.
+- يتطلّب **Python 3.11+**، و**Node.js 20.19+ أو 22.12+** لبناء الواجهة في أول تشغيل وبعد كل تحديث فقط.
 - إن كان المنفذ 8000 مشغولًا ببرنامج آخر ينتقل تلقائيًا إلى أول منفذ حرّ (8001، 8002…)؛
   وإن كان رصد نفسه يعمل يفتح المتصفح عليه بدل تشغيل نسخة ثانية.
 
@@ -89,11 +89,13 @@ cd rsd
 
 > لبناء المثبّت بنفسك: راجع **[`packaging/README.md`](packaging/README.md)** ثم شغّل `packaging\build_installer.bat`.
 
-> أولاً انسخ ملف المتغيّرات البيئية واملأ مفاتيحك (كلها اختيارية):
+> أولاً انسخ ملف المتغيّرات البيئية في **جذر المستودع** واملأ مفاتيحك (كلها اختيارية):
 > ```bash
 > cp .env.example .env
 > ```
-> راجع التعليقات داخل `.env.example` لمعرفة مصدر كل مفتاح.
+> راجع التعليقات داخل `.env.example` لمعرفة مصدر كل مفتاح. يُقرأ الملف من جذر
+> المستودع ثم من مجلد التشغيل (`backend/.env` يغلب إن وُجد) ثم، لتطبيق سطح
+> المكتب، من `%LOCALAPPDATA%\Rasad\.env`.
 
 ### 🐳 الطريقة B — Docker
 
@@ -133,7 +135,7 @@ npm run dev
 
 ### 📋 المتطلّبات | Requirements
 
-- **Python** 3.10+ و **Node.js** 18+ (للتطوير/البناء)
+- **Python** 3.11+ و **Node.js** 20.19+ أو 22.12+ (يشترطها Vite 7؛ CI وDocker على 22) — للتطوير/البناء
 - **مفتاح NewsAPI** (اختياري) — [احصل على مفتاح مجاني](https://newsapi.org/)
 - **رمز UCDP** (اختياري) — [توثيق UCDP](https://ucdp.uu.se/apidocs/) (الـ API لم يعد مفتوحاً بلا رمز)
 - **مفتاح FRED** (اختياري، لشريط الطاقة والأسواق) — [احصل على مفتاح مجاني](https://fred.stlouisfed.org/docs/api/api_key.html)
@@ -162,14 +164,14 @@ npm run dev
 | ⚔️ **قواعد عسكرية + 🛢️ أنابيب** | 19 قاعدة رئيسية + 10 خطوط نفط/غاز |
 | 📊 **مؤشر استخبارات الدول** | تقييم 0-100 لكل دولة بناءً على عدد ونوع الأحداث |
 | 🌐 **ثنائي اللغة** | عربي/إنجليزي كامل مع تبديل RTL/LTR |
-| 🖥️ **تطبيق سطح المكتب** *(جديد v1.5)* | مثبّت ويندوز كامل (PyInstaller + Inno Setup) — exe واحد يقدّم الـ API والواجهة معاً |
+| 🖥️ **تطبيق سطح المكتب** | مثبّت ويندوز كامل (PyInstaller + Inno Setup) — exe واحد يقدّم الـ API والواجهة معاً |
 | 📦 **PWA** | يعمل دون اتصال — تخزين مؤقت للبلاطات وقوام الكرة + Service Worker |
 | 💾 **ETag caching** | استجابات 304 Not Modified + Cache-Control حسب المسار |
 | 🧪 **اختبارات + CI** | pytest (backend) + vitest (frontend) عبر GitHub Actions عند كل PR |
 
 ---
 
-## 🖥️ تطبيق سطح المكتب *(جديد في v1.5)*
+## 🖥️ تطبيق سطح المكتب
 
 يمكن تغليف رصد كتطبيق ويندوز يُثبَّت بنقرة واحدة، دون حاجة لتثبيت Python أو Node لدى المستخدم.
 
@@ -350,7 +352,7 @@ rsd/
 │   ├── 📂 public/                  # favicon.ico + أيقونات PWA
 │   └── 📄 vite.config.js · index.html · package.json
 │
-├── 📂 packaging/                   # 🖥️ بناء مثبّت ويندوز (v1.5)
+├── 📂 packaging/                   # 🖥️ بناء مثبّت ويندوز
 │   ├── 📄 build_installer.bat      # بناء كامل بأمر واحد
 │   ├── 📄 rasad.spec               # مواصفات PyInstaller (onedir)
 │   ├── 📄 rasad.iss                # سكربت Inno Setup
@@ -452,63 +454,13 @@ rsd/
 
 ## 🔧 الإعدادات | Configuration
 
-أنشئ ملف `.env` في المجلد الرئيسي (أو في `%LOCALAPPDATA%\Rasad\.env` لتطبيق سطح المكتب):
-
-```env
-# مفاتيح API (اختيارية)
-NEWSAPI_KEY=your_newsapi_key_here
-
-# خلاصات Google Alerts — روابط شخصية بحسابك، تُعامَل كأسرار ولا تُوضع في المصدر.
-# الصيغة: "الاسم|التصنيف|الرابط" مفصولة بفواصل.
-GOOGLE_ALERT_FEEDS=
-
-# قاعدة البيانات (الافتراضي: ملف محلي ./rasad.db ؛ تطبيق سطح المكتب يستخدم %LOCALAPPDATA%\Rasad)
-DATABASE_URL=sqlite+aiosqlite:///./rasad.db
-
-# فترات التحديث (بالثواني)
-# رمز UCDP — بدونه يُتخطّى المصدر ويظهر disabled في /api/sources
-UCDP_ACCESS_TOKEN=
-
-# مفتاح FRED المجاني — أسعار الطاقة وVIX اليومية. بدونه يُتخطّى الجامع
-# وتعرض الواجهة «أضف FRED_API_KEY للتفعيل». https://fred.stlouisfed.org/docs/api/api_key.html
-FRED_API_KEY=
-
-# سلاسل السبب والأثر: أدنى ثقة يُخزَّن بها رابط (0-1)
-CAUSAL_MIN_CONFIDENCE=0.4
-# محجوز لخطوة اختيارية لاحقة بنموذج لغوي — غير منفّذة؛ ضبطها لا يرسل شيئاً لأي خدمة
-LLM_ASSIST_ENABLED=false
-
-# فترات التحديث (بالثواني)
-GDELT_INTERVAL=900        # 15 دقيقة
-NEWSAPI_INTERVAL=3600     # ساعة (الحصة المجانية 100 طلب/يوم)
-RSS_INTERVAL=120          # دقيقتان
-UCDP_INTERVAL=86400       # يوم
-ADSB_INTERVAL=30          # 30 ثانية
-
-# الخادم — الافتراضي محلي فقط
-BACKEND_HOST=127.0.0.1
-BACKEND_PORT=8000
-
-# أصول CORS المسموح لها (مفصولة بفواصل)
-CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-
-# مفتاح حماية /api/refresh — فارغ = معطّل (مناسب للتشغيل المحلي).
-# عند ضبطه أرسل الترويسة X-API-Key من العميل (VITE_API_KEY في الواجهة).
-# ملاحظة: /api/refresh يشترط دائماً الترويسة X-Rasad-Client: 1 (حارس CSRF).
-API_KEY=
-
-# حدّ المعدل لكل IP على مسارات /api
-RATE_LIMIT_REQUESTS=120
-RATE_LIMIT_WINDOW_SECONDS=60
-
-# صلاحية نتائج النقاط الثقيلة (التزامن، السلاسل، العدسة، التقرير) بالثواني.
-# تُبطَل فور تغيّر البيانات (دورة التحليل، جمع الأسواق، التنظيف). 0 = معطّلة.
-RESPONSE_CACHE_SECONDS=60
-
-# أسماء المضيف المقبولة في ترويسة Host فوق الافتراضية (الحلقة المحلية ومضيفات
-# CORS_ORIGINS وBACKEND_HOST) — حماية من DNS rebinding. أضِف نطاقك عند النشر.
-ALLOWED_HOSTS=
-```
+كل الإعدادات متغيّرات بيئية تُقرأ من `.env` (جذر المستودع، ثم `backend/.env`، ثم
+`%LOCALAPPDATA%\Rasad\.env` لتطبيق سطح المكتب — الأخير يغلب). **المرجع الوحيد
+لكل متغيّر وقيمته الافتراضية ومصدر مفتاحه هو [`.env.example`](.env.example)**؛
+لا يُكرَّر هنا كي لا تتباعد النسختان. أبرزها: `NEWSAPI_KEY` و`UCDP_ACCESS_TOKEN` +
+`UCDP_DATASET` و`FRED_API_KEY` و`GOOGLE_ALERT_FEEDS` (مفاتيح اختيارية)،
+و`BACKEND_HOST`/`CORS_ORIGINS`/`ALLOWED_HOSTS`/`API_KEY` (الشبكة)،
+و`*_INTERVAL` (فواصل الجمع)، و`RESPONSE_CACHE_SECONDS` و`CAUSAL_MIN_CONFIDENCE`.
 
 > ⚠️ **قبل عرض الخادم على شبكة:** الـ API بلا حسابات مستخدمين. اضبط `API_KEY`،
 > وأبقِ `BACKEND_HOST=127.0.0.1` خلف وكيل عكسي يوفّر TLS، وأضِف اسم النطاق الذي
@@ -580,30 +532,16 @@ git push origin feat/my-feature   # ثم افتح Pull Request
 
 ## 🗺️ خارطة الطريق | Roadmap
 
-<details>
-<summary>✅ الإصدارات السابقة (v1.1 → v1.4)</summary>
+الإصدار الحالي **v2.0** (الرصد النووي والإشعاعي، عدسة الأثر على المملكة، الأسواق،
+سلاسل السبب والأثر). تاريخ الإصدارات وما نُفِّذ في كل مراجعة في
+[`docs/reviews/`](docs/reviews/).
 
-- **v1.1** — طبقة إيران OSINT + تصنيف الثقة + متابعة القادة
-- **v1.2** — المنشآت النووية + التنبيهات الصوتية + نشر GitHub Pages
-- **v1.3** — كرة 3D + i18n عربي/إنجليزي + مؤشر استخبارات الدول + قواعد/أنابيب
-- **v1.4** — اختبارات (pytest + vitest) + CI + ETag caching + PWA
-
-</details>
-
-### ✅ v1.5 — تطبيق سطح المكتب وتحسينات (الحالي)
-- [x] 🖥️ مثبّت ويندوز كامل (PyInstaller + Inno Setup) — exe واحد يقدّم الـ API والواجهة
-- [x] 🎨 أيقونة تطبيق (طابع رادار) + favicon
-- [x] 🖼️ تحسين عرض 3D — نقاط متوهّجة + حلقات رادار للأحداث العاجلة (بدل الأعمدة)
-- [x] 🔔 صوت تنبيه جرسي محسّن (بدل الموجة المربّعة القاسية)
-- [x] 🐛 إصلاحات: ظهور اللوحة الجانبية في وضع 3D · تنظيف `docker-compose` · `youtube-nocookie`
-
-### 🔮 v2.0 — ذكاء وتحليل
-- [ ] 🤖 **Ollama/Qwen AI** — تصنيف وتلخيص ذكي للأخبار العربية
+### 🔮 القادم
+- [ ] 🤖 **Ollama/Qwen AI** — تصنيف وتلخيص ذكي للأخبار العربية (خطوة اختيارية فوق المحرّك القاعدي)
 - [ ] 🧠 **تحليل المشاعر** والكيانات (NER)
 - [ ] 📡 **Telegram** + **Twitter/X** كمصادر إضافية
 - [ ] 🎯 **Signal Convergence** — اكتشاف تقارب الإشارات تلقائياً
-- [ ] 📄 **تقارير PDF** تلقائية
-- [ ] 📍 تحديد موقع جغرافي دقيق (بدل مراكز الدول)
+- [ ] 📍 تحديد موقع جغرافي أدق (بدل مراكز الدول)
 
 > 💡 خارطة الطريق مستوحاة جزئياً من المشروع المفتوح [worldmonitor](https://github.com/koala73/worldmonitor) كمصدر أفكار معمارية (مع الالتزام بترخيص رصد MIT).
 

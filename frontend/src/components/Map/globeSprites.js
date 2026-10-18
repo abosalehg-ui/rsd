@@ -11,6 +11,7 @@
  * واحد مشترك لكل العلامات.
  */
 import { Sprite, SpriteMaterial, CanvasTexture, SRGBColorSpace, Color } from 'three';
+import { THEME } from '../../utils/constants';
 
 const TEX_SIZE = 128;
 
@@ -95,7 +96,7 @@ export function planeTexture() {
   ctx.lineWidth = 7;
   ctx.lineJoin = 'round';
   ctx.stroke();
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = THEME.textBright;
   ctx.fill();
   planeTex = toTexture(c);
   return planeTex;
@@ -129,7 +130,7 @@ export function countTexture(count, color) {
   ctx.stroke();
 
   const label = count > 99 ? '99+' : String(count);
-  ctx.fillStyle = '#0a0e17';
+  ctx.fillStyle = THEME.bg;
   ctx.font = `bold ${label.length > 2 ? 40 : 52}px monospace`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
